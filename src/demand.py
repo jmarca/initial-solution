@@ -52,6 +52,9 @@ class Demand():
         assert (len(self.equivalence) == len(origins) + len(destinations))
 
 
+    def get_node_list(self):
+        return self.equivalence.index.view(int)
+
     def get_number_nodes(self):
         return (len(self.equivalence))
 
