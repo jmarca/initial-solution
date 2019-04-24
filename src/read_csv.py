@@ -14,12 +14,10 @@ def load_demand_from_csv(filename):
     Returns: a pandas.DataFrame you can use, or just save as json for future runs
 
     """
-    event_csv = pd.read_csv(filename)
 
+    demand = pd.read_csv(filename,names=['o','d','early','late'],header=1)
 
-    # do checks of data here
-
-    return event_csv
+    return demand
 
 def load_matrix_from_csv(filename):
     """extract a usable data structure from a csv file
@@ -31,11 +29,6 @@ def load_matrix_from_csv(filename):
 
     """
     matrix = pd.read_csv(filename,header=None)
-    assert (matrix.ndim == 2)
-    # assert (matrix.size == 100 * 100)
-    # assert (matrix.iloc[0,0] == 0)
-    # assert (matrix.iloc[0,1] == 875)
-    # assert (matrix.iloc[1,0] == 874)
     return matrix
 
 def travel_time(speed,matrix):
