@@ -42,7 +42,7 @@ class Demand():
         assert (len(self.equivalence) == len(origins) + len(destinations))
 
     def get_number_nodes(self):
-        return (demand.destination.max() + 1)
+        return (len(self.equivalence))
 
     def get_map_node(self,demand_node):
         return (self.equivalence.iat[demand_node].mapnode)
