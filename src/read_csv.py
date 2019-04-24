@@ -15,7 +15,7 @@ def load_demand_from_csv(filename):
 
     """
 
-    demand = pd.read_csv(filename,names=['o','d','early','late'],header=1)
+    demand = pd.read_csv(filename,names=['from_node','to_node','early','late'],header=1)
 
     return demand
 
