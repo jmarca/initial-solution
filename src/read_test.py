@@ -6,6 +6,7 @@ import argparse
 import read_csv as reader
 import vehicles as V
 import demand as D
+import evaluators as E
 
 def main():
     """Entry point of the program."""
@@ -56,8 +57,55 @@ def main():
     # Create the routing index manager.
     # note that depot_index isn't an int, apparently.  have to cast
     # print(len(matrix), args.numvehicles, int(vehicles.vehicles[0].depot_index))
+    # also, assuming here that all depots are in the same place
+    # and that vehicles all return to the same depot
     manager = pywrapcp.RoutingIndexManager(
-        len(matrix), args.numvehicles, int(vehicles.vehicles[0].depot_index))
+        int(demand.get_number_nodes()),
+        int(args.numvehicles),
+        int(vehicles.vehicles[0].depot_index))
+
+    # Create Routing Model.
+    routing = pywrapcp.RoutingModel(manager)
+
+    # Define cost of each arc using travel time + service time
+    time_callback = E.create_time_callback(minutes_matrix,
+                                           demand)
+
+    transit_callback_index = routing.RegisterTransitCallback(time_callback)
+    routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
+    # might want to remove service time from the above
+
+    # Add Time dimension for time windows, precedence constraints
+    dimension_name = 'Time'
+    routing.AddDimension(
+        transit_callback_index, # same "cost" evaluator as above
+        0,  # no slack
+        args.horizon,  # vehicle maximum travel time
+        True,  # start cumul to zero
+        dimension_name)
+    time_dimension = routing.GetDimensionOrDie(dimension_name)
+    # this is new in v7.0, not sure what it does yet
+    time_dimension.SetGlobalSpanCostCoefficient(100)
+
+    # Define Transportation Requests.
+
+    # [START pickup_delivery_constraint]
+    def pd_constraint(record):
+        pickup_index = manager.NodeToIndex(record.origin)
+        delivery_index = manager.NodeToIndex(record.destination)
+        routing.AddPickupAndDelivery(pickup_index, delivery_index)
+        routing.solver().Add(
+            routing.VehicleVar(pickup_index) ==
+            routing.VehicleVar(delivery_index))
+        routing.solver().Add(
+            time_dimension.CumulVar(pickup_index) <=
+            time_dimension.CumulVar(delivery_index))
+
+    # apply that to demand pandas data frame
+    print('apply pickup and delivery constraints')
+    demand.demand.apply(pd_constraint,axis=1)
+    print('done')
+
 
 
 if __name__ == '__main__':
