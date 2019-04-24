@@ -5,6 +5,7 @@ import argparse
 
 import read_csv as reader
 import vehicles as V
+import demand as D
 
 def main():
     """Entry point of the program."""
@@ -20,16 +21,20 @@ def main():
 
     parser.add_argument('-v,--vehicles', type=int, dest='numvehicles', default=100,
                         help='Number of vehicles to create.  Default is 100.')
+    parser.add_argument('--pickup_time', type=int, dest='pickup_time', default=15,
+                        help='Pick up time in minutes.  Default is 15 minutes.')
+    parser.add_argument('--dropoff_time', type=int, dest='dropoff_time', default=15,
+                        help='Drop off time in minutes.  Default is 15 minutes.')
 
     args = parser.parse_args()
     matrix = reader.load_matrix_from_csv(args.matrixfile)
-    # assert (matrix.ndim == 2)
-    # assert (matrix.size == 100 * 100)
-    # assert (matrix.iloc[0,0] == 0)
-    # assert (matrix.iloc[0,1] == 875)
-    # assert (matrix.iloc[1,0] == 874)
+    assert (matrix.ndim == 2)
+    assert (matrix.size == 100 * 100)
+    assert (matrix.iloc[0,0] == 0)
+    assert (matrix.iloc[0,1] == 875)
+    assert (matrix.iloc[1,0] == 874)
     # print(matrix.head())
-    assert (len(matrix[0] == 100))
+    assert (len(matrix[0]) == 100)
     # will need a simple 2D array for calling into ortools...safer that way
     # dist_lookup = reader.make_simple_matrix(matrix)
     # print(dist_lookup[0,1])
@@ -38,13 +43,10 @@ def main():
     # print(minutes_matrix.head())
     # tests?
 
-    demand = reader.load_demand_from_csv(args.demand)
-    assert (demand.early.min() > 0)
-    assert (demand.early.max() < args.horizon)
-    assert (demand.late.min() > 0)
-    assert (demand.late.max() < args.horizon)
+    demand = D.Demand(args.demand,args.horizon)
 
     # print(demand.head())
+
 
     # vehicles:
     vehicles = V.Vehicles(args.numvehicles)
