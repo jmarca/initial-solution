@@ -26,7 +26,7 @@ class Demand():
         assert (demand.late.max() < horizon)
 
         # create unique nodes for origins, destinations
-        demand['origin'] = range(len(demand.index))
+        demand['origin'] = range(1,len(demand.index)+1)
         demand['destination'] = demand['origin'].add(len(demand.index))
 
         # for now, just use identical pickup and dropoff times
