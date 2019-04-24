@@ -137,7 +137,7 @@ def main():
     # i think this is the default
     # parameters.use_light_propagation = False
     # set to true to see the dump of search iterations
-    parameters.log_search = True
+    search_parameters.log_search = pywrapcp.BOOL_TRUE
 
     # add disjunctions to deliveries to make it not fail
     penalty = 1000000  # The cost for dropping a node from the plan.
@@ -146,7 +146,7 @@ def main():
 
     print('Calling the solver')
     # [START solve]
-    assignment = routing.SolveWithParameters(parameters)
+    assignment = routing.SolveWithParameters(search_parameters)
     # [END solve]
 
     if assignment:
