@@ -9,6 +9,7 @@ import read_csv as reader
 import vehicles as V
 import demand as D
 import evaluators as E
+import solution_output as SO
 
 def main():
     """Entry point of the program."""
@@ -39,6 +40,7 @@ def main():
     assert (matrix.size == 100 * 100)
     assert (matrix.iloc[0,0] == 0)
     assert (matrix.iloc[0,1] == 875)
+    assert (matrix.loc[0,1] == 875)
     assert (matrix.iloc[1,0] == 874)
     # print(matrix.head())
     assert (len(matrix[0]) == 100)
@@ -47,11 +49,22 @@ def main():
     # print(dist_lookup[0,1])
 
     minutes_matrix = reader.travel_time(args.speed/60,matrix)
+
     # print(minutes_matrix.head())
     # tests?
 
     demand = D.Demand(args.demand,args.horizon)
-
+    # # loop and print out OD pair distances, travel times
+    # # to inspect O to D travel times, see that they are
+    # # often > 11 hrs
+    # for idx in demand.demand.index:
+    #     record = demand.demand.loc[idx]
+    #     from_node = record.from_node
+    #     to_node   = record.to_node
+    #     print(matrix[from_node][to_node], 'miles,',
+    #           minutes_matrix[from_node][to_node], 'minutes',
+    #           int(minutes_matrix[from_node][to_node]/60), 'hours')
+    # assert 0
     # print(demand.head())
 
 
@@ -83,22 +96,40 @@ def main():
                                                    demand),
                             manager)
 
+    dist_callback = partial(E.create_dist_callback(matrix,
+                                                   demand),
+                            manager)
+
     transit_callback_index = routing.RegisterTransitCallback(time_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
     # might want to remove service time from the above
 
     # Add Time dimension for time windows, precedence constraints
-    dimension_name = 'Time'
+    time_dimension_name = 'Time'
     routing.AddDimension(
         transit_callback_index, # same "cost" evaluator as above
         args.horizon,  # slack for full range
         args.horizon,  # max time is end of time horizon
         True,  # start cumul to zero
-        dimension_name)
-    time_dimension = routing.GetDimensionOrDie(dimension_name)
+        time_dimension_name)
+    time_dimension = routing.GetDimensionOrDie(time_dimension_name)
     # this is new in v7.0, not sure what it does yet
     # time_dimension.SetGlobalSpanCostCoefficient(100)
     # Define Transportation Requests.
+
+    demand_evaluator_index = routing.RegisterUnaryTransitCallback(
+        partial(E.create_demand_callback(demand), manager))
+
+    # Add capacity dimension.  One load per vehicle
+    cap_dimension_name = 'Capacity'
+    vehicle_capacities = [veh.capacity for veh in vehicles.vehicles]
+    routing.AddDimensionWithVehicleCapacity(
+        demand_evaluator_index,
+        0,  # null capacity slack
+        vehicle_capacities,
+        True,  # start cumul to zero
+        cap_dimension_name)
+
 
     # [START pickup_delivery_constraint]
     print('apply pickup and delivery constraints')
@@ -123,6 +154,17 @@ def main():
         early = int(record.early)
         late = int(record.late)
         time_dimension.CumulVar(pickup_index).SetRange(early, late)
+        routing.AddToAssignment(time_dimension.SlackVar(pickup_index))
+    # Add time window constraints for each vehicle start node
+    # and 'copy' the slack var in the solution object (aka Assignment) to print it
+    for vehicle in vehicles.vehicles:
+        vehicle_id = vehicle.index
+        index = routing.Start(vehicle_id)
+        time_dimension.CumulVar(index).SetRange(vehicle.time_window[0],
+                                                vehicle.time_window[1])
+        routing.AddToAssignment(time_dimension.SlackVar(index))
+
+
 
     # Setting first solution heuristic.
     # [START parameters]
@@ -164,6 +206,8 @@ def main():
         #          '_assignment.ass')
 
         print('The Objective Value is {0}'.format(assignment.ObjectiveValue()))
+        print('details:')
+        SO.print_solution(demand,dist_callback,vehicles,manager,routing,assignment)
 
 
     else:
