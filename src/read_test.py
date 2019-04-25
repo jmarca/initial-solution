@@ -1,5 +1,7 @@
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
+from functools import partial
+
 import argparse
 #import os
 
@@ -60,7 +62,7 @@ def main():
     # also, assuming here that all depots are in the same place
     # and that vehicles all return to the same depot
     manager = pywrapcp.RoutingIndexManager(
-        int(demand.get_number_nodes()),
+        int(demand.get_number_nodes() + 1 ), # add 1 for 1 depot.
         int(args.numvehicles),
         int(vehicles.vehicles[0].depot_index))
 
@@ -73,8 +75,9 @@ def main():
     #solver = routing.solver()
 
     # Define cost of each arc using travel time + service time
-    time_callback = E.create_time_callback(minutes_matrix,
-                                           demand)
+    time_callback = partial(E.create_time_callback(minutes_matrix,
+                                                   demand),
+                            manager)
 
     transit_callback_index = routing.RegisterTransitCallback(time_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
@@ -108,14 +111,14 @@ def main():
             time_dimension.CumulVar(delivery_index))
 
 
-    # [START time_window_constraint]
-    print('apply time window  constraints')
-    for idx in demand.demand.index:
-        record = demand.demand.iloc[idx]
-        pickup_index = manager.NodeToIndex(record.origin)
-        early = int(record.early)
-        late = int(record.late)
-        time_dimension.CumulVar(pickup_index).SetRange(early, late)
+    # # [START time_window_constraint]
+    # print('apply time window  constraints')
+    # for idx in demand.demand.index:
+    #     record = demand.demand.iloc[idx]
+    #     pickup_index = manager.NodeToIndex(record.origin)
+    #     early = int(record.early)
+    #     late = int(record.late)
+    #     time_dimension.CumulVar(pickup_index).SetRange(early, late)
 
     # Setting first solution heuristic.
     # [START parameters]

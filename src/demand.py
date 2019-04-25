@@ -51,7 +51,6 @@ class Demand():
         self.equivalence = origins.append(destinations)
         assert (len(self.equivalence) == len(origins) + len(destinations))
 
-
     def get_node_list(self):
         return self.equivalence.index.view(int)
 
@@ -59,7 +58,7 @@ class Demand():
         return (len(self.equivalence))
 
     def get_map_node(self,demand_node):
-        return (self.equivalence.iloc[demand_node].mapnode)
+        return (self.equivalence.loc[demand_node].mapnode)
 
     def get_service_time(self,demand_node):
-        return (self.equivalence.iloc[demand_node].service_time)
+        return (self.equivalence.loc[demand_node].service_time)

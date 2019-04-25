@@ -1,5 +1,6 @@
 # create simple 2D array for distance lookup?
 # Define cost of each arc.
+import numpy as np
 
 def create_time_callback(travel_minutes_matrix,
                          demand):
@@ -7,17 +8,26 @@ def create_time_callback(travel_minutes_matrix,
 
     # preprocess travel and service time to speed up solver
     _total_time = {}
-    for from_node in range(0, demand.get_number_nodes()):
+    depot_list = np.array([0]) # hack---will fail when depots is not just node 0
+    node_list = np.append(depot_list,demand.get_node_list())
+    for from_node in node_list:
         _total_time[from_node] = {}
-        mapnode_from = demand.get_map_node(from_node)
-        for to_node in range(0, demand.get_number_nodes()):
+        mapnode_from = 0
+        service_time = 0
+        if (from_node>0):
+            mapnode_from = demand.get_map_node(from_node)
+            service_time = demand.get_service_time(from_node)
+        for to_node in node_list:
             if from_node == to_node:
                 _total_time[from_node][to_node] = 0
             else:
-                mapnode_to = demand.get_map_node(to_node)
+                mapnode_to = 0
+                if(to_node > 0):
+                    # print(to_node)
+                    mapnode_to = demand.get_map_node(to_node)
                 _total_time[from_node][to_node] = int(
                     travel_minutes_matrix.iloc[mapnode_from,mapnode_to]
-                    + demand.get_service_time(from_node)
+                    + service_time
                     # adding service time at both ends would double count
                     # + demand.service_time(to_node)
                 )
