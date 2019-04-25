@@ -29,6 +29,10 @@ def main():
     parser.add_argument('--dropoff_time', type=int, dest='dropoff_time', default=15,
                         help='Drop off time in minutes.  Default is 15 minutes.')
 
+    parser.add_argument('-t, --timelimit', type=int, dest='timelimit', default=5,
+                        help='Maximum run time for solver, in minutes.  Default is 5 minutes.')
+
+
     args = parser.parse_args()
     matrix = reader.load_matrix_from_csv(args.matrixfile)
     assert (matrix.ndim == 2)
@@ -99,7 +103,7 @@ def main():
     # [START pickup_delivery_constraint]
     print('apply pickup and delivery constraints')
     for idx in demand.demand.index:
-        record = demand.demand.iloc[idx]
+        record = demand.demand.loc[idx]
         pickup_index = manager.NodeToIndex(record.origin)
         delivery_index = manager.NodeToIndex(record.destination)
         routing.AddPickupAndDelivery(pickup_index, delivery_index)
@@ -111,36 +115,36 @@ def main():
             time_dimension.CumulVar(delivery_index))
 
 
-    # # [START time_window_constraint]
-    # print('apply time window  constraints')
-    # for idx in demand.demand.index:
-    #     record = demand.demand.iloc[idx]
-    #     pickup_index = manager.NodeToIndex(record.origin)
-    #     early = int(record.early)
-    #     late = int(record.late)
-    #     time_dimension.CumulVar(pickup_index).SetRange(early, late)
+    # [START time_window_constraint]
+    print('apply time window  constraints')
+    for idx in demand.demand.index:
+        record = demand.demand.loc[idx]
+        pickup_index = manager.NodeToIndex(record.origin)
+        early = int(record.early)
+        late = int(record.late)
+        time_dimension.CumulVar(pickup_index).SetRange(early, late)
 
     # Setting first solution heuristic.
     # [START parameters]
     print('set up model parameters')
     # [START parameters]
-    search_parameters = pywrapcp.DefaultRoutingSearchParameters()
-    search_parameters.first_solution_strategy = (
+    parameters = pywrapcp.DefaultRoutingSearchParameters()
+    parameters.first_solution_strategy = (
         routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
 
     # Disabling path Large Neighborhood Search is the default behaviour.  enable
-    # parameters.local_search_operators.use_path_lns = pywrapcp.BOOL_TRUE
-    # parameters.local_search_operators.use_inactive_lns = pywrapcp.BOOL_TRUE
+    parameters.local_search_operators.use_path_lns = pywrapcp.BOOL_TRUE
+    parameters.local_search_operators.use_inactive_lns = pywrapcp.BOOL_TRUE
     # Routing: forbids use of TSPOpt neighborhood,
     # parameters.local_search_operators.use_tsp_opt = pywrapcp.BOOL_FALSE
     # set a time limit
-    # parameters.time_limit.seconds = 5 * 60   # 5 minutes
+    parameters.time_limit.seconds = args.timelimit * 60   # timelimit minutes
     # sometimes helps with difficult solutions
-    # parameters.lns_time_limit_ms = 1000  # 1000 milliseconds
+    parameters.lns_time_limit.seconds = 1000  # 1000 milliseconds
     # i think this is the default
     # parameters.use_light_propagation = False
     # set to true to see the dump of search iterations
-    search_parameters.log_search = pywrapcp.BOOL_TRUE
+    parameters.log_search = pywrapcp.BOOL_TRUE
 
     # add disjunctions to deliveries to make it not fail
     penalty = 1000000  # The cost for dropping a node from the plan.
@@ -149,7 +153,7 @@ def main():
 
     print('Calling the solver')
     # [START solve]
-    assignment = routing.SolveWithParameters(search_parameters)
+    assignment = routing.SolveWithParameters(parameters)
     # [END solve]
 
     if assignment:
