@@ -25,7 +25,7 @@ def print_solution(demand,
             print('{}: Unperformed'.format(brk.Var().Name()))
 
     total_distance = 0
-    total_load = 0
+    total_load_served = 0
     total_time = 0
     capacity_dimension = routing.GetDimensionOrDie('Capacity')
     time_dimension = routing.GetDimensionOrDie('Time')
@@ -46,6 +46,7 @@ def print_solution(demand,
             slack_var = time_dimension.SlackVar(index)
 
             node = manager.IndexToNode(index)
+            mapnode = demand.get_map_node(node)
             load = assignment.Value(load_var)
             min_time =  timedelta(minutes=assignment.Min(time_var))
             max_time =  timedelta(minutes=assignment.Max(time_var))
@@ -57,8 +58,9 @@ def print_solution(demand,
                 slack_var_min = assignment.Min(slack_var)
                 slack_var_max = assignment.Max(slack_var)
 
-            plan_output += ' {0} Load {1}  Time({2},{3}) Slack({4},{5}) Link time({6}) Link distance({7} mi)\n ->'.format(
+            plan_output += 'node {0}, mapnode {1}, Load {2},  Time({3},{4}) Slack({5},{6}) Link time({7}) Link distance({8} mi)\n ->'.format(
                 node,
+                mapnode,
                 load,
                 min_time,
                 max_time,
@@ -92,8 +94,8 @@ def print_solution(demand,
             timedelta(minutes=assignment.Value(time_var)))
         print(plan_output)
         total_distance += distance
-        # total_load += 0
+        total_load_served += pickups
         total_time += assignment.Value(time_var)
     print('Total Distance of all routes: {0} miles'.format(total_distance))
-    # print('Total Load of all routes: {}'.format(total_load))
+    print('Total Loads picked up by all routes: {}'.format(total_load_served))
     print('Total Time of all routes: {0}'.format(timedelta(minutes=total_time)))

@@ -189,7 +189,7 @@ def main():
     parameters.log_search = pywrapcp.BOOL_TRUE
 
     # add disjunctions to deliveries to make it not fail
-    penalty = 1000000  # The cost for dropping a node from the plan.
+    penalty = 10000000  # The cost for dropping a node from the plan.
     droppable_nodes = [routing.AddDisjunction([manager.NodeToIndex(c)], penalty) for c in demand.get_node_list()]
 
 
