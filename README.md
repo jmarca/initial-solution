@@ -91,3 +91,29 @@ For example, something like (untested)
 conda install pip
 pip install ortools
 ```
+
+# Run solver
+
+The solver right now is still in initial stages.  All command line
+options are parsed using argparse, and should have help messages.
+
+My typical command line while testing is
+
+```
+python src/read_test.py -m data/distance_matrix.csv --speed 60 -d data/demand.csv
+```
+
+At the moment, the output is rather underwhelming, as it just tells
+you the overall cost of the solution (travel time).
+
+If you run with realistic speeds, some trips are dropped.  Without any
+diagnostics on the output implemented yet, my guess is that the truck
+cannot get to the origin in time before the time window ends, OR
+cannot return to the depot from the destination before the time
+horizon expires.
+
+Note that this is without the proper break rules in place.  Things
+will get worse when that happens.
+
+Most likely will need to either expand the number of depots, or else
+expand the maximum time horizon.
