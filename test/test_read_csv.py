@@ -6,6 +6,7 @@ def test_load_demand():
     assert (d.early.max() < 10000)
     assert (d.late.min() > 0)
     assert (d.late.max() < 10000)
+    assert (len(d) == 5)
 
 
 def test_load_distance_matrix():

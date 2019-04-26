@@ -20,11 +20,6 @@ class Demand():
                  dropoff_time=15):
 
         demand = reader.load_demand_from_csv(filename)
-        assert (demand.early.min() > 0)
-        assert (demand.early.max() < horizon)
-        assert (demand.late.min() > 0)
-        assert (demand.late.max() < horizon)
-
         # create unique nodes for origins, destinations
         demand['origin'] = range(1,len(demand.index)+1)
         demand['destination'] = demand['origin'].add(len(demand.index))
@@ -49,7 +44,6 @@ class Demand():
 
         # can look up a map node given a model node
         self.equivalence = origins.append(destinations)
-        assert (len(self.equivalence) == len(origins) + len(destinations))
 
     def get_node_list(self):
         return self.equivalence.index.view(int)
