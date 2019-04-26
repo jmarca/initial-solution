@@ -65,7 +65,7 @@ def create_time_callback(travel_minutes_matrix,
     # return the callback, which will need to be set up with partial
     return time_callback
 
-def create_dist_callback(travel_minutes_matrix,
+def create_dist_callback(dist_matrix,
                          demand):
     """ create a callback function for dist """
 
@@ -87,7 +87,7 @@ def create_dist_callback(travel_minutes_matrix,
                     # print(to_node)
                     mapnode_to = demand.get_map_node(to_node)
                 _total_dist[from_node][to_node] = int(
-                    travel_minutes_matrix.loc[mapnode_from,mapnode_to]
+                    dist_matrix.loc[mapnode_from,mapnode_to]
                 )
 
     def dist_callback(manager, from_index, to_index):
