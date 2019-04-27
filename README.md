@@ -117,3 +117,52 @@ will get worse when that happens.
 
 Most likely will need to either expand the number of depots, or else
 expand the maximum time horizon.
+
+The test coded up in `test/test_output.py` uses a time horizon of
+20,000 minutes, or about two weeks, and all trips are served.
+Previously I tried 10,000 and one trip got dropped, using a speed of
+60mph.
+
+So a longer time horizon should do the trick if trips are being
+dropped.
+
+
+
+# Tests
+
+Tests are run with pytest.
+
+```
+~$ pytest --cov=src
+========================= test session starts ========================
+platform linux -- Python 3.7.3, pytest-4.4.1, py-1.8.0, pluggy-0.9.0
+rootdir: /work, inifile: setup.cfg
+plugins: cov-2.6.1
+collected 7 items
+
+test/test_demand.py .                                           [ 14%]
+test/test_evaluators.py .                                       [ 28%]
+test/test_output.py .                                           [ 42%]
+test/test_read_csv.py ...                                       [ 85%]
+test/test_vehicles.py .                                         [100%]
+
+----------- coverage: platform linux, python 3.7.3-final-0 -----------
+Name                     Stmts   Miss  Cover
+--------------------------------------------
+src/demand.py               28      0   100%
+src/evaluators.py           57      0   100%
+src/read_csv.py             11      0   100%
+src/read_test.py            77     66    14%
+src/solution_output.py      62      4    94%
+src/vehicles.py             11      0   100%
+--------------------------------------------
+TOTAL                      246     70    72%
+
+
+======================== 7 passed in 0.87 seconds ====================
+```
+
+The coverage of `solution_output.py` is missing the bits on break output,
+because the code doesn't yet have breaks implemented.  The coverage of
+`read_test.py` is low because it isn't being tested yet.  (Actually, I
+mostly copied its guts into the test for solution output.)
