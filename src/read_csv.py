@@ -15,7 +15,7 @@ def load_demand_from_csv(filename):
 
     """
 
-    demand = pd.read_csv(filename,names=['from_node','to_node','early','late'],header=1)
+    demand = pd.read_csv(filename,names=['from_node','to_node','early','late'],header=0)
 
     return demand
 
@@ -34,18 +34,3 @@ def load_matrix_from_csv(filename):
 def travel_time(speed,matrix):
     """convert the distance matrix into a travel time matrix"""
     return matrix.copy().div(speed)
-
-def make_simple_matrix(matrix):
-    """ convert a square pandas data frame into a simple matrix """
-    froms_length = matrix.iloc[:,0].size
-    tos_length = matrix.iloc[0,:].size
-    assert(froms_length == tos_length)
-    number = froms_length
-    distmat = np.zeros((number,number))
-    for frm_idx in range(number):
-        for to_idx in range(number):
-            if frm_idx != to_idx:
-                distmat[frm_idx,to_idx] = matrix.iloc[frm_idx,to_idx]
-    # assert (distmat[0,1] == 875)
-    # assert (distmat[1,0] == 874)
-    return distmat

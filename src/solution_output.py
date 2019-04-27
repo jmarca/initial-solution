@@ -11,7 +11,7 @@ def print_solution(demand,
                    assignment):  # pylint:disable=too-many-locals
     """Prints assignment on console"""
     print('Objective: {}'.format(assignment.ObjectiveValue()))
-
+    num_pickup_nodes = demand.get_number_nodes() / 2
     print('Breaks:')
     intervals = assignment.IntervalVarContainer()
     for i in xrange(intervals.Size()):
@@ -52,9 +52,9 @@ def print_solution(demand,
             max_time =  timedelta(minutes=assignment.Max(time_var))
             slack_var_min = 0
             slack_var_max = 0
-            if (node < 100 and node > 0):
+            if (node < num_pickup_nodes and node > 0):
                 pickups += 1
-            if node < 100:
+            if node < num_pickup_nodes:
                 slack_var_min = assignment.Min(slack_var)
                 slack_var_max = assignment.Max(slack_var)
 

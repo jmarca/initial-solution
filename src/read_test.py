@@ -36,18 +36,6 @@ def main():
 
     args = parser.parse_args()
     matrix = reader.load_matrix_from_csv(args.matrixfile)
-    assert (matrix.ndim == 2)
-    assert (matrix.size == 100 * 100)
-    assert (matrix.iloc[0,0] == 0)
-    assert (matrix.iloc[0,1] == 875)
-    assert (matrix.loc[0,1] == 875)
-    assert (matrix.iloc[1,0] == 874)
-    # print(matrix.head())
-    assert (len(matrix[0]) == 100)
-    # will need a simple 2D array for calling into ortools...safer that way
-    # dist_lookup = reader.make_simple_matrix(matrix)
-    # print(dist_lookup[0,1])
-
     minutes_matrix = reader.travel_time(args.speed/60,matrix)
 
     # print(minutes_matrix.head())
