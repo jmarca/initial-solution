@@ -4,13 +4,7 @@ import numpy as np
 
 def create_demand_callback(demand):
     """ create a callback function for demand """
-    _demand = {}
-    # if node supplied is not one of the O D nodes, return 0 for demand
-    for idx in demand.demand.index:
-        record = demand.demand.loc[idx]
-        # from node has 1 supply, to node has -1 demand
-        _demand[record.origin]=int(1)
-        _demand[record.destination]=int(-1)
+    _demand = demand.get_demand_map()
 
     def demand_callback(manager, index):
         """Returns the demand at the index, if defined, or zero."""

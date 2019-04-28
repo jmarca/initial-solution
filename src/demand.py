@@ -36,11 +36,16 @@ class Demand():
                                                     'origin':'modelnode',
                                                     'pickup_time':'service_time'})
         origins.set_index('modelnode',inplace=True)
+        origins['demand'] = 1
+        self.origins = origins # for queries---is this origin or not
+
         destinations = self.demand.loc[:,['to_node','destination','dropoff_time']]
         destinations = destinations.rename(index=str,columns={'to_node':'mapnode',
                                                               'destination':'modelnode',
                                                               'dropoff_time':'service_time'})
         destinations.set_index('modelnode',inplace=True)
+        destinations['demand'] = -1
+        self.destinations = destinations # ditto
 
         # can look up a map node given a model node
         self.equivalence = origins.append(destinations)
@@ -58,3 +63,16 @@ class Demand():
 
     def get_service_time(self,demand_node):
         return (self.equivalence.loc[demand_node].service_time)
+
+    def get_demand(self,demand_node):
+        d = 0
+        if demand_node in self.equivalence:
+            d = int(self.equivalence.loc[demand_node,'demand'])
+        return d
+
+    def get_demand_map(self):
+        _demand = {}
+        for idx in self.equivalence.index:
+            # from node has 1 supply, to node has -1 demand
+            _demand[idx]=self.equivalence.loc[idx,'demand']
+        return _demand
