@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import read_csv as reader
+import breaks
 
 class Demand():
     """
@@ -76,3 +77,28 @@ class Demand():
             # from node has 1 supply, to node has -1 demand
             _demand[idx]=self.equivalence.loc[idx,'demand']
         return _demand
+
+
+    def make_break_nodes(self,travel_times):
+        """Use travel time matrix, pickup and dropoff pairs to create the
+        necessary break opportunities between pairs of nodes."""
+
+        # logic:
+        #
+        # for each pickup and dropoff pair in the demand records,
+        #
+        # check the travel time from A to B.
+        #
+        # if it is greater than 1 hour
+        #
+        #   create a potential break node every hour along the route.
+        #   but
+        #   also want to remove links from other nodes to the created nodes
+        #   only possible preceding nodes are the origin node, or any node
+        #   along the route preceding the node in question.
+        #   so
+        #   on creation, also make a list of possible preceding nodes
+        #   Use that list to create travel times.  all other travel times are maxint
+        #
+        # ditto for each dropoff node and pickup node pairing
+        # and for each dropoff node and depot node pairing
