@@ -78,38 +78,60 @@ def break_generator(travel_times):
 def aggregate_time_matrix(travel_time,newtimes):
     """combine current time matrix with list of new times from gen_breaks, above"""
 
-    print(travel_time)
-    max_new_node = 0
-    offset = len(travel_time.loc[0])
+    max_new_node = len(travel_time[0])+1
     for nt in newtimes:
-        new_df = pd.DataFrame(data=nt)
+        if len(nt) < 3:
+            # don't bother with no new nodes case
+            continue
+        new_df = pd.DataFrame.from_dict(data=nt,orient='index')
         new_df = new_df.fillna(sys.maxsize)
+        new_cols = [i for i in range(2,len(new_df))]
+        old_cols = [0,1]
 
         # need to adjust the dataframe
+        offset = max_new_node - min(new_df.iloc[:,new_cols].columns)
+        # print(max_new_node,offset)
+
         # first the columns
-        adjustment = [max_new_node  for i in range(0,len(new_df.columns))]
+        adjustment = [offset  for i in range(0,len(new_df.columns))]
+        # if debug:
+        #     print(adjustment)
         adjustment[0] = 0
         adjustment[1] = 0
+        # if debug:
+        #     print(new_df.columns)
         new_df.columns = [i + adj for (i,adj) in zip(new_df.columns,adjustment)]
-
+        # if debug:
+        #     print(new_df.columns)
         # then the rows (index)
         new_df.index = [i + adj for (i,adj) in zip(new_df.index,adjustment)]
         new_df = new_df.reindex()
 
-        new_cols = [i for i in range(2,len(new_df))]
-        old_cols = [0] # don't bother with destination, as it cannot get anywhere
-        max_new_node = new_df.columns.max() - offset
+        max_new_node = new_df.columns.max()+1
 
+        # if debug:
+        #print(new_df)
         # first append the new destinations for existing columns
         travel_time = travel_time.append(new_df.iloc[new_cols,old_cols])
+        #print(travel_time)
 
+        # if debug:
+        #     print(travel_time)
         # then join in the new rows and columns
-        reduced_df = new_df.iloc[new_cols,new_cols]
+        reduced_df = new_df.iloc[:,new_cols]
         reduced_df = reduced_df.reindex()
+        # if debug:
+        #print(reduced_df)
         travel_time = travel_time.join(reduced_df
                                        ,how='outer'
         )
+        # if debug:
+        # print(travel_time)
+
+        # if debug:
+        # assert 0
 
     # now replace NaN with infinity
-    travel_time.fillna(sys.maxsize)
+    travel_time = travel_time.fillna(sys.maxsize)
+    # print(travel_time)
     return travel_time

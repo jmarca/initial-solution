@@ -2,6 +2,7 @@ import breaks as B
 import demand as D
 import read_csv as reader
 import math
+import pandas as pd
 
 def test_make_nodes():
 
@@ -13,6 +14,12 @@ def test_make_nodes():
     new_tt_matrix = B.make_nodes(origin,destination,travel_time,starting_node)
     assert len(new_tt_matrix) == 2
     assert new_tt_matrix == {10:{10:0,20:60},20:{20:0}}
+
+    # check that pandas reads that in correctly
+    df = pd.DataFrame.from_dict(new_tt_matrix,orient='index')
+    assert df.loc[10,10] == 0
+    assert df.loc[10,20] == 60
+
 
     # one new node at 61 minutes
     travel_time = 61
@@ -56,6 +63,7 @@ def test_make_nodes():
         origin = d.demand.loc[idx,'origin']
         dest   = d.demand.loc[idx,'destination']
         nt = newtimes[idx]
+        print(origin,dest,idx)
         assert origin in nt.keys()
         assert dest in nt.keys()
         # check length
@@ -66,10 +74,48 @@ def test_make_nodes():
         assert len(nt) == expected_num_nodes + 2
         count_new_nodes += (len(nt) - 2)
         count_nodes += len(nt)
-
+        print(idx,origin,dest,tt,count_nodes,count_new_nodes)
     # now test generating new travel time matrix
     new_tt = B.aggregate_time_matrix(m,newtimes)
-    assert len(new_tt) == count_nodes
-
+    print(new_tt.loc[[0,1,6,11,12],[0,1,6,11,12]])
+    assert len(new_tt) == count_nodes + 1 # account for depot node too
+    assert new_tt.loc[11,12] == 60
+    assert new_tt.loc[d.demand.loc[0,'origin'],11] == 60
     assert new_tt.ndim == 2
-    assert len(new_tt[0]) == count_nodes
+    assert len(new_tt[0]) == count_nodes + 1
+
+    # now test that I can do that for all destinations+depot to all
+    # origins+depot and append some more
+    moretimes = []
+    destinations_idx = [idx for idx in d.destinations.index]
+    destinations_idx.append(0) # tack on the depot node
+    origins_idx = [idx for idx in d.origins.index]
+    origins_idx.append(0) # tack on the depot node
+    new_node = len(new_tt)+1
+    for didx in destinations_idx:
+        d_mapnode = d.get_map_node(didx)
+        for oidx in origins_idx:
+            if oidx == didx:
+                # depot to depot is silly
+                continue
+            o_mapnode = d.get_map_node(oidx)
+            tt = m.loc[d_mapnode,o_mapnode]
+            print('call with',didx,oidx,tt,new_node)
+            new_times = B.make_nodes(didx,oidx,tt,new_node)
+
+            # test results
+            assert oidx in new_times.keys()
+            assert didx in new_times.keys()
+            # check length
+            expected_num_nodes = math.floor(tt/60)
+            if tt % 60 == 0:
+                expected_num_nodes -= 1
+            assert len(new_times) == expected_num_nodes + 2
+            count_new_nodes += (len(new_times) - 2)
+            count_nodes += len(new_times) - 2 # need -2 this time, as repeating O, D
+            moretimes.append(new_times)
+
+    new_tt = B.aggregate_time_matrix(new_tt,moretimes)
+    assert len(new_tt) == count_nodes + 1
+    assert new_tt.ndim == 2
+    assert len(new_tt[0]) == count_nodes + 1
