@@ -35,41 +35,42 @@ def main():
 
 
     args = parser.parse_args()
+
+    print('read in demand data')
+    d = D.Demand(args.demand,args.horizon)
+
+    print('read in distance matrix')
     matrix = reader.load_matrix_from_csv(args.matrixfile)
+
+    # convert nodes to solver space from input map space
+    matrix = d.generate_solver_space_matrix(matrix)
     minutes_matrix = reader.travel_time(args.speed/60,matrix)
 
-    # print(minutes_matrix.head())
-    # tests?
-
-    demand = D.Demand(args.demand,args.horizon)
-    # # loop and print out OD pair distances, travel times
-    # # to inspect O to D travel times, see that they are
-    # # often > 11 hrs
-    # for idx in demand.demand.index:
-    #     record = demand.demand.loc[idx]
-    #     from_node = record.from_node
-    #     to_node   = record.to_node
-    #     print(matrix[from_node][to_node], 'miles,',
-    #           minutes_matrix[from_node][to_node], 'minutes',
-    #           int(minutes_matrix[from_node][to_node]/60), 'hours')
-    # assert 0
-    # print(demand.head())
-
+    print('Expand distance matrix to include dummy nodes for breaks. This will be slow')
+    # insert dummy break nodes
+    expanded_mm = d.make_break_nodes(minutes_matrix)
+    print('done')
+    # copy to distance matrix
+    expanded_m = reader.travel_time(60/args.speed,expanded_mm)
 
     # vehicles:
     vehicles = V.Vehicles(args.numvehicles)
 
-    # data is in, now process and setup solver
+
 
     # Create the routing index manager.
-    # note that depot_index isn't an int, apparently.  have to cast
-    # print(len(matrix), args.numvehicles, int(vehicles.vehicles[0].depot_index))
-    # also, assuming here that all depots are in the same place
+
+    # number of nodes is now given by the travel time matrix
+    # probably should refactor to put time under control of
+    # demand class
+    num_nodes = len(expanded_mm.index)
+
+    # assuming here that all depots are in the same place
     # and that vehicles all return to the same depot
     manager = pywrapcp.RoutingIndexManager(
-        int(demand.get_number_nodes() + 1 ), # add 1 for 1 depot.
-        int(args.numvehicles),
-        int(vehicles.vehicles[0].depot_index))
+        num_nodes,
+        len(vehicles.vehicles),
+        vehicles.vehicles[0].depot_index)
 
 
     # Set model parameters
@@ -78,20 +79,23 @@ def main():
     # routing = pywrapcp.RoutingModel(manager,model_parameters)
     routing = pywrapcp.RoutingModel(manager)
     #solver = routing.solver()
-
+    print('creating time and distance callbacks for solver')
     # Define cost of each arc using travel time + service time
-    time_callback = partial(E.create_time_callback(minutes_matrix,
-                                                   demand),
+    time_callback = partial(E.create_time_callback(expanded_mm,
+                                                   d),
                             manager)
 
-    dist_callback = partial(E.create_dist_callback(matrix,
-                                                   demand),
+    dist_callback = partial(E.create_dist_callback(expanded_m,
+                                                   d),
                             manager)
+
+    print('registering callbacks with routing solver')
 
     transit_callback_index = routing.RegisterTransitCallback(time_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
     # might want to remove service time from the above
 
+    print('create time dimension')
     # Add Time dimension for time windows, precedence constraints
     time_dimension_name = 'Time'
     routing.AddDimension(
@@ -106,8 +110,9 @@ def main():
     # Define Transportation Requests.
 
     demand_evaluator_index = routing.RegisterUnaryTransitCallback(
-        partial(E.create_demand_callback(demand), manager))
+        partial(E.create_demand_callback(expanded_m.index,d), manager))
 
+    print('create capacity dimension')
     # Add capacity dimension.  One load per vehicle
     cap_dimension_name = 'Capacity'
     vehicle_capacities = [veh.capacity for veh in vehicles.vehicles]
@@ -121,8 +126,8 @@ def main():
 
     # [START pickup_delivery_constraint]
     print('apply pickup and delivery constraints')
-    for idx in demand.demand.index:
-        record = demand.demand.loc[idx]
+    for idx in d.demand.index:
+        record = d.demand.loc[idx]
         pickup_index = manager.NodeToIndex(record.origin)
         delivery_index = manager.NodeToIndex(record.destination)
         routing.AddPickupAndDelivery(pickup_index, delivery_index)
@@ -136,8 +141,8 @@ def main():
 
     # [START time_window_constraint]
     print('apply time window  constraints')
-    for idx in demand.demand.index:
-        record = demand.demand.loc[idx]
+    for idx in d.demand.index:
+        record = d.demand.loc[idx]
         pickup_index = manager.NodeToIndex(record.origin)
         early = int(record.early)
         late = int(record.late)
@@ -178,7 +183,7 @@ def main():
 
     # add disjunctions to deliveries to make it not fail
     penalty = 10000000  # The cost for dropping a node from the plan.
-    droppable_nodes = [routing.AddDisjunction([manager.NodeToIndex(c)], penalty) for c in demand.get_node_list()]
+    droppable_nodes = [routing.AddDisjunction([manager.NodeToIndex(c)], penalty) for c in d.get_node_list()]
 
 
     print('Calling the solver')
