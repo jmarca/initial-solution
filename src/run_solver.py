@@ -186,7 +186,9 @@ def main():
 
     # add disjunctions to deliveries to make it not fail
     penalty = 10000000  # The cost for dropping a node from the plan.
-    droppable_nodes = [routing.AddDisjunction([manager.NodeToIndex(c)], penalty) for c in d.get_node_list()]
+    # all nodes are droppable, so add disjunctions
+
+    droppable_nodes = [routing.AddDisjunction([manager.NodeToIndex(c)], penalty) for c in expanded_mm.index]
 
 
     print('Calling the solver')
@@ -203,7 +205,7 @@ def main():
 
         print('The Objective Value is {0}'.format(assignment.ObjectiveValue()))
         print('details:')
-        SO.print_solution(demand,dist_callback,vehicles,manager,routing,assignment)
+        SO.print_solution(d,dist_callback,vehicles,manager,routing,assignment)
 
 
     else:
