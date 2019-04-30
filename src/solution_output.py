@@ -14,7 +14,7 @@ def print_solution(demand,
     num_pickup_nodes = demand.get_number_nodes() / 2
     print('Breaks:')
     intervals = assignment.IntervalVarContainer()
-    for i in xrange(intervals.Size()):
+    for i in [0]:#xrange(intervals.Size()):
         brk = intervals.Element(i)
         if brk.PerformedValue() == 1:
             print('{}: Start({}) Duration({})'.format(

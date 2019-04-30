@@ -106,7 +106,7 @@ def main():
         transit_callback_index, # same "cost" evaluator as above
         args.horizon,  # slack for full range
         args.horizon,  # max time is end of time horizon
-        True,  # start cumul to zero
+        False,  # don't set time to zero...vehicles can wait at depot if necessary
         time_dimension_name)
     time_dimension = routing.GetDimensionOrDie(time_dimension_name)
     # this is new in v7.0, not sure what it does yet
@@ -186,7 +186,7 @@ def main():
         route_start = time_dimension.CumulVar(routing.Start(i))
         route_end = time_dimension.CumulVar(routing.End(i))
         must_start = route_start + 11*60 # 11 hours later
-        print(route_start,must_start)
+        # print(route_start,must_start)
 
         first_10hr_break = solver.FixedDurationIntervalVar(
             # route_start, # minimum start time
@@ -224,7 +224,7 @@ def main():
                 breaks[i][intvl-1],
                 660) # 11 hours times 60 minutes = 660
 
-            print(follow_after_constraint)
+            #print(follow_after_constraint)
             solver.Add(follow_after_constraint)
 
         time_dimension.SetBreakIntervalsOfVehicle(
