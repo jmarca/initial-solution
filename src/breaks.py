@@ -20,6 +20,12 @@ def make_nodes(O,D,travel_time,starting_node):
     # [i*60 + 60 for i in range (0,math.floor(travel_time/60))]
 
     num_new_nodes = math.floor(travel_time/60)
+    if num_new_nodes > 300:
+        print('trying to make more than 300 nodes (',
+              num_new_nodes,
+              ' to be exact).  300 nodes means a trip of more than 300 hours (12 days), which is unlikely.  check for bugs.  If you really want this behavior, then edit breaks.py')
+        print(O,D,travel_time,starting_node)
+    assert num_new_nodes < 300
     # if exactly some multiple of 60minutes, drop that last node
     if travel_time % 60 == 0:
         num_new_nodes -= 1
@@ -64,14 +70,12 @@ def make_nodes(O,D,travel_time,starting_node):
 def break_generator(travel_times):
     min_start = len(travel_times[0]) + 1
     def gen_breaks(record):
-        tt = travel_times.loc[record.from_node,record.to_node]
-        new_node_start = max(min_start,record.destination + 1)
+        tt = travel_times.loc[record.origin,record.destination]
         new_times = make_nodes(record.origin,
                                record.destination,
                                tt,
-                               new_node_start)
-        # print(new_times)
-        return new_times # len(new_times) - 2
+                               min_start)
+        return new_times
 
     return gen_breaks
 
@@ -84,7 +88,7 @@ def aggregate_time_matrix(travel_time,newtimes):
             # don't bother with no new nodes case
             continue
         new_df = pd.DataFrame.from_dict(data=nt,orient='index')
-        new_df = new_df.fillna(sys.maxsize)
+        #new_df = new_df.fillna(sys.maxsize)
         new_cols = [i for i in range(2,len(new_df))]
         old_cols = [0,1]
 
@@ -132,6 +136,6 @@ def aggregate_time_matrix(travel_time,newtimes):
         # assert 0
 
     # now replace NaN with infinity
-    travel_time = travel_time.fillna(sys.maxsize)
+    # travel_time = travel_time.fillna(sys.maxsize)
     # print(travel_time)
     return travel_time

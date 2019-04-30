@@ -3,6 +3,7 @@ import demand as D
 import read_csv as reader
 import math
 import pandas as pd
+import numpy as np
 
 def test_make_nodes():
 
@@ -50,7 +51,8 @@ def test_make_nodes():
     # read in travel time
     m = reader.load_matrix_from_csv('test/data/matrix.csv')
     # assume a mile a minute (60mph), so m in miles === m in minutes
-
+    # convert to solver space
+    m = d.generate_solver_space_matrix(m)
     gb = B.break_generator(m)
     # apply to demand
     newtimes = d.demand.apply(gb,axis=1,result_type='reduce')
@@ -67,7 +69,7 @@ def test_make_nodes():
         assert origin in nt.keys()
         assert dest in nt.keys()
         # check length
-        tt = m.loc[d.demand.loc[idx,'from_node'],d.demand.loc[idx,'to_node']]
+        tt = m.loc[origin,dest]
         expected_num_nodes = math.floor(tt/60)
         if tt % 60 == 0:
             expected_num_nodes -= 1
@@ -76,11 +78,14 @@ def test_make_nodes():
         count_nodes += len(nt)
         print(idx,origin,dest,tt,count_nodes,count_new_nodes)
     # now test generating new travel time matrix
+    print(newtimes)
     new_tt = B.aggregate_time_matrix(m,newtimes)
-    print(new_tt.loc[[0,1,6,11,12],[0,1,6,11,12]])
+    print(new_tt.loc[[0,1,6,12,13,14],[0,1,6,12,13,14]])
     assert len(new_tt) == count_nodes + 1 # account for depot node too
-    assert new_tt.loc[11,12] == 60
-    assert new_tt.loc[d.demand.loc[0,'origin'],11] == 60
+
+    assert new_tt.loc[12,13] == 60
+    assert new_tt.loc[d.demand.loc[0,'origin'],12] == 60
+    assert new_tt.loc[d.demand.loc[0,'origin'],13] == 120
     assert new_tt.ndim == 2
     assert len(new_tt[0]) == count_nodes + 1
 
@@ -93,27 +98,26 @@ def test_make_nodes():
     origins_idx.append(0) # tack on the depot node
     new_node = len(new_tt)+1
     for didx in destinations_idx:
-        d_mapnode = d.get_map_node(didx)
         for oidx in origins_idx:
             if oidx == didx:
                 # depot to depot is silly
                 continue
-            o_mapnode = d.get_map_node(oidx)
-            tt = m.loc[d_mapnode,o_mapnode]
-            print('call with',didx,oidx,tt,new_node)
-            new_times = B.make_nodes(didx,oidx,tt,new_node)
+            tt = m.loc[didx,oidx]
+            if (not np.isnan(tt)) and  tt > 60:
+                print('call with',didx,oidx,tt,new_node)
+                new_times = B.make_nodes(didx,oidx,tt,new_node)
 
-            # test results
-            assert oidx in new_times.keys()
-            assert didx in new_times.keys()
-            # check length
-            expected_num_nodes = math.floor(tt/60)
-            if tt % 60 == 0:
-                expected_num_nodes -= 1
-            assert len(new_times) == expected_num_nodes + 2
-            count_new_nodes += (len(new_times) - 2)
-            count_nodes += len(new_times) - 2 # need -2 this time, as repeating O, D
-            moretimes.append(new_times)
+                # test results
+                assert oidx in new_times.keys()
+                assert didx in new_times.keys()
+                # check length
+                expected_num_nodes = math.floor(tt/60)
+                if tt % 60 == 0:
+                    expected_num_nodes -= 1
+                assert len(new_times) == expected_num_nodes + 2
+                count_new_nodes += (len(new_times) - 2)
+                count_nodes += len(new_times) - 2 # need -2 this time, as repeating O, D
+                moretimes.append(new_times)
 
     new_tt = B.aggregate_time_matrix(new_tt,moretimes)
     assert len(new_tt) == count_nodes + 1
