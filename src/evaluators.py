@@ -31,6 +31,9 @@ def create_time_callback(travel_minutes_matrix,
     # time matrix is now in model space, not map space
     # preprocess travel and service time to speed up solver
     _total_time = {}
+    max_time = travel_minutes_matrix.max().max()
+    penalty_time = int(100 * max_time)
+    print ('using a maximum time for forbidden links of ',penalty_time)
 
     # nodes are in travel time matrix
     node_list = [n for n in travel_minutes_matrix.index]
@@ -50,7 +53,7 @@ def create_time_callback(travel_minutes_matrix,
                         + service_time
                     )
                 else:
-                    _total_time[from_node][to_node] = sys.maxsize
+                    _total_time[from_node][to_node] = penalty_time
                 # print(from_node,to_node,mapnode_from,mapnode_to,_total_time[from_node][to_node])
 
     def time_callback(manager, from_index, to_index):
