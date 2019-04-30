@@ -8,14 +8,15 @@ def create_demand_callback(node_list,demand):
     _demand = {}
     for node in node_list:
         _demand[node] = demand.get_demand(node)
-
+    print('size of demand matrix is ',len(_demand))
     def demand_callback(manager, index):
         """Returns the demand at the index, if defined, or zero."""
         # Convert from routing variable Index to demand array Node.
         node = manager.IndexToNode(index)
-        if node in _demand:
-            return _demand[node]
-        return int(0)
+        # print(node)
+        # print(_demand[node])
+        return _demand[node]
+
 
     # return the callback, which will need to be set up with partial
     return demand_callback
@@ -61,7 +62,8 @@ def create_time_callback(travel_minutes_matrix,
         # Convert from routing variable Index to distance matrix NodeIndex.
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        # calling pandas object might break C++, so switched to
+        # print(from_node,to_node)
+        # print(_total_time[from_node][to_node])
         return _total_time[from_node][to_node]
 
     # return the callback, which will need to be set up with partial
