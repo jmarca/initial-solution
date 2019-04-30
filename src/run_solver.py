@@ -1,6 +1,7 @@
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 from functools import partial
+import math
 
 import argparse
 #import os
@@ -21,7 +22,7 @@ def main():
     parser.add_argument('--speed', type=float, dest='speed', default=55.0,
                         help='Average speed, miles per hour.  Default is 55 (miles per hour).  Distance unit should match that of the matrix of distances.  The time part should be per hours')
     parser.add_argument('--maxtime', type=float, dest='horizon', default=10080,
-                        help='Max time in minutes.  Default is 7 days, which is 10080 minutes..')
+                        help='Max time in minutes.  Default is 10080 minutes, which is 7 days.')
 
     parser.add_argument('-v,--vehicles', type=int, dest='numvehicles', default=100,
                         help='Number of vehicles to create.  Default is 100.')
@@ -161,6 +162,76 @@ def main():
         routing.AddToAssignment(time_dimension.SlackVar(index))
 
 
+
+    # [START breaks logic]
+    print('apply break rules')
+    # loosely copying code from google example, then modify
+    node_visit_transit = {}
+    for n in expanded_mm.index:
+        node_visit_transit[n] = int(d.get_service_time(n))
+
+    breaks = {}
+
+    # grab ref to solver
+    solver = routing.solver()
+
+
+    #for v in range(0,len(vehicles.vehicles)):
+    for i in [0]:
+        breaks[i] = []
+        # 10 hour breaks
+        # first break is based on start of route.
+        # for now, implementing the 11-hour limit as if the
+        # time_dimension is only collecting driving time
+        route_start = time_dimension.CumulVar(routing.Start(i))
+        route_end = time_dimension.CumulVar(routing.End(i))
+        must_start = route_start + 11*60 # 11 hours later
+        print(route_start,must_start)
+
+        first_10hr_break = solver.FixedDurationIntervalVar(
+            # route_start, # minimum start time
+            must_start,  # maximum start time (11 hours after start)
+            10 * 60,     # duration of break is 10 hours
+            # False,       # not optional?  What if only drive for < 10 hrs?
+            'first 10hr break for vehicle {}'.format(i))
+        breaks[i].append(first_10hr_break)
+        # now add additional breaks for whole of likely range
+        # break up full time (horizon) into 10+11 hour ranges (drive 11, break 10)
+        # not quite right, as the 14hr rule also comes into play
+        need_breaks = math.floor(args.horizon / (10 + 11))
+        # don't need first break, as that is already specified above
+
+        for intvl in range(1,need_breaks):
+            # break minimum start time is 0
+            # break maximum start time is horizon - 10 hours
+
+            min_start_time = 0
+            max_start_time = args.horizon - 10*60
+
+            # key on first break, but only required if time hasn't run out
+            next_10hr_break = solver.FixedDurationIntervalVar(
+                min_start_time, # minimum start time
+                max_start_time,  # maximum start time (11 hours after start)
+                10 * 60,     # duration of break is 10 hours
+                True,       # optional?
+                '{}th 10hr break for vehicle {}'.format(intvl,i))
+
+            breaks[i].append(next_10hr_break)
+            # constraints:
+            # sync with preceding break
+            #  this break starts 11h after end of prior
+            follow_after_constraint = next_10hr_break.StartsAfterEndWithDelay(
+                breaks[i][intvl-1],
+                660) # 11 hours times 60 minutes = 660
+
+            print(follow_after_constraint)
+            solver.Add(follow_after_constraint)
+
+        time_dimension.SetBreakIntervalsOfVehicle(
+            breaks[i], i, node_visit_transit)
+
+    # did it work?
+    print('breaks done')
 
     # Setting first solution heuristic.
     # [START parameters]

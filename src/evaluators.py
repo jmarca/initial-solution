@@ -33,7 +33,8 @@ def create_time_callback(travel_minutes_matrix,
     # preprocess travel and service time to speed up solver
     _total_time = {}
     max_time = travel_minutes_matrix.max().max()
-    penalty_time = int(100 * max_time)
+    penalty_time = int(10000000 * max_time)
+    # penalty_time = int(100 * max_time)
     print ('using a maximum time for forbidden links of ',penalty_time)
 
     # nodes are in travel time matrix
