@@ -36,7 +36,7 @@ def test_time_callback():
 
 
 
-    demand_callback = E.create_demand_callback(d)
+    demand_callback = E.create_demand_callback(m.index,d)
 
     manager = MockManager()
 

@@ -3,9 +3,11 @@
 import numpy as np
 import sys
 
-def create_demand_callback(demand):
+def create_demand_callback(node_list,demand):
     """ create a callback function for demand """
-    _demand = demand.get_demand_map()
+    _demand = {}
+    for node in node_list:
+        _demand[node] = demand.get_demand(node)
 
     def demand_callback(manager, index):
         """Returns the demand at the index, if defined, or zero."""
