@@ -52,6 +52,8 @@ def main():
     print('done')
     # copy to distance matrix
     expanded_m = reader.travel_time(60/args.speed,expanded_mm)
+    print('original matrix of',len(matrix.index),'expanded to ',len(expanded_m.index))
+
 
     # vehicles:
     vehicles = V.Vehicles(args.numvehicles)
@@ -64,6 +66,7 @@ def main():
     # probably should refactor to put time under control of
     # demand class
     num_nodes = len(expanded_mm.index)
+    print('solving with ',num_nodes,'nodes')
 
     # assuming here that all depots are in the same place
     # and that vehicles all return to the same depot
