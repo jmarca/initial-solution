@@ -185,10 +185,21 @@ def main():
     parameters.log_search = pywrapcp.BOOL_TRUE
 
     # add disjunctions to deliveries to make it not fail
-    penalty = 10000000  # The cost for dropping a node from the plan.
+    penalty = 10000000  # The cost for dropping a demand node from the plan.
+    break_penalty = 0  # The cost for dropping a break node from the plan.
     # all nodes are droppable, so add disjunctions
 
-    droppable_nodes = [routing.AddDisjunction([manager.NodeToIndex(c)], penalty) for c in expanded_mm.index]
+    droppable_nodes = []
+    for c in expanded_mm.index:
+        if c == 0:
+            # no disjunction on depot node
+            continue
+        p = penalty
+        if d.get_demand(c) == 0:
+            # no demand means break node
+            p = break_penalty
+        droppable_nodes.append(routing.AddDisjunction([manager.NodeToIndex(c)],
+                                                      p))
 
 
     print('Calling the solver')
