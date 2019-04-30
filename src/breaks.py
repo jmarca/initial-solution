@@ -68,7 +68,7 @@ def make_nodes(O,D,travel_time,starting_node):
 #
 
 def break_generator(travel_times):
-    min_start = len(travel_times[0]) + 1
+    min_start = len(travel_times.index)
     def gen_breaks(record):
         tt = travel_times.loc[record.origin,record.destination]
         new_times = make_nodes(record.origin,
@@ -82,7 +82,7 @@ def break_generator(travel_times):
 def aggregate_time_matrix(travel_time,newtimes):
     """combine current time matrix with list of new times from gen_breaks, above"""
 
-    max_new_node = len(travel_time[0])+1
+    max_new_node = len(travel_time.index)
     for nt in newtimes:
         if len(nt) < 3:
             # don't bother with no new nodes case

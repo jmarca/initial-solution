@@ -145,7 +145,7 @@ class Demand():
         #
         # ditto for each dropoff node and pickup node pairing
         # and for each dropoff node and depot node pairing
-        new_node = len(travel_times[0]) + 1
+        new_node = len(travel_times[0])
         gb = breaks.break_generator(travel_times)
         # apply to demand pairs
         newtimes = self.demand.apply(gb,axis=1,result_type='reduce')

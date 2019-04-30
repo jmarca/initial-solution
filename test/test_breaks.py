@@ -68,6 +68,8 @@ def test_make_nodes():
         print(origin,dest,idx)
         assert origin in nt.keys()
         assert dest in nt.keys()
+        if idx==0:
+            assert 11 in nt[origin].keys()
         # check length
         tt = m.loc[origin,dest]
         expected_num_nodes = math.floor(tt/60)
@@ -80,12 +82,12 @@ def test_make_nodes():
     # now test generating new travel time matrix
     print(newtimes)
     new_tt = B.aggregate_time_matrix(m,newtimes)
-    print(new_tt.loc[[0,1,6,12,13,14],[0,1,6,12,13,14]])
+    print(new_tt.loc[[0,1,6,11,12,13],[0,1,6,11,12,13]])
     assert len(new_tt) == count_nodes + 1 # account for depot node too
 
-    assert new_tt.loc[12,13] == 60
-    assert new_tt.loc[d.demand.loc[0,'origin'],12] == 60
-    assert new_tt.loc[d.demand.loc[0,'origin'],13] == 120
+    assert new_tt.loc[11,12] == 60
+    assert new_tt.loc[d.demand.loc[0,'origin'],11] == 60
+    assert new_tt.loc[d.demand.loc[0,'origin'],12] == 120
     assert new_tt.ndim == 2
     assert len(new_tt[0]) == count_nodes + 1
 
@@ -123,3 +125,6 @@ def test_make_nodes():
     assert len(new_tt) == count_nodes + 1
     assert new_tt.ndim == 2
     assert len(new_tt[0]) == count_nodes + 1
+    assert 10 in new_tt.index
+    assert 11 in new_tt.index
+    assert 12 in new_tt.index
