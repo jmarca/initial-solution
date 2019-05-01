@@ -194,7 +194,7 @@ def main():
             # route_start, # minimum start time
             must_start,  # maximum start time (11 hours after start)
             10 * 60,     # duration of break is 10 hours
-            # False,       # not optional?  What if only drive for < 10 hrs?
+            time_dimension.SlackVar(routing.Start(i)).Value(), # performed variable?? not sure
             'first 10hr break for vehicle {}'.format(i))
         breaks[i].append(first_10hr_break)
         # make the break optional if the vehicle is not used
@@ -207,18 +207,34 @@ def main():
         # second, the condition.  If route does not start, no break
 
         vehicle_not_used = routing.IsEnd(routing.Start(i))
-        print('vehicle is used expression',vehicle_not_used)
+        # print('vehicle is used expression',vehicle_not_used)
 
         solver.AddConstraint(
             first_10hr_break.PerformedExpr() != routing.IsEnd(routing.Start(i))
         )
+        # and a conditional based on time
+        # first, requirement that break is performed
+        # break_condition = first_10hr_break.PerformedExpr()==False
+
+        # # second, the timing.  If route is over, don't need break
+        # route_starts = route_start>0
+        # time_condition =  time_dimension.SlackVar(routing.Start(i)) <= 1
+
+        # # use conditional expression
+        # expression = solver.ConditionalExpression(route_starts,
+        #                                           break_condition,
+        #                                           1)
+        # solver.AddConstraint(
+        #     expression >= 1
+        # )
+
 
 
         # now add additional breaks for whole of likely range
         # break up full time (horizon) into 10+11 hour ranges (drive 11, break 10)
         # not quite right, as the 14hr rule also comes into play
         need_breaks = math.floor(args.horizon / 60 / (10 + 11))
-        need_breaks = 1
+        #need_breaks = 5
         # follow_constraints = []
         # don't need first break, as that is already specified above
         for intvl in range(1,need_breaks):
@@ -228,15 +244,15 @@ def main():
             min_start_time = 0 + (intvl - 1)*(10+11)*60
             max_start_time = args.horizon - 10*60
 
-            require_first_few = False
-            if intvl > 3:
-                require_first_few = True
+            optional_break = False
+            if intvl > 0:
+                optional_break = True
             # key on first break, but only required if time hasn't run out
             next_10hr_break = solver.FixedDurationIntervalVar(
                 min_start_time, # minimum start time
                 max_start_time,  # maximum start time (11 hours after start)
                 10 * 60,     # duration of break is 10 hours
-                require_first_few,       # optional == True, required == False
+                optional_break,       # optional == True, required == False
                 '{}th 10hr break for vehicle {}'.format(intvl,i))
 
             breaks[i].append(next_10hr_break)
@@ -249,7 +265,7 @@ def main():
             solver.AddConstraint(follow_after_constraint)
 
 
-            if require_first_few:
+            if optional_break:
                 # conditional constraint.  If vehicle is done before start
                 # time, then don't bother with this break
 
