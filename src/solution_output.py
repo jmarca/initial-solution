@@ -8,21 +8,24 @@ def print_solution(demand,
                    vehicles,
                    manager,
                    routing,
-                   assignment):  # pylint:disable=too-many-locals
+                   assignment,
+                   horizon=10080):  # pylint:disable=too-many-locals
     """Prints assignment on console"""
     print('Objective: {}'.format(assignment.ObjectiveValue()))
     num_pickup_nodes = demand.get_number_nodes() / 2
     print('Breaks:')
-    intervals = assignment.IntervalVarContainer()
-    for i in [0]:#xrange(intervals.Size()):
-        brk = intervals.Element(i)
-        if brk.PerformedValue() == 1:
-            print('{}: Start({}) Duration({})'.format(
-                brk.Var().Name(),
-                brk.StartValue(),
-                brk.DurationValue()))
+    breaks = assignment.IntervalVarContainer()
+    for i in range(0,breaks.Size()):
+        brk = breaks.Element(i)
+        # print(brk)
+        if (brk.StartMin()>0 and brk.StartMin() < horizon):
+            print('start min',timedelta(minutes=brk.StartMin()),
+                  'duration min',timedelta(minutes=brk.DurationMin()),
+                  'end min',timedelta(minutes=brk.EndMin()))
         else:
-            print('{}: Unperformed'.format(brk.Var().Name()))
+            print('break',i,'skipped')
+            # print('var',brk.Var())
+
 
     total_distance = 0
     total_load_served = 0
