@@ -97,6 +97,17 @@ def main():
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
     # might want to remove service time from the above
 
+    print('create count dimension')
+    # Add Count dimension for count windows, precedence constraints
+    count_dimension_name = 'Count'
+    routing.AddConstantDimension(
+        1, # increment by one every time
+        len(expanded_mm.index),  # max count is visit all the nodes
+        True,  # set count to zero
+        count_dimension_name)
+    count_dimension = routing.GetDimensionOrDie(count_dimension_name)
+
+
     print('create time dimension')
     # Add Time dimension for time windows, precedence constraints
     time_dimension_name = 'Time'
@@ -104,7 +115,7 @@ def main():
         transit_callback_index, # same "cost" evaluator as above
         args.horizon,  # slack for full range
         args.horizon,  # max time is end of time horizon
-        False,  # don't set time to zero...vehicles can wait at depot if necessary
+        True,  # do or  don't set time to zero...vehicles can wait at depot if necessary
         time_dimension_name)
     time_dimension = routing.GetDimensionOrDie(time_dimension_name)
     # this is new in v7.0, not sure what it does yet
@@ -173,7 +184,7 @@ def main():
     ends   = []
     # grab ref to solver
     solver = routing.solver()
-
+    pickups = d.origins.index # dive deep into the internals of demand...
 
     for i in range(0,len(vehicles.vehicles)):
     # for i in [0,1]:
@@ -183,20 +194,57 @@ def main():
         # first break is based on start of route.
         # for now, implementing the 11-hour limit as if the
         # time_dimension is only collecting driving time
-        route_start = time_dimension.CumulVar(routing.Start(i)) + time_dimension.SlackVar(routing.Start(i))
+        route_start = time_dimension.CumulVar(routing.Start(i))# + time_dimension.SlackVar(routing.Start(i))
         starts.append(route_start)
         route_end = time_dimension.CumulVar(routing.End(i))
         ends.append(route_end)
         must_start = route_start + 11*60 # 11 hours later
         print(route_start,must_start)
 
-        first_10hr_break = solver.FixedDurationIntervalVar(
-            # route_start, # minimum start time
-            must_start,  # maximum start time (11 hours after start)
-            10 * 60,     # duration of break is 10 hours
-            time_dimension.SlackVar(routing.Start(i)).Value(), # performed variable?? not sure
-            'first 10hr break for vehicle {}'.format(i))
-        breaks[i].append(first_10hr_break)
+        if i == 0:
+            # non optional first break for first vehicle
+            first_10hr_break = solver.FixedDurationIntervalVar(
+                # route_start, # minimum start time
+                must_start,  # maximum start time (11 hours after start)
+                10 * 60,     # duration of break is 10 hours
+                'first 10hr break for vehicle {}'.format(i))
+            breaks[i].append(first_10hr_break)
+        else:
+            # optional first break for other vehicles
+            # hack to create a variable to determine if vehicle is used.
+            vehicle_check = 1
+
+            for node in pickups:
+                index = manager.NodeToIndex(int(node))
+                vehicle_at_node = routing.VehicleVar(manager.NodeToIndex(node))
+                vehicle_condition = vehicle_at_node == i
+                vehicle_check *= vehicle_condition
+            print(vehicle_check)
+
+            first_10hr_break = solver.FixedDurationIntervalVar(
+                route_start, # minimum start time
+                # must_start,  # maximum start time (11 hours after start)
+                10 * 60,     # duration of break is 10 hours
+                vehicle_check, # performed variable?? not sure
+                'first 10hr break for vehicle {}'.format(i))
+            breaks[i].append(first_10hr_break)
+            trip_start = solver.FixedDurationIntervalVar(
+                route_start,
+                11,
+                'initial drive vehicle {}'.format(i))
+
+            # first_10hr_break = solver.FixedDurationIntervalVar(
+            #         0, # minimum start time
+            #         11,  # maximum start time (11 hours after start)
+            #         600,     # duration of break is 10 hours
+            #         True,       # optional == True, required == False
+            #         'first 10hr break for vehicle {}'.format(i))
+            # breaks[i].append(first_10hr_break)
+
+            # timing of the break
+            follow_after_constraint = first_10hr_break.StartsAfterEnd(
+                trip_start)
+            solver.AddConstraint(follow_after_constraint)
         # make the break optional if the vehicle is not used
 
         # quasi-conditional constraint.  Only perform break if vehicle is used
@@ -206,35 +254,37 @@ def main():
 
         # second, the condition.  If route does not start, no break
 
-        vehicle_not_used = routing.IsEnd(routing.Start(i))
-        # print('vehicle is used expression',vehicle_not_used)
+        # vehicle_not_used = routing.IsEnd(routing.Start(i))
+        # # print('vehicle is used expression',vehicle_not_used)
 
-        solver.AddConstraint(
-            first_10hr_break.PerformedExpr() != routing.IsEnd(routing.Start(i))
-        )
+        # route_starts = count_dimension.CumulVar(routing.End(i)) >=2
+        # print(route_starts)
+        # solver.AddConstraint(
+        #     first_10hr_break.PerformedExpr() == routing.IsEnd(routing.NextVar(routing.Start(i)))
+        # )
         # and a conditional based on time
-        # first, requirement that break is performed
-        # break_condition = first_10hr_break.PerformedExpr()==False
+        # # # first, requirement that break is performed
+        # break_condition = first_10hr_break.PerformedExpr()==1
 
-        # # second, the timing.  If route is over, don't need break
-        # route_starts = route_start>0
-        # time_condition =  time_dimension.SlackVar(routing.Start(i)) <= 1
+        # second, the timing.  If route starts, need to break
+        # trying out counting dimension
+        # time_condition =  time_dimension.CumulVar(routing.Start(i)) >= 0
 
-        # # use conditional expression
-        # expression = solver.ConditionalExpression(route_starts,
+        # # use conditional expressions
+        # expression = solver.ConditionalExpression(vehicle_check,
         #                                           break_condition,
         #                                           1)
         # solver.AddConstraint(
-        #     expression >= 1
-        # )
+        #         expression >= 1
+        #     )
 
 
 
         # now add additional breaks for whole of likely range
         # break up full time (horizon) into 10+11 hour ranges (drive 11, break 10)
         # not quite right, as the 14hr rule also comes into play
-        need_breaks = math.floor(args.horizon / 60 / (10 + 11))
-        #need_breaks = 5
+        # need_breaks = math.floor(args.horizon / 60 / (10 + 11))
+        need_breaks = 9
         # follow_constraints = []
         # don't need first break, as that is already specified above
         for intvl in range(1,need_breaks):
