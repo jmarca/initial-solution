@@ -18,16 +18,18 @@ def print_solution(demand,
     for i in range(0,breaks.Size()):
         brk = breaks.Element(i)
         # print(brk)
-        if (brk.StartMin()>0 and brk.StartMin() < horizon):
-            print('start min',timedelta(minutes=brk.StartMin()),
-                  'duration min',timedelta(minutes=brk.DurationMin()),
-                  'end min',timedelta(minutes=brk.EndMin())
+        if (brk.StartMin()>0 ):
+            print('start',timedelta(minutes=brk.StartMin()),# '--',
+                  # timedelta(minutes=brk.StartMax()),
+                  'duration',timedelta(minutes=brk.DurationMin()),
+                  'end',timedelta(minutes=brk.EndMin())# ,'--',
+                  # timedelta(minutes=brk.EndMax())
             )
         else:
             print('break',i,'skipped--',
-                  'start min',brk.StartMin(),
-                  'duration min',brk.DurationMin(),
-                  'end min',brk.EndMin())
+                  'start',timedelta(minutes=brk.StartMin()),
+                  'duration',timedelta(minutes=brk.DurationMin()),
+                  'end',timedelta(minutes=brk.EndMin()))
 
 
     total_distance = 0
