@@ -21,10 +21,13 @@ def print_solution(demand,
         if (brk.StartMin()>0 and brk.StartMin() < horizon):
             print('start min',timedelta(minutes=brk.StartMin()),
                   'duration min',timedelta(minutes=brk.DurationMin()),
-                  'end min',timedelta(minutes=brk.EndMin()))
+                  'end min',timedelta(minutes=brk.EndMin())
+            )
         else:
-            print('break',i,'skipped')
-            # print('var',brk.Var())
+            print('break',i,'skipped--',
+                  'start min',brk.StartMin(),
+                  'duration min',brk.DurationMin(),
+                  'end min',brk.EndMin())
 
 
     total_distance = 0
@@ -60,8 +63,8 @@ def print_solution(demand,
                 pickups += 1
             # if node < num_pickup_nodes:
             # at this point, everything should have slack var
-            slack_var_min = assignment.Min(slack_var)
-            slack_var_max = assignment.Max(slack_var)
+            slack_var_min = timedelta(minutes=assignment.Min(slack_var))
+            slack_var_max = timedelta(minutes=assignment.Max(slack_var))
 
             plan_output += 'node {0}, mapnode {1}, Load {2},  Time({3},{4}) Slack({5},{6}) Link time({7}) Link distance({8} mi)\n ->'.format(
                 node,
