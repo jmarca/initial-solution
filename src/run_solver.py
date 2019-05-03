@@ -146,8 +146,8 @@ def main():
     for idx in d.demand.index:
         record = d.demand.loc[idx]
         pickup_index = manager.NodeToIndex(record.origin)
-        early = int(record.early)
-        late = int(record.late)
+        early = int(record.early*0)
+        late = int(record.late*0) + args.horizon
         time_dimension.CumulVar(pickup_index).SetRange(early, late)
         routing.AddToAssignment(time_dimension.SlackVar(pickup_index))
         # and  add simulation-wide time windows (slack) for delivery nodes,
