@@ -9,7 +9,7 @@ def print_solution(demand,
                    manager,
                    routing,
                    assignment,
-                   horizon=10080):  # pylint:disable=too-many-locals
+                   horizon):  # pylint:disable=too-many-locals
     """Prints assignment on console"""
     print('Objective: {}'.format(assignment.ObjectiveValue()))
     num_pickup_nodes = demand.get_number_nodes() / 2
