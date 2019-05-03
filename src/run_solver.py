@@ -34,6 +34,9 @@ def main():
     parser.add_argument('-t, --timelimit', type=int, dest='timelimit', default=5,
                         help='Maximum run time for solver, in minutes.  Default is 5 minutes.')
 
+    parser.add_argument('--maxlinktime', type=int, dest='timelength', default=600,
+                        help='Maximum run time for solver, in minutes.  Default is 600 minutes, or 10 hours.')
+
 
     args = parser.parse_args()
 
@@ -47,8 +50,11 @@ def main():
     matrix = d.generate_solver_space_matrix(matrix)
     minutes_matrix = reader.travel_time(args.speed/60,matrix)
 
-    # maybe the dummy nodes are NOT needed?
-    expanded_mm = minutes_matrix
+    # create dummy nodes every 20 hours
+    # expanded_mm = minutes_matrix
+    expanded_mm = d.make_break_nodes(minutes_matrix,args.timelength)
+
+    # print(expanded_mm)
 
     # copy to distance matrix
     expanded_m = reader.travel_time(60/args.speed,expanded_mm)
@@ -156,6 +162,12 @@ def main():
         late = int(args.horizon)
         time_dimension.CumulVar(dropoff_index).SetRange(early, late)
         routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
+    for node in range(len(minutes_matrix.index),len(expanded_mm.index)):
+        # just the dummy nodes. give them all super powers
+        index = manager.NodeToIndex(node)
+        time_dimension.CumulVar(index).SetRange(0,args.horizon)
+        routing.AddToAssignment(time_dimension.SlackVar(index))
+
     # Add time window constraints for each vehicle start node
     # and 'copy' the slack var in the solution object (aka Assignment) to print it
     for vehicle in vehicles.vehicles:
@@ -203,7 +215,8 @@ def main():
             # False,       # not optional?  What if only drive for < 10 hrs?
             'first 10hr break for vehicle {}'.format(i))
         breaks[i].append(first_10hr_break)
-        # make the break optional if the vehicle is not used
+
+        # make the break optional if the vehicle is not used?
 
         # quasi-conditional constraint.  Only perform break if vehicle is used
 
@@ -238,8 +251,12 @@ def main():
             #if intvl > 0:
             #    require_first_few = True
             # key on first break, but only required if time hasn't run out
+            #next_10hr_break = solver.FixedDurationStartSyncedOnEndIntervalVar(
+                # breaks[i][-1],      # keyed to prior
+                # 600,               # duration
+                # 660     # offset
             next_10hr_break = solver.FixedDurationStartSyncedOnStartIntervalVar(
-                breaks[i][0],      # keyed to initial
+                breaks[i][0],      # keyed to first
                 600,               # duration
                 min_start_time     # offset
             )
@@ -247,13 +264,14 @@ def main():
             breaks[i].append(next_10hr_break)
             # constraints:
 
+            solver.Add(next_10hr_break.PerformedExpr()==True)
 
             if require_first_few:
                 # conditional constraint.  If vehicle is done before start
                 # time, then don't bother with this break
 
                 # first, requirement that break is performed
-                break_condition = next_10hr_break.PerformedExpr()==False
+                break_condition = next_10hr_break.PerformedExpr()==True
 
                 # second, the timing.  If route is over, don't need break
                 break_start = route_start + intvl*(11+10)*60
@@ -314,7 +332,7 @@ def main():
         p = penalty
         if d.get_demand(c) == 0:
             # no demand means break node
-            p = break_penalty
+            p = penalty #break_penalty
         droppable_nodes.append(routing.AddDisjunction([manager.NodeToIndex(c)],
                                                       p))
 
