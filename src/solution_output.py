@@ -55,11 +55,12 @@ def print_solution(demand,
             max_time =  timedelta(minutes=assignment.Max(time_var))
             slack_var_min = 0
             slack_var_max = 0
-            if (node < num_pickup_nodes and node > 0):
+            if demand.get_demand(node) > 0:
                 pickups += 1
-            if node < num_pickup_nodes:
-                slack_var_min = assignment.Min(slack_var)
-                slack_var_max = assignment.Max(slack_var)
+            # if node < num_pickup_nodes:
+            # at this point, everything should have slack var
+            slack_var_min = assignment.Min(slack_var)
+            slack_var_max = assignment.Max(slack_var)
 
             plan_output += 'node {0}, mapnode {1}, Load {2},  Time({3},{4}) Slack({5},{6}) Link time({7}) Link distance({8} mi)\n ->'.format(
                 node,
