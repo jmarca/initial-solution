@@ -21,7 +21,7 @@ def main():
                         help='CSV file for demand pairs (origin, dest, time windows)')
     parser.add_argument('--speed', type=float, dest='speed', default=55.0,
                         help='Average speed, miles per hour.  Default is 55 (miles per hour).  Distance unit should match that of the matrix of distances.  The time part should be per hours')
-    parser.add_argument('--maxtime', type=float, dest='horizon', default=10080,
+    parser.add_argument('--maxtime', type=int, dest='horizon', default=10080,
                         help='Max time in minutes.  Default is 10080 minutes, which is 7 days.')
 
     parser.add_argument('-v,--vehicles', type=int, dest='numvehicles', default=100,
