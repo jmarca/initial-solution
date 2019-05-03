@@ -55,7 +55,8 @@ def print_solution(demand,
             max_time =  timedelta(minutes=assignment.Max(time_var))
             slack_var_min = 0
             slack_var_max = 0
-            if demand.get_demand(node) > 0:
+            node_demand = demand.get_demand(node)
+            if node_demand > 0:
                 pickups += 1
             # if node < num_pickup_nodes:
             # at this point, everything should have slack var

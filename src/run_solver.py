@@ -34,8 +34,10 @@ def main():
     parser.add_argument('-t, --timelimit', type=int, dest='timelimit', default=5,
                         help='Maximum run time for solver, in minutes.  Default is 5 minutes.')
 
+    parser.add_argument('--expand', type=bool, dest='expand', default=False,
+                        help="Expand the time matrix to break long links.  Can help solver find a solution.  Defaults to False, which means to just use the input matrix.")
     parser.add_argument('--maxlinktime', type=int, dest='timelength', default=600,
-                        help='Maximum run time for solver, in minutes.  Default is 600 minutes, or 10 hours.')
+                        help='If expand is true, this sets the maximum time for segments in the network.  Default is 600 minutes, or 10 hours.')
 
 
     args = parser.parse_args()
@@ -52,8 +54,11 @@ def main():
 
     # create dummy nodes every 20 hours
     # expanded_mm = minutes_matrix
-    expanded_mm = d.make_break_nodes(minutes_matrix,args.timelength)
-
+    # might want to expand matrix, but I don't see any benefit from this
+    if args.expand:
+        expanded_mm = d.make_break_nodes(minutes_matrix,args.timelength)
+    else:
+        expanded_mm = minutes_matrix
     # print(expanded_mm)
 
     # copy to distance matrix
@@ -245,26 +250,45 @@ def main():
             # break maximum start time is horizon - 10 hours
 
             min_start_time = (intvl)*(10 + 11)*60
-            max_start_time = args.horizon - 10*60
+            max_start_time = (intvl)*(10 + 11)*60 + 660
 
             require_first_few = False
             #if intvl > 0:
             #    require_first_few = True
             # key on first break, but only required if time hasn't run out
-            #next_10hr_break = solver.FixedDurationStartSyncedOnEndIntervalVar(
-                # breaks[i][-1],      # keyed to prior
-                # 600,               # duration
-                # 660     # offset
-            next_10hr_break = solver.FixedDurationStartSyncedOnStartIntervalVar(
-                breaks[i][0],      # keyed to first
+            next_10hr_break = solver.FixedDurationStartSyncedOnEndIntervalVar(
+                breaks[i][-1],      # keyed to prior
                 600,               # duration
-                min_start_time     # offset
+                660     # offset
             )
+            # next_10hr_break = solver.FixedDurationStartSyncedOnStartIntervalVar(
+            #     breaks[i][0],      # keyed to first
+            #     600,               # duration
+            #     min_start_time     # offset
+            # )
+            # next_10hr_break = solver.FixedDurationIntervalVar(
+            #     min_start_intvar,  # maximum start time (11 hours after start)
+            #     10 * 60,     # duration of break is 10 hours
+            #     '10hr break {} for vehicle {}'.format(intvl,i))
+            # next_10hr_break = solver.FixedDurationIntervalVar(
+            #     min_start_time, # minimum start time
+            #     max_start_time,  # maximum start time (11 hours after start)
+            #     10 * 60,     # duration of break is 10 hours
+            #     optional,       # optional?
+            #     '{}th 10hr break for vehicle {}'.format(intvl,i))
 
             breaks[i].append(next_10hr_break)
             # constraints:
+            # bip = next_10hr_break.MustBePerformed()
+            # solver.Add(next_10hr_break.PerformedExpr()==True)
+            # print('break must be performed = ',bip)
+            # sync with preceding break
+            #  this break starts 11h after end of prior
+            # follow_after_constraint = next_10hr_break.StartsAfterEndWithDelay(
+            #     breaks[i][intvl-1],
+            #     660) # 11 hours times 60 minutes = 660
+            # solver.Add(follow_after_constraint)
 
-            solver.Add(next_10hr_break.PerformedExpr()==True)
 
             if require_first_few:
                 # conditional constraint.  If vehicle is done before start
