@@ -4,30 +4,31 @@ import numpy as np
 import math
 import sys
 
-def make_nodes(O,D,travel_time,starting_node):
-    """starting with O, ending with D, make a dummy node every hour
+def make_nodes(O,D,travel_time,starting_node,timelength=60):
+    """starting with O, ending with D, make a dummy node every timelength minutes
     arguments: O: origin node, integer
                D: destination node, integer
                travel_time: time from O to D, in minutes
                starting_node: starting point for new nodes, integer
+               timelength: size of each segment, minutes, default 60
     returns: 2 dimensional array of travel times for new nodes.
              This array is one-directional, from O to D.  Nodes
              are numbered from zero, sequentially, and can be
              extracted from the keys of the array (ignore O and D)
     """
 
-    # travel time is broken up into 60 minute chunks via
-    # [i*60 + 60 for i in range (0,math.floor(travel_time/60))]
+    # travel time is broken up into timelength minute chunks via
+    # [i*timelength + timelength for i in range (0,math.floor(travel_time/timelength))]
 
-    num_new_nodes = math.floor(travel_time/60)
-    if num_new_nodes > 300:
-        print('trying to make more than 300 nodes (',
+    num_new_nodes = math.floor(travel_time/timelength)
+    if num_new_nodes > 100:
+        print('trying to make more than 100 nodes (',
               num_new_nodes,
-              ' to be exact).  300 nodes means a trip of more than 300 hours (12 days), which is unlikely.  check for bugs.  If you really want this behavior, then edit breaks.py')
+              ' to be exact).  100 nodes means for any reasonable sized network, this will never run.  check for bugs.  If you really want this behavior, then edit breaks.py')
         print(O,D,travel_time,starting_node)
-    assert num_new_nodes < 300
-    # if exactly some multiple of 60minutes, drop that last node
-    if travel_time % 60 == 0:
+    assert num_new_nodes < 100
+    # if exactly some multiple of timelength minutes, drop that last node
+    if travel_time % timelength == 0:
         num_new_nodes -= 1
 
     new_times = {}
@@ -40,14 +41,14 @@ def make_nodes(O,D,travel_time,starting_node):
     for idx in range(0,num_new_nodes):
         node = idx+starting_node
         new_times[node] = {}
-        # compute travel minutes:  node = 0, 60 min; node = 1, 120, etc
-        new_times[O][node] = 60*idx + 60
+        # compute travel minutes:  node = 0, timelength min; node = 1, 120, etc
+        new_times[O][node] = timelength*idx + timelength
         new_times[node][node] = 0
-        new_times[node][D] = travel_time - (60*idx + 60)
+        new_times[node][D] = travel_time - (timelength*idx + timelength)
         if node > starting_node:
             for pidx in range(0,idx):
                 prev_node=pidx+starting_node
-                new_times[prev_node][node] = (idx - pidx) * 60
+                new_times[prev_node][node] = (idx - pidx) * timelength
 
     # new nodes are stored in "new_times" as keys of second dimension
     # not symmetric, but rather, directional.  Opposite way is impossible
@@ -57,24 +58,16 @@ def make_nodes(O,D,travel_time,starting_node):
 # function for applying to demand
 # use closure for access to global
 #
-# FIXME this is ugly, and will not parallelize well, and therefore may
-# not actually do what I want in some cases.  The problem is figuring
-# out in advance where to start numbering the new nodes for each
-# record, OR figuring out after the fact how to renumber the new nodes
-# so that they make sense.  The approach below is setting the
-# numbering deliberately.  A better approach would allow each
-# invocation to be independent, maybe storing the results in a
-# hashmap.
-#
 
-def break_generator(travel_times):
+def break_generator(travel_times,timelength=60):
     min_start = len(travel_times.index)
     def gen_breaks(record):
         tt = travel_times.loc[record.origin,record.destination]
         new_times = make_nodes(record.origin,
                                record.destination,
                                tt,
-                               min_start)
+                               min_start,
+                               timelength)
         return new_times
 
     return gen_breaks

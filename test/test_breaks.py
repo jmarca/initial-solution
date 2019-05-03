@@ -22,6 +22,16 @@ def test_make_nodes():
     assert df.loc[10,20] == 60
 
 
+    # ditto, but specifying timelength of 90
+    origin = 10
+    destination = 20
+    travel_time = 90
+    starting_node = 30
+    new_tt_matrix = B.make_nodes(origin,destination,travel_time,starting_node,90)
+    assert len(new_tt_matrix) == 2
+    assert new_tt_matrix == {10:{10:0,20:90},20:{20:0}}
+
+
     # one new node at 61 minutes
     travel_time = 61
     new_tt_matrix = B.make_nodes(origin,destination,travel_time,starting_node)
@@ -88,6 +98,56 @@ def test_make_nodes():
     assert new_tt.loc[11,12] == 60
     assert new_tt.loc[d.demand.loc[0,'origin'],11] == 60
     assert new_tt.loc[d.demand.loc[0,'origin'],12] == 120
+    assert new_tt.ndim == 2
+    assert len(new_tt[0]) == count_nodes + 1
+
+
+
+    # now test the break generator with specified timelength
+    # first read in the test demand
+    horizon = 10000
+    d     = D.Demand('test/data/demand.csv',horizon)
+    timelength = 600
+    # read in travel time
+    m = reader.load_matrix_from_csv('test/data/matrix.csv')
+    # assume a mile a minute (60mph), so m in miles === m in minutes
+    # convert to solver space
+    m = d.generate_solver_space_matrix(m)
+    gb = B.break_generator(m,600)
+    # apply to demand
+    newtimes = d.demand.apply(gb,axis=1,result_type='reduce')
+    print(newtimes)
+    assert len(newtimes) == len(d.demand)
+    # check each row for reasonableness
+    count_new_nodes = 0
+    count_nodes = 0
+    for idx in range(0,len(newtimes)):
+        origin = d.demand.loc[idx,'origin']
+        dest   = d.demand.loc[idx,'destination']
+        nt = newtimes[idx]
+        print(origin,dest,idx)
+        assert origin in nt.keys()
+        assert dest in nt.keys()
+        if idx==0:
+            assert 11 in nt[origin].keys()
+        # check length
+        tt = m.loc[origin,dest]
+        expected_num_nodes = math.floor(tt/600)
+        if tt % 600 == 0:
+            expected_num_nodes -= 1
+        assert len(nt) == expected_num_nodes + 2
+        count_new_nodes += (len(nt) - 2)
+        count_nodes += len(nt)
+        print(idx,origin,dest,tt,count_nodes,count_new_nodes)
+    # now test generating new travel time matrix
+    print(newtimes)
+    new_tt = B.aggregate_time_matrix(m,newtimes)
+    print(new_tt.loc[[0,2,7,11,12,13],[0,2,7,11,12,13,14]])
+    assert len(new_tt) == count_nodes + 1 # account for depot node too
+
+    assert new_tt.loc[12,13] == 600
+    assert new_tt.loc[d.demand.loc[1,'origin'],12] == 600
+    assert new_tt.loc[d.demand.loc[1,'origin'],13] == 1200
     assert new_tt.ndim == 2
     assert len(new_tt[0]) == count_nodes + 1
 
