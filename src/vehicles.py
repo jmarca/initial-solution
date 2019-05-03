@@ -12,8 +12,8 @@ class Vehicles():
 
   def __init__(self,
                # filename = None, # uncomment if want vehicle def in file
-               num_vehicles = 100,
-               horizon = 10080
+               num_vehicles,
+               horizon
   ):
     # copy the python from the example.
     Vehicle = namedtuple(

@@ -61,7 +61,7 @@ def main():
     # print('original matrix of',len(matrix.index),'expanded to ',len(expanded_m.index))
 
     # vehicles:
-    vehicles = V.Vehicles(args.numvehicles)
+    vehicles = V.Vehicles(args.numvehicles,args.horizon)
 
 
 
