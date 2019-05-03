@@ -128,12 +128,12 @@ class Demand():
         return df
 
 
-    def make_break_nodes(self,travel_times):
+    def make_break_nodes(self,travel_times,timelength=600):
         """Use travel time matrix, pickup and dropoff pairs to create the
         necessary break opportunities between pairs of nodes.  Assumes
         that travel_times are in solver space, that is, the original
         "map space" travel times have been run through a call to
-        generate_solver_space_matrix already
+        generate_solver_space_matrix already.  Will default to 10 hours per break
 
         """
 
@@ -146,7 +146,7 @@ class Demand():
         # ditto for each dropoff node and pickup node pairing
         # and for each dropoff node and depot node pairing
         new_node = len(travel_times[0])
-        gb = breaks.break_generator(travel_times)
+        gb = breaks.break_generator(travel_times,timelength)
         # apply to demand pairs
         newtimes = self.demand.apply(gb,axis=1,result_type='reduce')
 
@@ -175,8 +175,8 @@ class Demand():
                     continue
                 # o_mapnode = self.get_map_node(oidx)
                 tt = travel_times.loc[didx,oidx]
-                if (not np.isnan(tt)) and  tt > 60: # don't bother if no break node will happen
-                    new_times = breaks.make_nodes(didx,oidx,tt,new_node)
+                if (not np.isnan(tt)) and  tt > timelength: # don't bother if no break node will happen
+                    new_times = breaks.make_nodes(didx,oidx,tt,new_node,timelength)
                     moretimes.append(new_times)
 
         travel_times = breaks.aggregate_time_matrix(travel_times,moretimes)
