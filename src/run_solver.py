@@ -150,6 +150,12 @@ def main():
         late = int(record.late)
         time_dimension.CumulVar(pickup_index).SetRange(early, late)
         routing.AddToAssignment(time_dimension.SlackVar(pickup_index))
+        # and  add simulation-wide time windows (slack) for delivery nodes,
+        dropoff_index = manager.NodeToIndex(record.destination)
+        early = int(0)
+        late = int(args.horizon)
+        time_dimension.CumulVar(dropoff_index).SetRange(early, late)
+        routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
     # Add time window constraints for each vehicle start node
     # and 'copy' the slack var in the solution object (aka Assignment) to print it
     for vehicle in vehicles.vehicles:
@@ -218,35 +224,28 @@ def main():
         # break up full time (horizon) into 10+11 hour ranges (drive 11, break 10)
         # not quite right, as the 14hr rule also comes into play
         need_breaks = math.floor(args.horizon / 60 / (10 + 11))
-        need_breaks = 1
+        #need_breaks = 1
         # follow_constraints = []
         # don't need first break, as that is already specified above
         for intvl in range(1,need_breaks):
             # break minimum start time is 0
             # break maximum start time is horizon - 10 hours
 
-            min_start_time = 0 + (intvl - 1)*(10+11)*60
+            min_start_time = (intvl)*(10 + 11)*60
             max_start_time = args.horizon - 10*60
 
             require_first_few = False
-            if intvl > 3:
-                require_first_few = True
+            #if intvl > 0:
+            #    require_first_few = True
             # key on first break, but only required if time hasn't run out
-            next_10hr_break = solver.FixedDurationIntervalVar(
-                min_start_time, # minimum start time
-                max_start_time,  # maximum start time (11 hours after start)
-                10 * 60,     # duration of break is 10 hours
-                require_first_few,       # optional == True, required == False
-                '{}th 10hr break for vehicle {}'.format(intvl,i))
+            next_10hr_break = solver.FixedDurationStartSyncedOnStartIntervalVar(
+                breaks[i][0],      # keyed to initial
+                600,               # duration
+                min_start_time     # offset
+            )
 
             breaks[i].append(next_10hr_break)
             # constraints:
-            # sync with preceding break
-            #  this break starts 11h after end of prior
-            follow_after_constraint = next_10hr_break.StartsAfterEndWithDelay(
-                breaks[i][intvl-1],
-                660) # 11 hours times 60 minutes = 660
-            solver.AddConstraint(follow_after_constraint)
 
 
             if require_first_few:
@@ -254,7 +253,7 @@ def main():
                 # time, then don't bother with this break
 
                 # first, requirement that break is performed
-                break_condition = next_10hr_break.PerformedExpr()==True
+                break_condition = next_10hr_break.PerformedExpr()==False
 
                 # second, the timing.  If route is over, don't need break
                 break_start = route_start + intvl*(11+10)*60
