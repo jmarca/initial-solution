@@ -212,12 +212,12 @@ def main():
 
         # second, the condition.  If route does not start, no break
 
-        vehicle_not_used = routing.IsEnd(routing.Start(i))
-        print('vehicle is used expression',vehicle_not_used)
+        # vehicle_not_used = routing.IsEnd(routing.Start(i))
+        # print('vehicle is used expression',vehicle_not_used)
 
-        solver.AddConstraint(
-            first_10hr_break.PerformedExpr() != routing.IsEnd(routing.Start(i))
-        )
+        # solver.AddConstraint(
+        #     first_10hr_break.PerformedExpr() != routing.IsEnd(routing.Start(i))
+        # )
 
 
         # now add additional breaks for whole of likely range
