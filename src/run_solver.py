@@ -49,7 +49,7 @@ def main():
     matrix = reader.load_matrix_from_csv(args.matrixfile)
 
     # convert nodes to solver space from input map space
-    matrix = d.generate_solver_space_matrix(matrix,horizon)
+    matrix = d.generate_solver_space_matrix(matrix,args.horizon)
     minutes_matrix = reader.travel_time(args.speed/60,matrix)
 
     # create dummy nodes every 20 hours
@@ -141,6 +141,8 @@ def main():
     print('apply pickup and delivery constraints')
     for idx in d.demand.index:
         record = d.demand.loc[idx]
+        if not record.feasible:
+            continue
         pickup_index = manager.NodeToIndex(record.origin)
         delivery_index = manager.NodeToIndex(record.destination)
         routing.AddPickupAndDelivery(pickup_index, delivery_index)
@@ -156,6 +158,8 @@ def main():
     print('apply time window  constraints')
     for idx in d.demand.index:
         record = d.demand.loc[idx]
+        if not record.feasible:
+            continue
         pickup_index = manager.NodeToIndex(record.origin)
         early = int(record.early)# 0
         late = int(record.late)  #  + args.horizon
@@ -167,8 +171,9 @@ def main():
         late = int(args.horizon)
         time_dimension.CumulVar(dropoff_index).SetRange(early, late)
         routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
+
     for node in range(len(minutes_matrix.index),len(expanded_mm.index)):
-        # just the dummy nodes. give them all super powers
+        # just the dummy nodes. give them all extended time windows
         index = manager.NodeToIndex(node)
         time_dimension.CumulVar(index).SetRange(0,args.horizon)
         routing.AddToAssignment(time_dimension.SlackVar(index))

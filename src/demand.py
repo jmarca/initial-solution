@@ -94,23 +94,34 @@ class Demand():
         new_matrix[0][0] = 0
         # list of all origins
         self.demand['feasible'] = True
-        origins_idx = self.origins.index
-        for idx in origins_idx:
-            new_matrix[idx] = {}
-            new_matrix[idx][idx] = 0
+        feasible_origins = []
+        feasible_destinations = []
         for idx in self.demand.index:
             record = self.demand.loc[idx]
-            round_trip = matrix.loc[0,record.from_node] + record.pickup_time
-            matrix.loc[record.origin,record.to_node] + record.dropoff_time +
-            matrix.loc[record.to_node,0] + record.early
+            """Use travel time matrix to check that every trip is at least
+            feasible as a one-off, that is, as a trip from depot to pickup
+            to destination and back to depot, respecting both the horizon
+            time of the simulation, and the time window of the pickup.
+
+            Infeasible nodes will be marked as such here, so that they
+            will not be used in the simulation.
+
+            """
+            round_trip = (matrix.loc[0,record.from_node] + record.pickup_time +
+                          matrix.loc[record.origin,record.to_node] + record.dropoff_time +
+                          matrix.loc[record.to_node,0] + record.early)
             if round_trip > horizon:
-                print("Pair from {} to {} will end after horizon time of {}".format(origin.from_node,origin.to_node,horizon))
-                record.feasible=False
+                print("Pair from {} to {} will end after horizon time of {}".format(record.from_node,record.to_node,horizon))
+                self.demand.loc[idx,'feasible']=False
                 continue
+            feasible_origins.append(record.origin)
+            feasible_destinations.append(record.destination)
             if not record.origin in new_matrix.keys():
                 new_matrix[record.origin]={}
+                new_matrix[record.origin][record.origin] = 0
             if not record.destination in new_matrix.keys():
                 new_matrix[record.destination]={}
+                new_matrix[record.destination][record.destination]=0
             # depot to origin
             new_matrix[0][record.origin]=matrix.loc[0,record.from_node]
             # origin to destination
@@ -120,38 +131,20 @@ class Demand():
             new_matrix[record.destination][record.destination]=0
             # destination to depot
             new_matrix[record.destination][0]=matrix.loc[record.to_node,0]
-            # destination to all other origins
-            for oidx in origins_idx:
-                if oidx == record.origin:
-                    continue
-                new_matrix[record.destination][oidx]=matrix.loc[record.to_node,
-                                                                self.get_map_node(oidx)]
 
+
+        # finally, link all feasible destinations to all feasible origins
+        for d in feasible_destinations:
+            for o in feasible_origins:
+                if d in new_matrix[o].keys():
+                    # this is original o to d pair, don't link d to o
+                    continue
+                new_matrix[d][o]=matrix.loc[self.get_map_node(d),
+                                            self.get_map_node(o)]
         df = pd.DataFrame.from_dict(new_matrix,orient='index')
         # df = df.fillna(sys.maxsize)
         # I like this prior to solver run, but here is it potentially dangerous
         return df
-
-    def check_feasible(matrix,horizon):
-        """Use travel time matrix to check that every trip is at least
-        feasible as a one-off, that is, as a trip from depot to pickup
-        to destination and back to depot, respecting both the horizon
-        time of the simulation, and the time window of the pickup.
-
-        Infeasible nodes will be marked as such here, so that they
-        will not be used in the simulation.
-
-        """
-        # should write this as a function call
-        for idx in self.demand.idx:
-            record = self.demand.loc[idx]
-            round_trip = tt_matrix.loc[0,record.origin] +
-            tt_matrix.loc[record.origin,record.destination] +
-            tt_matrix.loc[record.destination,0] + record.early
-            if round_trip > horizon:
-                print("Pair from {} to {} will end after horizon time of {}".format(origin.from_node,origin.to_node,horizon))
-                record.feasible=False
-        return record.feasible
 
 
 
