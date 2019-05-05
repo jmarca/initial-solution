@@ -79,7 +79,7 @@ class Demand():
             _demand[idx]=self.equivalence.loc[idx,'demand']
         return _demand
 
-    def generate_solver_space_matrix(self,matrix):
+    def generate_solver_space_matrix(self,matrix,horizon):
         """the input distance matrix is in "map space", meaning that nodes can
         repeat and so on.  The solver cannot work in that space, so
         this routine converts.  Input is a matrix of distances between
@@ -93,12 +93,20 @@ class Demand():
         new_matrix[0] = {} # depot node
         new_matrix[0][0] = 0
         # list of all origins
+        self.demand['feasible'] = True
         origins_idx = self.origins.index
         for idx in origins_idx:
             new_matrix[idx] = {}
             new_matrix[idx][idx] = 0
         for idx in self.demand.index:
             record = self.demand.loc[idx]
+            round_trip = matrix.loc[0,record.from_node] + record.pickup_time
+            matrix.loc[record.origin,record.to_node] + record.dropoff_time +
+            matrix.loc[record.to_node,0] + record.early
+            if round_trip > horizon:
+                print("Pair from {} to {} will end after horizon time of {}".format(origin.from_node,origin.to_node,horizon))
+                record.feasible=False
+                continue
             if not record.origin in new_matrix.keys():
                 new_matrix[record.origin]={}
             if not record.destination in new_matrix.keys():
@@ -123,6 +131,28 @@ class Demand():
         # df = df.fillna(sys.maxsize)
         # I like this prior to solver run, but here is it potentially dangerous
         return df
+
+    def check_feasible(matrix,horizon):
+        """Use travel time matrix to check that every trip is at least
+        feasible as a one-off, that is, as a trip from depot to pickup
+        to destination and back to depot, respecting both the horizon
+        time of the simulation, and the time window of the pickup.
+
+        Infeasible nodes will be marked as such here, so that they
+        will not be used in the simulation.
+
+        """
+        # should write this as a function call
+        for idx in self.demand.idx:
+            record = self.demand.loc[idx]
+            round_trip = tt_matrix.loc[0,record.origin] +
+            tt_matrix.loc[record.origin,record.destination] +
+            tt_matrix.loc[record.destination,0] + record.early
+            if round_trip > horizon:
+                print("Pair from {} to {} will end after horizon time of {}".format(origin.from_node,origin.to_node,horizon))
+                record.feasible=False
+        return record.feasible
+
 
 
     def make_break_nodes(self,travel_times,timelength=600):

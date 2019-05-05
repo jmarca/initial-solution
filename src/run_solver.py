@@ -49,7 +49,7 @@ def main():
     matrix = reader.load_matrix_from_csv(args.matrixfile)
 
     # convert nodes to solver space from input map space
-    matrix = d.generate_solver_space_matrix(matrix)
+    matrix = d.generate_solver_space_matrix(matrix,horizon)
     minutes_matrix = reader.travel_time(args.speed/60,matrix)
 
     # create dummy nodes every 20 hours
