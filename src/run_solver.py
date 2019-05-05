@@ -193,6 +193,7 @@ def main():
 
     breaks = {}
     starts = []
+    slacks = []
     ends   = []
     # grab ref to solver
     solver = routing.solver()
@@ -206,15 +207,17 @@ def main():
         # first break is based on start of route.
         # for now, implementing the 11-hour limit as if the
         # time_dimension is only collecting driving time
-        route_start = time_dimension.CumulVar(routing.Start(i)) + time_dimension.SlackVar(routing.Start(i))
-        starts.append(route_start)
-        route_end = time_dimension.CumulVar(routing.End(i))
-        ends.append(route_end)
-        must_start = route_start + 11*60 # 11 hours later
-        print(route_start,must_start)
+        time_start = time_dimension.CumulVar(routing.Start(i))
+        starts.append(time_start)
+        slack_start = time_dimension.SlackVar(routing.Start(i))
+        slacks.append(slack_start)
+        time_end = time_dimension.CumulVar(routing.End(i))
+        ends.append(time_end)
+        must_start = time_start + 11*60 # 11 hours later
+        print(time_start,must_start)
 
         first_10hr_break = solver.FixedDurationIntervalVar(
-            # route_start, # minimum start time
+            # time_start, # minimum start time
             must_start,  # maximum start time (11 hours after start)
             10 * 60,     # duration of break is 10 hours
             # False,       # not optional?  What if only drive for < 10 hrs?
@@ -298,8 +301,8 @@ def main():
                 break_condition = next_10hr_break.PerformedExpr()==True
 
                 # second, the timing.  If route is over, don't need break
-                break_start = route_start + intvl*(11+10)*60
-                time_condition =  break_start < route_end # break_start
+                break_start = time_start + intvl*(11+10)*60
+                time_condition =  break_start < time_end # break_start
 
                 # use conditional expression
                 expression = solver.ConditionalExpression(time_condition,
