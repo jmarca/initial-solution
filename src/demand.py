@@ -17,18 +17,44 @@ class Demand():
 
     def __init__(self,
                  filename,
+                 time_matrix,
                  horizon,
                  pickup_time=15,
                  dropoff_time=15):
 
         demand = reader.load_demand_from_csv(filename)
-        # create unique nodes for origins, destinations
-        demand['origin'] = range(1,len(demand.index)+1)
-        demand['destination'] = demand['origin'].add(len(demand.index))
-
         # for now, just use identical pickup and dropoff times
         demand['pickup_time']=pickup_time
         demand['dropoff_time']=dropoff_time
+
+        # check feasible demands based on time_matrix, horizon
+        def check_feasible(record):
+            """Use travel time matrix to check that every trip is at least
+            feasible as a one-off, that is, as a trip from depot to pickup
+            to destination and back to depot, respecting both the horizon
+            time of the simulation, and the time window of the pickup.
+
+            Infeasible nodes will be marked as such here, so that they
+            will not be used in the simulation.
+
+            """
+            feasible = True
+            round_trip = (time_matrix.loc[0,record.from_node] +
+                          record.pickup_time +
+                          time_matrix.loc[record.from_node,record.to_node] +
+                          record.dropoff_time +
+                          time_matrix.loc[record.to_node,0] +
+                          record.early)
+            if round_trip > horizon:
+                print("Pair from {} to {} will end after horizon time of {}".format(record.from_node,record.to_node,horizon))
+                feasible = False
+            return feasible
+        demand['feasible'] = demand.apply(check_feasible,axis=1)
+
+
+        # create unique nodes for origins, destinations
+        demand['origin'] = range(1,len(demand.index)+1)
+        demand['destination'] = demand['origin'].add(len(demand.index))
 
         self.demand = demand
 
