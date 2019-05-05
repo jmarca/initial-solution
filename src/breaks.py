@@ -55,11 +55,78 @@ def make_nodes(O,D,travel_time,starting_node,timelength=60):
     # so those values are NaN and easily set to infinity
     return new_times
 
-# function for applying to demand
+def split_links(O,D,travel_time,starting_node):
+    """split the link from O to D in half
+    arguments: O: origin node, integer
+               D: destination node, integer
+               travel_time: time from O to D, integer
+               starting_node: starting point for new nodes, integer
+    returns: 2 dimensional array of travel times for new nodes.
+             This array is one-directional, from O to D.  Nodes
+             are numbered from starting_node + zero, sequentially
+    """
+
+    new_times = {}
+    new_times[O] = {}
+    new_times[D] = {}
+    new_times[O][O] = 0
+    new_times[O][D] = travel_time
+    new_times[D][D] = 0
+
+    node = starting_node
+    new_times[node] = {}
+    # compute travel minutes
+    new_times[O][node] = math.floor(travel_time/2)
+    new_times[node][node] = 0
+    new_times[node][D] = travel_time - new_times[O][node]
+
+    # new nodes are stored in "new_times" as keys of second dimension
+    # not symmetric, but rather, directional.  Opposite way is impossible
+    # so those values are NaN and easily set to infinity
+    return new_times
+
+
+
+
+def make_dummy_node(travel_times,pickups,dropoffs,start=-1):
+    """create dummy node.  Expand travel time matrix"""
+    # create a dummy node, only reachable from depot,
+    new_times = {}
+    # new node id
+    nn_id = start
+    if start < 0:
+        nn_id = int(travel_times.index.max()) + 1
+    new_times[0] = {0:0}
+    new_times[nn_id] = {0:0}
+    # now all set travel time from nn to all pickups equal to depot to pickups
+    # for p in pickups:
+    #     new_times[nn_id][p]=travel_times.loc[0,p]
+    for p in dropoffs:
+        new_times[p]={}
+        new_times[p][nn_id]=travel_times.loc[p,0]
+    new_times[0][nn_id]=0
+    new_times[nn_id][nn_id]= 0
+
+    return new_times
+
+def make_dummy_vehicle_nodes(vehicles,travel_times,pickups,dropoffs):
+    moretimes = []
+    start = travel_times.index.max()+1
+    new_times = make_dummy_vehicle_node(travel_times,pickups,dropoffs,start)
+    moretimes.append(new_times)
+    for v in range(1,len(vehicles.vehicles)):
+        # for now, just do it every time
+        # but eventually should figure out logic to copy in from new_times
+        start += 1
+        new_times = make_dummy_vehicle_node(travel_times,pickups,dropoffs,start)
+        moretimes.append(new_times)
+    return moretimes
+
+
+# functions for applying to demand
 # use closure for access to global
 #
-
-def break_generator(travel_times,timelength=60):
+def break_generator(travel_times,timelength=600):
     min_start = len(travel_times.index)
     def gen_breaks(record):
         tt = travel_times.loc[record.origin,record.destination]
@@ -69,6 +136,21 @@ def break_generator(travel_times,timelength=60):
                                min_start,
                                timelength)
         return new_times
+
+    return gen_breaks
+
+def split_generator(travel_times,timelength=600):
+    min_start = len(travel_times.index)
+    def gen_breaks(record):
+        tt = travel_times.loc[record.origin,record.destination]
+        if tt > timelength:
+            new_times = make_nodes(record.origin,
+                                   record.destination,
+                                   tt,
+                                   min_start,
+                                   timelength)
+            return new_times
+        return {}
 
     return gen_breaks
 
@@ -128,6 +210,73 @@ def aggregate_time_matrix(travel_time,newtimes):
         # if debug:
         # assert 0
 
+    # now replace NaN with infinity
+    # travel_time = travel_time.fillna(sys.maxsize)
+    # print(travel_time)
+    return travel_time
+
+def aggregate_dummy_nodes(travel_time,newtimes):
+    """combine current time matrix with list of new times for each new node"""
+
+    max_new_node = len(travel_time.index)
+    for nt in newtimes:
+        # print(nt)
+        new_df = pd.DataFrame.from_dict(data=nt,orient='index')
+        # print (new_df)
+        old_cols = [i for i in new_df.columns.view(int)]
+        old_cols.sort() # shift new node to last
+        new_cols = [old_cols.pop()]
+        # print(new_cols,old_cols)
+        #print(new_df.loc[new_cols,old_cols])
+        #print(new_df.loc[old_cols,new_cols])
+        # assert 0
+        # first append the new destinations for existing columns
+        travel_time = travel_time.append(new_df.loc[new_cols,old_cols])
+
+        # if debug:
+        # print(travel_time)
+        # then join in the new rows and columns
+        reduced_df = new_df.loc[:,new_cols]
+        reduced_df = reduced_df.reindex()
+        travel_time = travel_time.join(reduced_df
+                                       ,how='outer'
+        )
+    # now replace NaN with infinity
+    # travel_time = travel_time.fillna(sys.maxsize)
+    # print(travel_time)
+    return travel_time
+
+def aggregate_split_nodes(travel_time,newtimes):
+    """combine current time matrix with list of new times for each new node"""
+
+    max_new_node = len(travel_time.index)
+    for nt in newtimes:
+        if len(nt) == 0:
+            continue
+        print(nt)
+        new_df = pd.DataFrame.from_dict(data=nt,orient='index')
+        # print (new_df)
+        old_cols = [i for i in new_df.columns.view(int)]
+        old_cols.sort() # shift new node to last
+        new_cols = [old_cols.pop()]
+        # print(new_cols,old_cols)
+        #print(new_df.loc[new_cols,old_cols])
+        #print(new_df.loc[old_cols,new_cols])
+        # assert 0
+        # first append the new destinations for existing columns
+        travel_time = travel_time.append(new_df.loc[new_cols,old_cols])
+
+        # if debug:
+        # print(travel_time)
+        # then join in the new rows and columns
+        print(new_df)
+        print(new_df.loc[:,new_cols])
+        reduced_df = new_df.loc[:,new_cols]
+        reduced_df = reduced_df.reindex()
+        print(reduced_df)
+        travel_time = travel_time.join(reduced_df
+                                       ,how='outer'
+        )
     # now replace NaN with infinity
     # travel_time = travel_time.fillna(sys.maxsize)
     # print(travel_time)

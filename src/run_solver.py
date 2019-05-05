@@ -42,15 +42,17 @@ def main():
 
     args = parser.parse_args()
 
-    print('read in demand data')
-    d = D.Demand(args.demand,args.horizon)
-
     print('read in distance matrix')
     matrix = reader.load_matrix_from_csv(args.matrixfile)
+    minutes_matrix = reader.travel_time(args.speed/60,matrix)
+
+    print('read in demand data')
+    d = D.Demand(args.demand,minutes_matrix,args.horizon)
 
     # convert nodes to solver space from input map space
-    matrix = d.generate_solver_space_matrix(matrix,args.horizon)
-    minutes_matrix = reader.travel_time(args.speed/60,matrix)
+    minutes_matrix = d.generate_solver_space_matrix(minutes_matrix,args.horizon)
+    # ditto for space
+    matrix = reader.travel_time(60/args.speed,minutes_matrix)
 
     # create dummy nodes every 20 hours
     # expanded_mm = minutes_matrix
@@ -77,7 +79,8 @@ def main():
     # demand class
     num_nodes = len(expanded_mm.index)
     print('solving with ',num_nodes,'nodes')
-
+    print(d.demand.loc[d.demand.feasible,:])
+    print(expanded_mm)
     # assuming here that all depots are in the same place
     # and that vehicles all return to the same depot
     manager = pywrapcp.RoutingIndexManager(

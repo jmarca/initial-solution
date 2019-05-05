@@ -50,16 +50,20 @@ class Demand():
                 feasible = False
             return feasible
         demand['feasible'] = demand.apply(check_feasible,axis=1)
-
-
+        demand['origin'] = -1
+        demand['destination'] = -1
+        feasible_index = demand.feasible
+        # print(feasible_index)
         # create unique nodes for origins, destinations
-        demand['origin'] = range(1,len(demand.index)+1)
-        demand['destination'] = demand['origin'].add(len(demand.index))
-
+        demand.loc[feasible_index,'origin'] = range(1,len(demand.index[feasible_index])+1)
+        last_origin = demand.origin.max()
+        demand.loc[feasible_index,'destination'] = last_origin + range(1,len(demand.index[feasible_index])+1)
+        # so now, feasible pairs have origin, destination > 0
+        # and infeasible pairs have origin = -1, destination = -1
         self.demand = demand
 
         # slice up to create a lookup object
-        origins = self.demand.loc[:,['from_node','origin','pickup_time']]
+        origins = self.demand.loc[feasible_index,['from_node','origin','pickup_time']]
         origins = origins.rename(index=str,columns={'from_node':'mapnode',
                                                     'origin':'modelnode',
                                                     'pickup_time':'service_time'})
@@ -67,7 +71,7 @@ class Demand():
         origins['demand'] = 1
         self.origins = origins # for queries---is this origin or not
 
-        destinations = self.demand.loc[:,['to_node','destination','dropoff_time']]
+        destinations = self.demand.loc[feasible_index,['to_node','destination','dropoff_time']]
         destinations = destinations.rename(index=str,columns={'to_node':'mapnode',
                                                               'destination':'modelnode',
                                                               'dropoff_time':'service_time'})
@@ -98,13 +102,6 @@ class Demand():
             return int(self.equivalence.loc[demand_node,'demand'])
         return 0
 
-    def get_demand_map(self):
-        _demand = {}
-        for idx in self.equivalence.index:
-            # from node has 1 supply, to node has -1 demand
-            _demand[idx]=self.equivalence.loc[idx,'demand']
-        return _demand
-
     def generate_solver_space_matrix(self,matrix,horizon):
         """the input distance matrix is in "map space", meaning that nodes can
         repeat and so on.  The solver cannot work in that space, so
@@ -119,29 +116,9 @@ class Demand():
         new_matrix[0] = {} # depot node
         new_matrix[0][0] = 0
         # list of all origins
-        self.demand['feasible'] = True
-        feasible_origins = []
-        feasible_destinations = []
-        for idx in self.demand.index:
+        feasible_idx = self.demand.feasible
+        for idx in self.demand.index[feasible_idx]:
             record = self.demand.loc[idx]
-            """Use travel time matrix to check that every trip is at least
-            feasible as a one-off, that is, as a trip from depot to pickup
-            to destination and back to depot, respecting both the horizon
-            time of the simulation, and the time window of the pickup.
-
-            Infeasible nodes will be marked as such here, so that they
-            will not be used in the simulation.
-
-            """
-            round_trip = (matrix.loc[0,record.from_node] + record.pickup_time +
-                          matrix.loc[record.origin,record.to_node] + record.dropoff_time +
-                          matrix.loc[record.to_node,0] + record.early)
-            if round_trip > horizon:
-                print("Pair from {} to {} will end after horizon time of {}".format(record.from_node,record.to_node,horizon))
-                self.demand.loc[idx,'feasible']=False
-                continue
-            feasible_origins.append(record.origin)
-            feasible_destinations.append(record.destination)
             if not record.origin in new_matrix.keys():
                 new_matrix[record.origin]={}
                 new_matrix[record.origin][record.origin] = 0
@@ -160,8 +137,8 @@ class Demand():
 
 
         # finally, link all feasible destinations to all feasible origins
-        for d in feasible_destinations:
-            for o in feasible_origins:
+        for d in self.destinations.index:
+            for o in self.origins.index:
                 if d in new_matrix[o].keys():
                     # this is original o to d pair, don't link d to o
                     continue
@@ -187,21 +164,23 @@ class Demand():
         #
         # for each pickup and dropoff pair in the demand records,
         #
-        #   create a potential break node every hour along the route.
+        #   if the link is longer than the timelength, split it in half
         #
         # ditto for each dropoff node and pickup node pairing
         # and for each dropoff node and depot node pairing
-        new_node = len(travel_times[0])
-        gb = breaks.break_generator(travel_times,timelength)
+        new_node = len(travel_times.index)
+        gb = breaks.split_generator(travel_times,timelength)
         # apply to demand pairs
-        newtimes = self.demand.apply(gb,axis=1,result_type='reduce')
-
+        feasible_index = self.demand.feasible
+        newtimes = self.demand.loc[feasible_index,:].apply(gb,axis=1,result_type='reduce')
+        print(newtimes)
         # fixup newtimes into augmented_matrix
-        travel_times = breaks.aggregate_time_matrix(travel_times,newtimes)
+        travel_times = breaks.aggregate_split_nodes(travel_times,newtimes)
 
         # now do that for all destinations to all origins plus depot (0)
         # yes, this blows up quite large
         moretimes = []
+        new_node = len(travel_times.index)
 
         destinations_idx = [idx for idx in self.destinations.index]
         destinations_idx.append(0) # tack on the depot node
@@ -209,21 +188,19 @@ class Demand():
         origins_idx.append(0) # tack on the depot node.  This will
                               # fail if/when more than one depot
                               # happens
-        # print(max(travel_times.columns))
 
-        # now assuming that travel matrix is in solver space. no need
-        # for mapnode stuff
         for didx in destinations_idx:
-            # d_mapnode = self.get_map_node(didx)
             for oidx in origins_idx:
                 if oidx == didx:
-                    # depot to depot is silly
+                    # self to self is silly
                     continue
-                # o_mapnode = self.get_map_node(oidx)
                 tt = travel_times.loc[didx,oidx]
                 if (not np.isnan(tt)) and  tt > timelength: # don't bother if no break node will happen
-                    new_times = breaks.make_nodes(didx,oidx,tt,new_node,timelength)
+                    new_times = breaks.split_links(didx,oidx,tt,new_node)
                     moretimes.append(new_times)
+                    new_node += 1
 
-        travel_times = breaks.aggregate_time_matrix(travel_times,moretimes)
+        travel_times = breaks.aggregate_split_nodes(travel_times,moretimes)
+        print(travel_times)
+
         return travel_times # which holds everything of interest
