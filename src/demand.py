@@ -55,9 +55,6 @@ class Demand():
     def get_node_list(self):
         return self.equivalence.index.view(int)
 
-    def get_number_nodes(self):
-        return (len(self.equivalence))
-
     def get_map_node(self,demand_node):
         if demand_node in self.equivalence.index:
             return (self.equivalence.loc[demand_node].mapnode)

@@ -12,7 +12,6 @@ def print_solution(demand,
                    horizon):  # pylint:disable=too-many-locals
     """Prints assignment on console"""
     print('Objective: {}'.format(assignment.ObjectiveValue()))
-    num_pickup_nodes = demand.get_number_nodes() / 2
     print('Breaks:')
     breaks = assignment.IntervalVarContainer()
     for i in range(0,breaks.Size()):
@@ -63,7 +62,6 @@ def print_solution(demand,
             node_demand = demand.get_demand(node)
             if node_demand > 0:
                 pickups += 1
-            # if node < num_pickup_nodes:
             # at this point, everything should have slack var
             slack_var_min = timedelta(minutes=assignment.Min(slack_var))
             slack_var_max = timedelta(minutes=assignment.Max(slack_var))
