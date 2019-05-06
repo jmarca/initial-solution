@@ -80,7 +80,7 @@ def main():
     num_nodes = len(expanded_mm.index)
     print('solving with ',num_nodes,'nodes')
     print(d.demand.loc[d.demand.feasible,:])
-    print(expanded_mm)
+    # print(expanded_mm)
     # assuming here that all depots are in the same place
     # and that vehicles all return to the same depot
     manager = pywrapcp.RoutingIndexManager(
