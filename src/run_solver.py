@@ -50,17 +50,17 @@ def main():
     d = D.Demand(args.demand,minutes_matrix,args.horizon)
 
     # convert nodes to solver space from input map space
-    minutes_matrix = d.generate_solver_space_matrix(minutes_matrix,args.horizon)
+    mm = d.generate_solver_space_matrix(minutes_matrix,args.horizon)
     # ditto for space
-    matrix = reader.travel_time(60/args.speed,minutes_matrix)
+    # m = reader.travel_time(60/args.speed,minutes_matrix)
 
     # create dummy nodes every 20 hours
     # expanded_mm = minutes_matrix
     # might want to expand matrix, but I don't see any benefit from this
     if args.expand:
-        expanded_mm = d.make_break_nodes(minutes_matrix,args.timelength)
+        expanded_mm = d.make_break_nodes(mm,args.timelength)
     else:
-        expanded_mm = minutes_matrix
+        expanded_mm = mm
     # print(expanded_mm)
 
     # copy to distance matrix
@@ -170,14 +170,21 @@ def main():
         routing.AddToAssignment(time_dimension.SlackVar(pickup_index))
         # and  add simulation-wide time windows (slack) for delivery nodes,
         dropoff_index = manager.NodeToIndex(record.destination)
-        early = int(0)
-        late = int(args.horizon)
+        tt = expanded_mm.loc[record.origin,record.destination]
+        # early time windows is minimal breaks: start fresh, drive straight
+        breaks = math.floor(tt/60/11) * 600
+        early = int(record.early + tt + breaks)
+        # late time window  maybe another break will have to be inserted
+        breaks += 600
+        late = int(record.late + tt + breaks)
         time_dimension.CumulVar(dropoff_index).SetRange(early, late)
         routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
+
 
     for node in range(len(minutes_matrix.index),len(expanded_mm.index)):
         # just the dummy nodes. give them all extended time windows
         index = manager.NodeToIndex(node)
+        # print('dummy node time window',node,index)
         time_dimension.CumulVar(index).SetRange(0,args.horizon)
         routing.AddToAssignment(time_dimension.SlackVar(index))
 
@@ -186,6 +193,7 @@ def main():
     for vehicle in vehicles.vehicles:
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
+        # not really needed unless different from 0, horizon
         time_dimension.CumulVar(index).SetRange(vehicle.time_window[0],
                                                 vehicle.time_window[1])
         routing.AddToAssignment(time_dimension.SlackVar(index))
@@ -222,6 +230,10 @@ def main():
         time_end = time_dimension.CumulVar(routing.End(i))
         ends.append(time_end)
         must_start = time_start + 11*60 # 11 hours later
+        # this next pushes start time too late if depot slack is used for break
+        # must_start = time_start + slack_start + 11*60 # 11 hours later
+        # and this one is no different anyway
+        # must_start = slack_start + 11*60 # 11 hours later
         print(time_start,must_start)
 
         first_10hr_break = solver.FixedDurationIntervalVar(
@@ -230,23 +242,19 @@ def main():
             10 * 60,     # duration of break is 10 hours
             # False,       # not optional?  What if only drive for < 10 hrs?
             'first 10hr break for vehicle {}'.format(i))
+
+        # with timestartmin, max, the following doesn't work---first
+        # breaks for vehicles are scheduled as is convenient, not
+        # after 11 hours of driving.
+
+        # first_10hr_break = solver.FixedDurationIntervalVar(
+        #     time_start.Min(), # minimum start time
+        #     time_start.Max(),  # maximum start time (11 hours after start)
+        #     10 * 60,     # duration of break is 10 hours
+        #     False,        # optional? not optional?  What if only drive for < 10 hrs?
+        #     'first 10hr break for vehicle {}'.format(i))
+        print(time_start.Min(),time_start.Max(),must_start.Min(),must_start.Max())
         breaks[i].append(first_10hr_break)
-
-        # make the break optional if the vehicle is not used?
-
-        # quasi-conditional constraint.  Only perform break if vehicle is used
-
-        # first, requirement that break is not performed
-        # nobreak_condition = first_10hr_break.PerformedExpr()==False
-
-        # second, the condition.  If route does not start, no break
-
-        # vehicle_not_used = routing.IsEnd(routing.Start(i))
-        # print('vehicle is used expression',vehicle_not_used)
-
-        # solver.AddConstraint(
-        #     first_10hr_break.PerformedExpr() != routing.IsEnd(routing.Start(i))
-        # )
 
 
         # now add additional breaks for whole of likely range
