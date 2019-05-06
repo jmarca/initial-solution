@@ -144,11 +144,10 @@ def split_generator(travel_times,timelength=600):
     def gen_breaks(record):
         tt = travel_times.loc[record.origin,record.destination]
         if tt > timelength:
-            new_times = make_nodes(record.origin,
-                                   record.destination,
-                                   tt,
-                                   min_start,
-                                   timelength)
+            new_times = split_links(record.origin,
+                                    record.destination,
+                                    tt,
+                                    min_start)
             return new_times
         return {}
 
@@ -189,7 +188,8 @@ def aggregate_time_matrix(travel_time,newtimes):
         max_new_node = new_df.columns.max()+1
 
         # if debug:
-        #print(new_df)
+        #print(max_new_node,'<-\n',new_df)
+        #assert 0
         # first append the new destinations for existing columns
         travel_time = travel_time.append(new_df.iloc[new_cols,old_cols])
         #print(travel_time)
@@ -248,24 +248,39 @@ def aggregate_dummy_nodes(travel_time,newtimes):
 
 def aggregate_split_nodes(travel_time,newtimes):
     """combine current time matrix with list of new times for each new node"""
-
-    max_new_node = len(travel_time.index)
+    print(travel_time)
+    max_old_node = travel_time.index.max()
     for nt in newtimes:
         if len(nt) == 0:
             continue
-        print(nt)
+        print('nt is ',nt)
         new_df = pd.DataFrame.from_dict(data=nt,orient='index')
-        # print (new_df)
+        print ('new_df is',new_df)
         old_cols = [i for i in new_df.columns.view(int)]
         old_cols.sort() # shift new node to last
         new_cols = [old_cols.pop()]
-        # print(new_cols,old_cols)
-        #print(new_df.loc[new_cols,old_cols])
-        #print(new_df.loc[old_cols,new_cols])
-        # assert 0
+        print(max_old_node,new_cols,old_cols)
+        print(new_df.loc[new_cols,old_cols])
+        print(new_df.loc[old_cols,new_cols])
+        # need to adjust the dataframe so no overlapping new columns
+        offset = (max_old_node+1) - min(new_df.loc[:,new_cols].columns)
+        # first the columns
+        adjustment = [0  for i in range(0,len(new_df.columns))]
+        adjustment[-1] = offset
+        print(adjustment,(max_old_node+1), min(new_df.loc[:,new_cols].columns))
+        #assert 0
+        if offset > 0:
+            # print(new_df)
+            new_df.columns = [i + adj for (i,adj) in zip(new_df.columns,adjustment)]
+            new_df.index = [i + adj for (i,adj) in zip(new_df.index,adjustment)]
+            new_df = new_df.reindex()
+            print (new_df)
+            new_cols = new_df.index.max()
+            print(new_cols)
+            print(old_cols)
         # first append the new destinations for existing columns
-        travel_time = travel_time.append(new_df.loc[new_cols,old_cols])
 
+        travel_time = travel_time.append(new_df.loc[new_cols,old_cols])
         # if debug:
         # print(travel_time)
         # then join in the new rows and columns
@@ -277,6 +292,9 @@ def aggregate_split_nodes(travel_time,newtimes):
         travel_time = travel_time.join(reduced_df
                                        ,how='outer'
         )
+        # bump up the max old node
+        max_old_node = travel_time.index.max()
+        # loop
     # now replace NaN with infinity
     # travel_time = travel_time.fillna(sys.maxsize)
     # print(travel_time)
