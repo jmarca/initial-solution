@@ -248,47 +248,32 @@ def aggregate_dummy_nodes(travel_time,newtimes):
 
 def aggregate_split_nodes(travel_time,newtimes):
     """combine current time matrix with list of new times for each new node"""
-    print(travel_time)
     max_old_node = travel_time.index.max()
     for nt in newtimes:
         if len(nt) == 0:
             continue
-        print('nt is ',nt)
         new_df = pd.DataFrame.from_dict(data=nt,orient='index')
-        print ('new_df is',new_df)
         old_cols = [i for i in new_df.columns.view(int)]
         old_cols.sort() # shift new node to last
         new_cols = [old_cols.pop()]
-        print(max_old_node,new_cols,old_cols)
-        print(new_df.loc[new_cols,old_cols])
-        print(new_df.loc[old_cols,new_cols])
         # need to adjust the dataframe so no overlapping new columns
         offset = (max_old_node+1) - min(new_df.loc[:,new_cols].columns)
         # first the columns
         adjustment = [0  for i in range(0,len(new_df.columns))]
         adjustment[-1] = offset
-        print(adjustment,(max_old_node+1), min(new_df.loc[:,new_cols].columns))
-        #assert 0
         if offset > 0:
-            # print(new_df)
             new_df.columns = [i + adj for (i,adj) in zip(new_df.columns,adjustment)]
             new_df.index = [i + adj for (i,adj) in zip(new_df.index,adjustment)]
             new_df = new_df.reindex()
-            print (new_df)
             new_cols = new_df.index.max()
-            print(new_cols)
-            print(old_cols)
         # first append the new destinations for existing columns
 
         travel_time = travel_time.append(new_df.loc[new_cols,old_cols])
         # if debug:
         # print(travel_time)
         # then join in the new rows and columns
-        print(new_df)
-        print(new_df.loc[:,new_cols])
         reduced_df = new_df.loc[:,new_cols]
         reduced_df = reduced_df.reindex()
-        print(reduced_df)
         travel_time = travel_time.join(reduced_df
                                        ,how='outer'
         )

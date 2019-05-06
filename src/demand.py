@@ -3,6 +3,7 @@ import numpy as np
 import read_csv as reader
 import breaks
 import sys
+import math
 
 class Demand():
     """
@@ -39,12 +40,26 @@ class Demand():
 
             """
             feasible = True
-            round_trip = (time_matrix.loc[0,record.from_node] +
+            # depot to origin
+            do_tt = time_matrix.loc[0,record.from_node]
+            # 11 hr drive rule
+            do_breaks = math.floor(do_tt/60/11)
+            # origin to destination
+            od_tt = time_matrix.loc[record.from_node,record.to_node]
+            # 11 hr drive rule
+            od_breaks = math.floor(od_tt/60/11)
+            # destination to depot
+            dd_tt = time_matrix.loc[record.to_node,0]
+            # 11 hr drive rule
+            dd_breaks = math.floor(dd_tt/60/11)
+
+            round_trip = (do_tt + do_breaks*600 +
                           record.pickup_time +
-                          time_matrix.loc[record.from_node,record.to_node] +
+                          od_tt + od_breaks*600 +
                           record.dropoff_time +
-                          time_matrix.loc[record.to_node,0] +
+                          dd_tt + dd_breaks*600 +
                           record.early)
+            print(round_trip,do_breaks,od_breaks,dd_breaks)
             if round_trip > horizon:
                 print("Pair from {} to {} will end after horizon time of {}".format(record.from_node,record.to_node,horizon))
                 feasible = False

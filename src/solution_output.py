@@ -17,7 +17,7 @@ def print_solution(demand,
     for i in range(0,breaks.Size()):
         brk = breaks.Element(i)
         # print(brk)
-        if (brk.StartMin()>0 ):
+        if (brk.StartMin()>0 and brk.StartMin() < horizon * 10):
             print('start',timedelta(minutes=brk.StartMin()),# '--',
                   # timedelta(minutes=brk.StartMax()),
                   'duration',timedelta(minutes=brk.DurationMin()),
@@ -26,10 +26,9 @@ def print_solution(demand,
             )
         else:
             print('break',i,'skipped--',
-                  'start',timedelta(minutes=brk.StartMin()),
-                  'duration',timedelta(minutes=brk.DurationMin()),
-                  'end',timedelta(minutes=brk.EndMin()))
-
+                  'start',brk.StartMin(),
+                  'duration',brk.DurationMin(),
+                  'end',brk.EndMin())
 
     total_distance = 0
     total_load_served = 0
