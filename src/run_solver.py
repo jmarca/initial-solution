@@ -181,7 +181,7 @@ def main():
         routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
 
 
-    for node in range(len(minutes_matrix.index),len(expanded_mm.index)):
+    for node in range(mm.index.max()+1,expanded_mm.index.max()+1):
         # just the dummy nodes. give them all extended time windows
         index = manager.NodeToIndex(node)
         # print('dummy node time window',node,index)
