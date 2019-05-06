@@ -188,7 +188,7 @@ class Demand():
         # apply to demand pairs
         feasible_index = self.demand.feasible
         newtimes = self.demand.loc[feasible_index,:].apply(gb,axis=1,result_type='reduce')
-        print(newtimes)
+        # print(newtimes)
         # fixup newtimes into augmented_matrix
         travel_times = breaks.aggregate_split_nodes(travel_times,newtimes)
 
@@ -216,6 +216,6 @@ class Demand():
                     new_node += 1
 
         travel_times = breaks.aggregate_split_nodes(travel_times,moretimes)
-        print(travel_times)
+        # print(travel_times)
 
         return travel_times # which holds everything of interest
