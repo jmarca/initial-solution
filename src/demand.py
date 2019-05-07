@@ -175,15 +175,11 @@ class Demand():
 
             return break_times
 
-        # sift through sorted early values.  as early increments, increment min_intervals
-        sorted_early = self.demand.sort_values(by=['early','late'])
-        # print(sorted_early)
         breaks = {}
-
-        for i in range(0,len(self.demand.index)):
-            breaks[i] = []
-            record = sorted_early.iloc[i]
-            breaks[i] = trip_breaks(record)
+        feasible_idx = self.demand.feasible
+        for idx in self.demand.index[feasible_idx]:
+            record = self.demand.loc[idx]
+            breaks[record.origin] = trip_breaks(record)
 
         return breaks
 

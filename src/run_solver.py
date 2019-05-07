@@ -237,11 +237,9 @@ def main():
         print ( 'breaks for vehicle',i)
         breaks[i] = []
         constraints[i] = []
-        for br_idx in range(0,len(first_breaks)):
-
-            fb = first_breaks[br_idx]
+        for pickup_node in first_breaks.keys():
+            fb = first_breaks[pickup_node]
             # set up the origin details for constraints
-            pickup_node = fb[0][2]
             pickup_idx = manager.NodeToIndex(pickup_node)
             same_vehicle_condition = routing.VehicleVar(pickup_idx) == i
 
