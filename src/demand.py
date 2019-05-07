@@ -169,10 +169,13 @@ class Demand():
             # to satisfy this trip, vehicle must execute all required
             # breaks
             min_starting_time = record.early - do_total_time
-            print (record)
-            print(do_tt,do_breaks,do_total_time)
-            print(od_tt,od_breaks,od_total_time)
-            print(min_starting_time)
+            if record.early < do_total_time:
+                assert record.late >= do_total_time
+                min_starting_time = 0
+            # print (record)
+            # print(do_tt,do_breaks,do_total_time)
+            # print(od_tt,od_breaks,od_total_time)
+            # print(min_starting_time)
             if min_starting_time < 0:
                 # hmm, that is a problem.  explore why this happens
                 print (record)
