@@ -249,6 +249,16 @@ def main():
         print ( 'breaks for vehicle',i)
         breaks[i] = []
         constraints[i] = []
+        active_start =  routing.ActiveVar(routing.Start(i))
+        active_end = routing.VehicleVar(routing.End(i)) == i
+        counting_end = active_end * count_dimension.CumulVar(routing.End(i))
+        end_count_okay = counting_end > 1
+        active_vehicle = end_count_okay
+        time_start = time_dimension.CumulVar(routing.Start(i))
+        slack_start = time_dimension.SlackVar(routing.Start(i))
+        time_end = time_dimension.CumulVar(routing.End(i))
+        must_start = active_vehicle*(time_start + slack_start + 11*60) # 11 hours later
+
         for pickup_node in first_breaks.keys():
             fb = first_breaks[pickup_node]
             # set up the origin details for constraints
