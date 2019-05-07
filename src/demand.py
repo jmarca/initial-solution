@@ -53,20 +53,30 @@ class Demand():
             # 11 hr drive rule
             dd_breaks = math.floor(dd_tt/60/11)
 
-            round_trip = (do_tt + do_breaks*600 +
-                          record.pickup_time +
+            depot_origin_tt = do_tt + do_breaks*600
+            round_trip = (record.pickup_time +
                           od_tt + od_breaks*600 +
                           record.dropoff_time +
-                          dd_tt + dd_breaks*600 +
-                          record.early)
-            print(round_trip,do_breaks,od_breaks,dd_breaks)
-            if round_trip > horizon:
-                print("Pair from {} to {} will end after horizon time of {}".format(record.from_node,record.to_node,horizon))
-                feasible = False
-            return math.ceil(round_trip)
+                          dd_tt + dd_breaks*600 )
+            if record.early > depot_origin_tt:
+                round_trip += record.early
+            else:
+                # don't use early time.  earliest arrival possible is depot_origin_tt
+                round_trip += depot_origin_tt
 
-        demand['round trip cost'] = demand.apply(check_feasible,axis=1)
-        demand['feasible'] = demand['round trip cost'] <= horizon
+            if round_trip > horizon:
+                print("Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,round_trip,horizon))
+                feasible = False
+            if depot_origin_tt > record.late:
+                print("Pair from {} to {} has infeasible pickup time.  {} is less than earliest arrival possible of {}".format(record.from_node,record.to_node,
+                                                                                                                               record.late,depot_origin_tt))
+                feasible = False
+            return pd.Series([math.ceil(round_trip),math.ceil(do_tt + do_breaks*600),feasible],index=['round_trip','depot_origin','feasible'])
+
+        morecols = demand.apply(check_feasible,axis=1)
+        # print(morecols)
+        demand = demand.join(morecols)
+        # print(demand)
         demand['origin'] = -1
         demand['destination'] = -1
         feasible_index = demand.feasible
@@ -296,7 +306,7 @@ class Demand():
             do_tt = travel_times.loc[0,record.origin]
             do_breaks = (math.floor(do_tt/60/11)) * 60*10
             do_total = do_tt + do_breaks
-            origin_trip_cost = record['round trip cost'] - do_total
+            origin_trip_cost = record['round_trip'] - do_total
 
             od_tt = travel_times.loc[record.origin,record.destination]
             od_breaks = (math.floor(do_tt/60/11)) * 60*10
@@ -305,7 +315,7 @@ class Demand():
             dd_tt = travel_times.loc[record.destination,0]
             dd_breaks = (math.floor(dd_tt/60/11)) * 60*10
             dd_total = dd_tt + dd_breaks
-            destination_trip_cost = record['round trip cost'] - dd_total
+            destination_trip_cost = record['round_trip'] - dd_total
 
             destination_details.append((record.destination,destination_trip_cost,record.origin,record.late+od_total))
             origin_details.append((record.origin,origin_trip_cost,record.destination,record.late))
