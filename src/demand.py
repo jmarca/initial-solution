@@ -27,7 +27,7 @@ class Demand():
         # for now, just use identical pickup and dropoff times
         demand['pickup_time']=pickup_time
         demand['dropoff_time']=dropoff_time
-
+        self.horizon = horizon
         # check feasible demands based on time_matrix, horizon
         def check_feasible(record):
             """Use travel time matrix to check that every trip is at least
@@ -63,8 +63,10 @@ class Demand():
             if round_trip > horizon:
                 print("Pair from {} to {} will end after horizon time of {}".format(record.from_node,record.to_node,horizon))
                 feasible = False
-            return feasible
-        demand['feasible'] = demand.apply(check_feasible,axis=1)
+            return math.ceil(round_trip)
+
+        demand['round trip cost'] = demand.apply(check_feasible,axis=1)
+        demand['feasible'] = demand['round trip cost'] <= horizon
         demand['origin'] = -1
         demand['destination'] = -1
         feasible_index = demand.feasible
@@ -112,12 +114,82 @@ class Demand():
             return (self.equivalence.loc[demand_node].service_time)
         return 0
 
+    def get_time_window(self,demand_node):
+        if demand_node in self.origins.index:
+            # find it in the original demand list
+            record_idx = self.demand.origin == demand_node
+            time_windows = self.demand.loc[record_idx,['early','late']].iloc[0,:].view('int')
+            return (time_windows[0],time_windows[1])
+        return (0,self.horizon)
+
+    def get_min_intervals(self,num_veh):
+        min_intervals = [0 for i in range(0,num_veh)]
+        # sift through sorted early values.  as early increments, increment min_intervals
+        sorted_early = self.demand.early.view('int').sort_values()
+        min_early = sorted_early.iloc[0]
+        offset = 0
+        for i in range(1,num_veh):
+            if sorted_early.iloc[i] > min_early:
+                min_early = sorted_early.iloc[i]
+                offset += 1
+            min_intervals[i] += offset
+        return min_intervals
+
+    def get_first_break(self,num_veh,time_matrix):
+
+        # function
+        def trip_breaks(record):
+            """Use travel time matrix to compute timings for breaks.  Assumes the
+               passed in record will be the first trip from the depot
+               for the vehicle
+
+            """
+            # depot to origin drive time
+            do_tt = time_matrix.loc[0,record.origin]
+            # 11 hr drive rule
+            do_breaks = math.floor(do_tt/60/11)
+            do_total_time = do_tt + do_breaks * 10
+
+            # origin to destination drive time
+            od_tt = time_matrix.loc[record.origin,record.destination]
+            # 11 hr drive rule
+            od_breaks = math.floor(od_tt/60/11)
+            od_total_time = od_tt + od_breaks * 10
+            # to satisfy this trip, vehicle must execute all required
+            # breaks
+            min_starting_time = record.early - do_total_time
+            time_window = record.late - record.early
+            break_times=[(
+                math.floor(min_starting_time + 11*60*(i+1) + 10*60*i),
+                math.floor(min_starting_time + 11*60*(i+1) + 10*60*i + time_window)
+            ) for i in range(0,do_breaks)]
+
+            min_depart_time = record.early + record.pickup_time
+
+            break_times.extend([(
+                math.floor(min_depart_time + 11*60*(i+1) + 10*60*i),
+                math.floor(min_depart_time + 11*60*(i+1) + 10*60*i + time_window)
+            ) for i in range(0,od_breaks)])
+
+            return break_times
+
+        # sift through sorted early values.  as early increments, increment min_intervals
+        sorted_early = self.demand.sort_values(by=['early','late'])
+        # print(sorted_early)
+        breaks = {}
+        for i in range(0,num_veh):
+            breaks[i] = []
+            record = sorted_early.iloc[i]
+            breaks[i] = trip_breaks(record)
+
+        return breaks
+
     def get_demand(self,demand_node):
         if demand_node in self.equivalence.index:
             return int(self.equivalence.loc[demand_node,'demand'])
         return 0
 
-    def generate_solver_space_matrix(self,matrix,horizon):
+    def generate_solver_space_matrix(self,matrix,horizon=None):
         """the input distance matrix is in "map space", meaning that nodes can
         repeat and so on.  The solver cannot work in that space, so
         this routine converts.  Input is a matrix of distances between
@@ -125,6 +197,8 @@ class Demand():
         repeated for nodes in solver space.
 
         """
+        if(horizon == None):
+            horizon=self.horizon
         # iterate over each entry in the matrix, and make a new matrix
         # with same data.
         new_matrix = {}
