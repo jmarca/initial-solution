@@ -94,6 +94,16 @@ pip install ortools
 
 # Run solver
 
+## dependent_breaks branch
+
+To run on the dependent breaks branch, try:
+
+```
+python src/run_solver.py -m test/data/matrix.csv --speed 65 -d test/data/demand.csv -t 1 -v 2 --maxtime 16000 --expand 1 --maxlinktime 600
+```
+
+## master branch
+
 The solver right now is still in initial stages.  All command line
 options are parsed using argparse, and should have help messages.
 
