@@ -286,13 +286,17 @@ class Demand():
             do_total = do_tt + do_breaks
             origin_trip_cost = record['round trip cost'] - do_total
 
+            od_tt = travel_times.loc[record.origin,record.destination]
+            od_breaks = (math.floor(do_tt/60/11)) * 60*10
+            od_total = od_tt + od_breaks
+
             dd_tt = travel_times.loc[record.destination,0]
             dd_breaks = (math.floor(dd_tt/60/11)) * 60*10
             dd_total = dd_tt + dd_breaks
             destination_trip_cost = record['round trip cost'] - dd_total
 
-            destination_details.append((record.destination,destination_trip_cost,record.origin))
-            origin_details.append((record.origin,origin_trip_cost))
+            destination_details.append((record.destination,destination_trip_cost,record.origin,record.late+od_total))
+            origin_details.append((record.origin,origin_trip_cost,record.destination,record.late))
 
         for didx in range(0,len(destination_details)):
             dd = destination_details[didx]
@@ -303,8 +307,11 @@ class Demand():
                 if dd[2] == oo[0]:
                     # that means traveling back to origin, which is impossible
                     continue
-                # trip chain is possible, so split (maybe) destination to origin
+                # check that even possible
                 tt = travel_times.loc[dd[0],oo[0]]
+                if dd[3] + tt > oo[3]:
+                    continue
+                # trip chain is possible, so split (maybe) destination to origin
                 if (not np.isnan(tt)) and  tt > timelength: # don't bother if no break node will happen
                     new_times = breaks.split_links(dd[0],oo[0],tt,new_node)
                     moretimes.append([new_times])

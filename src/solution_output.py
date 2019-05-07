@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 # copied from Google v7.0 example
 def print_solution(demand,
-                   dist_callback,
+                   dist_matrix,
                    vehicles,
                    manager,
                    routing,
@@ -85,7 +85,8 @@ def print_solution(demand,
 
             this_time = routing.GetArcCostForVehicle(previous_index, index,
                                                      vehicle_id)
-            this_distance = dist_callback(previous_index,index)
+            this_distance = dist_matrix.loc[manager.IndexToNode(previous_index),
+                                            manager.IndexToNode(index)]
             distance += this_distance
         load_var = capacity_dimension.CumulVar(index)
         visits_var  = count_dimension.CumulVar(index)

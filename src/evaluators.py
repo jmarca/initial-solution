@@ -33,7 +33,7 @@ def create_time_callback(travel_minutes_matrix,
     # preprocess travel and service time to speed up solver
     _total_time = {}
     max_time = travel_minutes_matrix.max().max()
-    penalty_time = int(10000000 * max_time)
+    penalty_time = int(max_time) # int(10000000 * max_time)
     # penalty_time = int(100 * max_time)
     print ('using a maximum time for forbidden links of ',penalty_time)
 
@@ -41,6 +41,8 @@ def create_time_callback(travel_minutes_matrix,
     node_list = [n for n in travel_minutes_matrix.index]
     # print('len node list is ',len(node_list))
     for from_node in node_list:
+        if from_node % 10 == 0:
+            print(from_node,' of ',len(travel_minutes_matrix.index))
         _total_time[from_node] = {}
         # mapnode_from = demand.get_map_node(from_node)
         service_time = demand.get_service_time(from_node)

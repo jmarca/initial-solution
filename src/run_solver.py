@@ -95,15 +95,16 @@ def main():
     # routing = pywrapcp.RoutingModel(manager,model_parameters)
     routing = pywrapcp.RoutingModel(manager)
     #solver = routing.solver()
-    print('creating time and distance callbacks for solver')
+    print('creating time callback for solver')
     # Define cost of each arc using travel time + service time
     time_callback = partial(E.create_time_callback(expanded_mm,
                                                    d),
                             manager)
 
-    dist_callback = partial(E.create_dist_callback(expanded_m,
-                                                   d),
-                            manager)
+    # print('creating distance callbacks for solver')
+    # dist_callback = partial(E.create_dist_callback(expanded_m,
+    #                                                d),
+    #                         manager)
 
     print('registering callbacks with routing solver')
 
@@ -423,7 +424,7 @@ def main():
 
         print('The Objective Value is {0}'.format(assignment.ObjectiveValue()))
         print('details:')
-        SO.print_solution(d,dist_callback,vehicles,manager,routing,assignment,args.horizon)
+        SO.print_solution(d,expanded_m,vehicles,manager,routing,assignment,args.horizon)
 
 
     else:
