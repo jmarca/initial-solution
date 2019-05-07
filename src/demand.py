@@ -148,31 +148,43 @@ class Demand():
             do_tt = time_matrix.loc[0,record.origin]
             # 11 hr drive rule
             do_breaks = math.floor(do_tt/60/11)
-            do_total_time = do_tt + do_breaks * 10 * 60
+            #do_total_time = do_tt + (do_breaks * 10 * 60)
+            do_total_time = do_tt + do_breaks*600
 
             # origin to destination drive time
             od_tt = time_matrix.loc[record.origin,record.destination]
             # 11 hr drive rule
             od_breaks = math.floor(od_tt/60/11)
-            od_total_time = od_tt + od_breaks * 10 * 60
+            od_total_time = od_tt + od_breaks*600
             # to satisfy this trip, vehicle must execute all required
             # breaks
             min_starting_time = record.early - do_total_time
+            print (record)
+            print(do_tt,do_breaks,do_total_time)
+            print(od_tt,od_breaks,od_total_time)
+            print(min_starting_time)
+            if min_starting_time < 0:
+                # hmm, that is a problem.  explore why this happens
+                print (record)
+                print(do_tt,do_breaks,do_total_time)
+                print(od_tt,od_breaks,od_total_time)
+                print(min_starting_time)
+                assert 0
             time_window = record.late - record.early
             break_times=[(
-                math.floor(min_starting_time + 11*60*(i+1) + 10*60*i),
-                math.floor(min_starting_time + 11*60*(i+1) + 10*60*i + time_window),
-                record.origin,do_total_time
+                math.floor(min_starting_time + (11*60*(i+1)) + (10*60*i)),
+                math.floor(min_starting_time + (11*60*(i+1)) + (10*60*i) + time_window),
+                record.origin,int(do_total_time)
             ) for i in range(0,do_breaks)]
 
             min_depart_time = record.early + record.pickup_time
 
             break_times.extend([(
-                math.floor(min_depart_time + 11*60*(i+1) + 10*60*i),
-                math.floor(min_depart_time + 11*60*(i+1) + 10*60*i + time_window),
-                record.destination,od_total_time
+                math.floor(min_depart_time + (11*60*(i+1)) + (10*60*i)),
+                math.floor(min_depart_time + (11*60*(i+1)) + (10*60*i) + time_window),
+                record.destination,int(od_total_time)
             ) for i in range(0,od_breaks)])
-
+            # print (break_times)
             return break_times
 
         breaks = {}

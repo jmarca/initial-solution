@@ -2,6 +2,7 @@ from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 from functools import partial
 import math
+import numpy as np
 
 import argparse
 #import os
@@ -262,7 +263,7 @@ def main():
                     pair[1],  # maximum start time
                     10 * 60,      # duration of break is 10 hours
                     True,         # optional, condition on vehicle serving origin
-                    '10hr break {} for vehicle {}'.format(j,i))
+                    '10hr break {} for vehicle {} serving {}'.format(j,i,pickup_node))
                 breaks[i].append(jth_10hr_break)
                 # first pickup constraint---breaks only relevant if first pickup
                 # due to split long nodes, count dimension might be 1 or 2
@@ -281,85 +282,86 @@ def main():
         # now add additional breaks for whole of likely range
         # break up full time (horizon) into 10+11 hour ranges (drive 11, break 10)
         # not quite right, as the 14hr rule also comes into play
-        need_breaks = math.floor(args.horizon / 60 / (10 + 11)) - len(fb)
+
+        need_breaks = math.floor(args.horizon / 60 / (10 + 11))
         #need_breaks -= min_intervals[i]
-        need_breaks = 0
+        # need_breaks = 0
         # follow_constraints = []
         # don't need first break, as that is already specified above
         # if i > 0:
         #     need_breaks = 2
 
+        # # start counting from?
+        # for intvl in range(len(fb),need_breaks):
+        #     print(intvl)
+        #     # break minimum start time is 0
+        #     # break maximum start time is horizon - 10 hours
 
-        for intvl in range(len(fb),need_breaks):
-            print(intvl)
-            # break minimum start time is 0
-            # break maximum start time is horizon - 10 hours
+        #     min_start_time = (intvl)*(10 + 11)*60
+        #     max_start_time = (intvl)*(10 + 11)*60 + 660
 
-            min_start_time = (intvl)*(10 + 11)*60
-            max_start_time = (intvl)*(10 + 11)*60 + 660
+        #     if min_start_time > args.horizon - 660:
+        #         break
 
-            if min_start_time > args.horizon - 660:
-                break
+        #     require_first_few = False
+        #     #if intvl > 0:
+        #     #    require_first_few = True
+        #     # key on first break, but only required if time hasn't run out
+        #     # next_10hr_break = solver.FixedDurationStartSyncedOnEndIntervalVar(
+        #     #     breaks[i][-1],      # keyed to prior
+        #     #     600,               # duration
+        #     #     660     # offset
+        #     # )
+        #     next_10hr_break = solver.FixedDurationStartSyncedOnStartIntervalVar(
+        #         breaks[i][0],      # keyed to first
+        #         600,               # duration
+        #         min_start_time     # offset
+        #     )
+        #     # next_10hr_break = solver.FixedDurationIntervalVar(
+        #     #     min_start_intvar,  # maximum start time (11 hours after start)
+        #     #     10 * 60,     # duration of break is 10 hours
+        #     #     '10hr break {} for vehicle {}'.format(intvl,i))
+        #     # next_10hr_break = solver.FixedDurationIntervalVar(
+        #     #     min_start_time, # minimum start time
+        #     #     max_start_time,  # maximum start time (11 hours after start)
+        #     #     10 * 60,     # duration of break is 10 hours
+        #     #     optional,       # optional?
+        #     #     '{}th 10hr break for vehicle {}'.format(intvl,i))
 
-            require_first_few = False
-            #if intvl > 0:
-            #    require_first_few = True
-            # key on first break, but only required if time hasn't run out
-            # next_10hr_break = solver.FixedDurationStartSyncedOnEndIntervalVar(
-            #     breaks[i][-1],      # keyed to prior
-            #     600,               # duration
-            #     660     # offset
-            # )
-            next_10hr_break = solver.FixedDurationStartSyncedOnStartIntervalVar(
-                breaks[i][0],      # keyed to first
-                600,               # duration
-                min_start_time     # offset
-            )
-            # next_10hr_break = solver.FixedDurationIntervalVar(
-            #     min_start_intvar,  # maximum start time (11 hours after start)
-            #     10 * 60,     # duration of break is 10 hours
-            #     '10hr break {} for vehicle {}'.format(intvl,i))
-            # next_10hr_break = solver.FixedDurationIntervalVar(
-            #     min_start_time, # minimum start time
-            #     max_start_time,  # maximum start time (11 hours after start)
-            #     10 * 60,     # duration of break is 10 hours
-            #     optional,       # optional?
-            #     '{}th 10hr break for vehicle {}'.format(intvl,i))
-
-            breaks[i].append(next_10hr_break)
-            # constraints:
-            # bip = next_10hr_break.MustBePerformed()
-            # solver.Add(next_10hr_break.PerformedExpr()==True)
-            # print('break must be performed = ',bip)
-            # sync with preceding break
-            #  this break starts 11h after end of prior
-            # follow_after_constraint = next_10hr_break.StartsAfterEndWithDelay(
-            #     breaks[i][intvl-1],
-            #     660) # 11 hours times 60 minutes = 660
-            # solver.Add(follow_after_constraint)
+        #     breaks[i].append(next_10hr_break)
+        #     # constraints:
+        #     # bip = next_10hr_break.MustBePerformed()
+        #     # solver.Add(next_10hr_break.PerformedExpr()==True)
+        #     # print('break must be performed = ',bip)
+        #     # sync with preceding break
+        #     #  this break starts 11h after end of prior
+        #     # follow_after_constraint = next_10hr_break.StartsAfterEndWithDelay(
+        #     #     breaks[i][intvl-1],
+        #     #     660) # 11 hours times 60 minutes = 660
+        #     # solver.Add(follow_after_constraint)
 
 
-            if require_first_few:
-                # conditional constraint.  If vehicle is done before start
-                # time, then don't bother with this break
+        #     if require_first_few:
+        #         # conditional constraint.  If vehicle is done before start
+        #         # time, then don't bother with this break
 
-                # first, requirement that break is performed
-                break_condition = next_10hr_break.PerformedExpr()==True
+        #         # first, requirement that break is performed
+        #         break_condition = next_10hr_break.PerformedExpr()==True
 
-                # second, the timing.  If route is over, don't need break
-                break_start = time_start + intvl*(11+10)*60
-                time_condition =  break_start < time_end # break_start
+        #         # second, the timing.  If route is over, don't need break
+        #         break_start = time_start + intvl*(11+10)*60
+        #         time_condition =  break_start < time_end # break_start
 
-                # use conditional expression
-                expression = solver.ConditionalExpression(time_condition,
-                                                          break_condition,
-                                                          1)
-                solver.AddConstraint(
-                    expression >= 1
-                )
+        #         # use conditional expression
+        #         expression = solver.ConditionalExpression(time_condition,
+        #                                                   break_condition,
+        #                                                   1)
+        #         solver.AddConstraint(
+        #             expression >= 1
+        #         )
 
-            # print(follow_after_constraint)
-            # follow_constraints.append(follow_after_constraint)
+        #     # print(follow_after_constraint)
+        #     # follow_constraints.append(follow_after_constraint)
         print(breaks[i])
         time_dimension.SetBreakIntervalsOfVehicle(
             breaks[i], i, node_visit_transit)
@@ -369,6 +371,22 @@ def main():
 
     # did it work?
     print('breaks done')
+
+    # prevent impossible next nodes
+    print('remove impossible connections from solver')
+    for onode in expanded_mm.index:
+        o_idx = manager.NodeToIndex(onode)
+        for dnode in expanded_mm.index:
+            if onode == dnode:
+                continue
+            if np.isnan(expanded_mm.loc[onode,dnode]):
+                # cannot connect, to prevent this combo
+                d_idx = manager.NodeToIndex(dnode)
+                if routing.NextVar(o_idx).Contains(d_idx):
+                    # print('remove link from',onode,'to',dnode)
+                    routing.NextVar(o_idx).RemoveValue(d_idx)
+    print('done with RemoveValue calls')
+
 
     # Setting first solution heuristic.
     # [START parameters]
