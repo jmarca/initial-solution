@@ -111,6 +111,16 @@ def main():
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
     # might want to remove service time from the above
 
+    print('create count dimension')
+    # Add Count dimension for count windows, precedence constraints
+    count_dimension_name = 'Count'
+    routing.AddConstantDimension(
+        1, # increment by one every time
+        len(expanded_mm.index),  # max count is visit all the nodes
+        True,  # set count to zero
+        count_dimension_name)
+    count_dimension = routing.GetDimensionOrDie(count_dimension_name)
+
     print('create time dimension')
     # Add Time dimension for time windows, precedence constraints
     time_dimension_name = 'Time'
@@ -241,7 +251,8 @@ def main():
             fb = first_breaks[pickup_node]
             # set up the origin details for constraints
             pickup_idx = manager.NodeToIndex(pickup_node)
-            same_vehicle_condition = routing.VehicleVar(pickup_idx) == i
+            active_node = routing.ActiveVar(pickup_idx)
+            same_vehicle_condition = active_node * routing.VehicleVar(pickup_idx) == i
 
             for j in range(0,len(fb)):
                 pair = fb[j]
@@ -252,8 +263,18 @@ def main():
                     True,         # optional, condition on vehicle serving origin
                     '10hr break {} for vehicle {}'.format(j,i))
                 breaks[i].append(jth_10hr_break)
+                # first pickup constraint---breaks only relevant if first pickup
+                # due to split long nodes, count dimension might be 1 or 2
+                count_val = active_node * count_dimension.CumulVar(pickup_idx)
+                counted_visit = count_val >= 1
+                early_visit = count_val <= 2
+                break_active_condition = counted_visit*early_visit
                 # only use if this vehicle actually serves the intended node
-                solver.Add(jth_10hr_break.PerformedExpr() == same_vehicle_condition)
+                cond_expr = solver.ConditionalExpression(
+                    same_vehicle_condition,
+                    jth_10hr_break.PerformedExpr() == break_active_condition,
+                    1)
+                solver.Add(cond_expr>=1)
                 print('break',len(breaks[i])-1,'for serving node',pair[2])
 
         # now add additional breaks for whole of likely range

@@ -35,6 +35,7 @@ def print_solution(demand,
     total_time = 0
     capacity_dimension = routing.GetDimensionOrDie('Capacity')
     time_dimension = routing.GetDimensionOrDie('Time')
+    count_dimension = routing.GetDimensionOrDie('Count')
     print('Routes:')
     for vehicle in vehicles.vehicles:
         vehicle_id = vehicle.index
@@ -50,10 +51,12 @@ def print_solution(demand,
             time_var = time_dimension.CumulVar(index)
             load_var  = capacity_dimension.CumulVar(index)
             slack_var = time_dimension.SlackVar(index)
+            visits_var  = count_dimension.CumulVar(index)
 
             node = manager.IndexToNode(index)
             mapnode = demand.get_map_node(node)
             load = assignment.Value(load_var)
+            visits = assignment.Value(visits_var)
             min_time =  timedelta(minutes=assignment.Min(time_var))
             max_time =  timedelta(minutes=assignment.Max(time_var))
             slack_var_min = 0
@@ -65,7 +68,7 @@ def print_solution(demand,
             slack_var_min = timedelta(minutes=assignment.Min(slack_var))
             slack_var_max = timedelta(minutes=assignment.Max(slack_var))
 
-            plan_output += 'node {0}, mapnode {1}, Load {2},  Time({3},{4}) Slack({5},{6}) Link time({7}) Link distance({8} mi)\n ->'.format(
+            plan_output += 'node {0}, mapnode {1}, Load {2},  Time({3},{4}) Slack({5},{6}) Link time({7}) Link distance({8} mi),visits: {9}\n ->'.format(
                 node,
                 mapnode,
                 load,
@@ -74,7 +77,8 @@ def print_solution(demand,
                 slack_var_min,
                 slack_var_max,
                 timedelta(minutes=this_time),
-                this_distance
+                this_distance,
+                visits
             )
             previous_index = index
             index = assignment.Value(routing.NextVar(index))
@@ -84,15 +88,18 @@ def print_solution(demand,
             this_distance = dist_callback(previous_index,index)
             distance += this_distance
         load_var = capacity_dimension.CumulVar(index)
+        visits_var  = count_dimension.CumulVar(index)
         time_var = time_dimension.CumulVar(index)
         slack_var = time_dimension.SlackVar(index)
-        plan_output += ' {0} Load({1})  Time({2},{3})  Link time({4}) Link distance({5} mi)\n'.format(
+        visits = assignment.Value(visits_var)
+        plan_output += ' {0} Load({1})  Time({2},{3})  Link time({4}) Link distance({5} mi), visits {6}\n'.format(
             manager.IndexToNode(index),
             assignment.Value(load_var),
             timedelta(minutes=assignment.Min(time_var)),
             timedelta(minutes=assignment.Max(time_var)),
             timedelta(minutes=this_time),
-            this_distance
+            this_distance,
+            visits
         )
         plan_output += 'Distance of the route: {0} miles\n'.format(distance)
         plan_output += 'Loads served by route: {}\n'.format(
