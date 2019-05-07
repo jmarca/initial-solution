@@ -18,7 +18,7 @@ def print_solution(demand,
         brk = breaks.Element(i)
         # print(brk)
         if (brk.StartMin()>=0 and brk.StartMin() < horizon * 10):
-            print('start',timedelta(minutes=brk.StartMin()),# '--',
+            print('break',i,'start',timedelta(minutes=brk.StartMin()),# '--',
                   # timedelta(minutes=brk.StartMax()),
                   'duration',timedelta(minutes=brk.DurationMin()),
                   'end',timedelta(minutes=brk.EndMin())# ,'--',
