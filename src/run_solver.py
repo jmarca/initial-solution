@@ -241,7 +241,7 @@ def main():
     # grab ref to solver
     solver = routing.solver()
 
-    min_intervals = d.get_min_intervals(len(vehicles.vehicles))
+    # min_intervals = d.get_min_intervals(len(vehicles.vehicles))
     first_breaks = d.get_first_break(len(vehicles.vehicles),mm)
     print(first_breaks)
 
