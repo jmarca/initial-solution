@@ -130,8 +130,8 @@ def main():
         transit_callback_index, # same "cost" evaluator as above
         args.horizon,  # slack for full range
         args.horizon,  # max time is end of time horizon
-        True, # set to zero for each vehicle
-        # False,  # don't set time to zero...vehicles can wait at depot if necessary
+        # True, # set to zero for each vehicle
+        False,  # don't set time to zero...vehicles can wait at depot if necessary
         time_dimension_name)
     time_dimension = routing.GetDimensionOrDie(time_dimension_name)
     # this is new in v7.0, not sure what it does yet
