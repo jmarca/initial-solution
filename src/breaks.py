@@ -140,16 +140,32 @@ def break_generator(travel_times,timelength=600):
     return gen_breaks
 
 def split_generator(travel_times,timelength=600):
-    min_start = len(travel_times.index)
     def gen_breaks(record):
+        min_start = len(travel_times.index)
+        new_times = []
+        idx = 0
+        tt = travel_times.loc[0,record.origin]
+        if tt > timelength:
+            new_times.append( split_links(0,record.origin,
+                                           tt,
+                                           min_start))
+            min_start += 1
+            idx += 1
         tt = travel_times.loc[record.origin,record.destination]
         if tt > timelength:
-            new_times = split_links(record.origin,
-                                    record.destination,
+            new_times.append( split_links(record.origin,
+                                          record.destination,
+                                          tt,
+                                          min_start))
+            min_start += 1
+            idx += 1
+        tt = travel_times.loc[record.destination,0]
+        if tt > timelength:
+            new_times.append( split_links(record.destination,0,
                                     tt,
-                                    min_start)
-            return new_times
-        return {}
+                                    min_start))
+        return new_times
+
 
     return gen_breaks
 
@@ -248,10 +264,8 @@ def aggregate_dummy_nodes(travel_time,newtimes):
 
 def aggregate_split_nodes(travel_time,newtimes):
     """combine current time matrix with list of new times for each new node"""
-    max_old_node = travel_time.index.max()
-    for nt in newtimes:
-        if len(nt) == 0:
-            continue
+    def agg_fn(nt,tt_matrix):
+        max_old_node = tt_matrix.index.max()
         new_df = pd.DataFrame.from_dict(data=nt,orient='index')
         old_cols = [i for i in new_df.columns.view(int)]
         old_cols.sort() # shift new node to last
@@ -268,17 +282,23 @@ def aggregate_split_nodes(travel_time,newtimes):
             new_cols = new_df.index.max()
         # first append the new destinations for existing columns
 
-        travel_time = travel_time.append(new_df.loc[new_cols,old_cols])
+        tt_matrix = tt_matrix.append(new_df.loc[new_cols,old_cols])
         # if debug:
-        # print(travel_time)
+        # print(tt_matrix)
         # then join in the new rows and columns
         reduced_df = new_df.loc[:,new_cols]
         reduced_df = reduced_df.reindex()
-        travel_time = travel_time.join(reduced_df
-                                       ,how='outer'
+        return tt_matrix.join(reduced_df
+                                ,how='outer'
         )
-        # bump up the max old node
-        max_old_node = travel_time.index.max()
+
+    for nt in newtimes:
+        if len(nt) == 0:
+            continue
+        # nt is now an array, of 1 or 3 values, depending
+        for nt_entry in nt:
+            travel_time = agg_fn(nt_entry,travel_time)
+
         # loop
     # now replace NaN with infinity
     # travel_time = travel_time.fillna(sys.maxsize)

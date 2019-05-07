@@ -222,6 +222,7 @@ def main():
         node_visit_transit[n] = int(d.get_service_time(n))
 
     breaks = {}
+    constraints = {}
     starts = []
     slacks = []
     ends   = []
@@ -235,59 +236,34 @@ def main():
     for i in range(0,len(vehicles.vehicles)):
         print ( 'breaks for vehicle',i)
         breaks[i] = []
-        fb = first_breaks[i]
-        # 10 hour breaks
-        # first break is based on start of route.
-        # for now, implementing the 11-hour limit as if the
-        # time_dimension is only collecting driving time
-        time_start = time_dimension.CumulVar(routing.Start(i))
-        starts.append(time_start)
-        slack_start = time_dimension.SlackVar(routing.Start(i))
-        slacks.append(slack_start)
-        time_end = time_dimension.CumulVar(routing.End(i))
-        ends.append(time_end)
-        # must_start = time_start + 11*60 # 11 hours later
-        # this next pushes start time too late if depot slack is used for break
-        must_start = starts[-1] + slacks[-1] + 11*60 # 11 hours later
-        # and this one is no different anyway
-        # must_start = slack_start + 11*60 # 11 hours later
-        print(time_start,must_start)
+        constraints[i] = []
+        for br_idx in range(0,len(first_breaks)):
 
-        # first_10hr_break = solver.FixedDurationIntervalVar(
-        #     must_start,  # maximum start time (11 hours after start)
-        #     10 * 60,     # duration of break is 10 hours
-        #     'first 10hr break for vehicle {}'.format(i))
+            fb = first_breaks[br_idx]
+            # set up the origin details for constraints
+            pickup_node = fb[0][2]
+            pickup_idx = manager.NodeToIndex(pickup_node)
+            same_vehicle_condition = routing.VehicleVar(pickup_idx) == i
 
-        # with timestartmin, max, the following doesn't work---first
-        # breaks for vehicles are scheduled as is convenient, not
-        # after 11 hours of driving.
-
-        # first_10hr_break = solver.FixedDurationIntervalVar(
-        #     time_start.Min(), # minimum start time
-        #     args.horizon,  # maximum start time (11 hours after start)
-        #     10 * 60,     # duration of break is 10 hours
-        #     False,        # optional? not optional?  What if only drive for < 10 hrs?
-        #     'first 10hr break for vehicle {}'.format(i))
-        # print(time_start.Min(),time_start.Max(),must_start.Min(),must_start.Max())
-
-        # trying the pre-specified way
-        for j in range(0,len(fb)):
-            pair = fb[j]
-            jth_10hr_break = solver.FixedDurationIntervalVar(
-                pair[0],  # minimum start time
-                pair[1],  # maximum start time
-                10 * 60,      # duration of break is 10 hours
-                False,        # not optional
-                '10hr break {} for vehicle {}'.format(j,i))
-            breaks[i].append(jth_10hr_break)
-
+            for j in range(0,len(fb)):
+                pair = fb[j]
+                jth_10hr_break = solver.FixedDurationIntervalVar(
+                    pair[0],  # minimum start time
+                    pair[1],  # maximum start time
+                    10 * 60,      # duration of break is 10 hours
+                    True,         # optional, condition on vehicle serving origin
+                    '10hr break {} for vehicle {}'.format(j,i))
+                breaks[i].append(jth_10hr_break)
+                # only use if this vehicle actually serves the intended node
+                solver.Add(jth_10hr_break.PerformedExpr() == same_vehicle_condition)
+                print('break',len(breaks[i])-1,'for serving node',pair[2])
 
         # now add additional breaks for whole of likely range
         # break up full time (horizon) into 10+11 hour ranges (drive 11, break 10)
         # not quite right, as the 14hr rule also comes into play
         need_breaks = math.floor(args.horizon / 60 / (10 + 11)) - len(fb)
         #need_breaks -= min_intervals[i]
-        # need_breaks = 0
+        need_breaks = 0
         # follow_constraints = []
         # don't need first break, as that is already specified above
         # if i > 0:

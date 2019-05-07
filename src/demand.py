@@ -148,27 +148,29 @@ class Demand():
             do_tt = time_matrix.loc[0,record.origin]
             # 11 hr drive rule
             do_breaks = math.floor(do_tt/60/11)
-            do_total_time = do_tt + do_breaks * 10
+            do_total_time = do_tt + do_breaks * 10 * 60
 
             # origin to destination drive time
             od_tt = time_matrix.loc[record.origin,record.destination]
             # 11 hr drive rule
             od_breaks = math.floor(od_tt/60/11)
-            od_total_time = od_tt + od_breaks * 10
+            od_total_time = od_tt + od_breaks * 10 * 60
             # to satisfy this trip, vehicle must execute all required
             # breaks
             min_starting_time = record.early - do_total_time
             time_window = record.late - record.early
             break_times=[(
                 math.floor(min_starting_time + 11*60*(i+1) + 10*60*i),
-                math.floor(min_starting_time + 11*60*(i+1) + 10*60*i + time_window)
+                math.floor(min_starting_time + 11*60*(i+1) + 10*60*i + time_window),
+                record.origin,do_total_time
             ) for i in range(0,do_breaks)]
 
             min_depart_time = record.early + record.pickup_time
 
             break_times.extend([(
                 math.floor(min_depart_time + 11*60*(i+1) + 10*60*i),
-                math.floor(min_depart_time + 11*60*(i+1) + 10*60*i + time_window)
+                math.floor(min_depart_time + 11*60*(i+1) + 10*60*i + time_window),
+                record.destination,od_total_time
             ) for i in range(0,od_breaks)])
 
             return break_times
@@ -177,7 +179,8 @@ class Demand():
         sorted_early = self.demand.sort_values(by=['early','late'])
         # print(sorted_early)
         breaks = {}
-        for i in range(0,num_veh):
+
+        for i in range(0,len(self.demand.index)):
             breaks[i] = []
             record = sorted_early.iloc[i]
             breaks[i] = trip_breaks(record)
@@ -263,33 +266,54 @@ class Demand():
         feasible_index = self.demand.feasible
         newtimes = self.demand.loc[feasible_index,:].apply(gb,axis=1,result_type='reduce')
         # print(newtimes)
+
         # fixup newtimes into augmented_matrix
+        # travel_times = breaks.aggregate_split_nodes(travel_times,newtimes)
+        print('First pass, merge',len(newtimes.index),'new times with existing times.')
         travel_times = breaks.aggregate_split_nodes(travel_times,newtimes)
-
-        # now do that for all destinations to all origins plus depot (0)
-        # yes, this blows up quite large
-        moretimes = []
-        new_node = len(travel_times.index)
-
-        destinations_idx = [idx for idx in self.destinations.index]
-        destinations_idx.append(0) # tack on the depot node
-        origins_idx = [idx for idx in self.origins.index]
-        origins_idx.append(0) # tack on the depot node.  This will
-                              # fail if/when more than one depot
-                              # happens
-
-        for didx in destinations_idx:
-            for oidx in origins_idx:
-                if oidx == didx:
-                    # self to self is silly
-                    continue
-                tt = travel_times.loc[didx,oidx]
-                if (not np.isnan(tt)) and  tt > timelength: # don't bother if no break node will happen
-                    new_times = breaks.split_links(didx,oidx,tt,new_node)
-                    moretimes.append(new_times)
-                    new_node += 1
-
-        travel_times = breaks.aggregate_split_nodes(travel_times,moretimes)
         # print(travel_times)
+
+        print('Next deal with destinations crossed with all origins')
+
+        # now do that for all destinations to all origins plus depot
+        # (0). Yes, this can blow up quite large so only merge those that
+        # are possible inside horizon given the total travel time
+
+
+        new_node = len(travel_times.index)
+        destination_details = []
+        origin_details = []
+        for idx in self.demand.index[feasible_index]:
+            record = self.demand.loc[idx]
+            do_tt = travel_times.loc[0,record.origin]
+            do_breaks = (math.floor(do_tt/60/11)) * 60*10
+            do_total = do_tt + do_breaks
+            origin_trip_cost = record['round trip cost'] - do_total
+
+            dd_tt = travel_times.loc[record.destination,0]
+            dd_breaks = (math.floor(dd_tt/60/11)) * 60*10
+            dd_total = dd_tt + dd_breaks
+            destination_trip_cost = record['round trip cost'] - dd_total
+
+            destination_details.append((record.destination,destination_trip_cost,record.origin))
+            origin_details.append((record.origin,origin_trip_cost))
+
+        for didx in range(0,len(destination_details)):
+            dd = destination_details[didx]
+            moretimes = []
+            for oo in origin_details:
+                if dd[1] + oo[1] > self.horizon:
+                    continue
+                if dd[2] == oo[0]:
+                    # that means traveling back to origin, which is impossible
+                    continue
+                # trip chain is possible, so split (maybe) destination to origin
+                tt = travel_times.loc[dd[0],oo[0]]
+                if (not np.isnan(tt)) and  tt > timelength: # don't bother if no break node will happen
+                    new_times = breaks.split_links(dd[0],oo[0],tt,new_node)
+                    moretimes.append([new_times])
+                    new_node += 1
+            print(didx,'of',len(destination_details)-1,',append',len(moretimes),'more')
+            travel_times = breaks.aggregate_split_nodes(travel_times,moretimes)
 
         return travel_times # which holds everything of interest
