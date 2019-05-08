@@ -3,6 +3,7 @@ from ortools.constraint_solver import pywrapcp
 from functools import partial
 import math
 import numpy as np
+import pickle
 
 import argparse
 #import os
@@ -13,9 +14,28 @@ import demand as D
 import evaluators as E
 import solution_output as SO
 
+# def resume_routing(file):
+#     print('reading',file)
+#     try:
+#         with open(file, 'rb') as input:
+#             routing = pickle.load(input)
+
+#     except FileNotFoundError:
+#         print("Cache file not found")
+#         assert 0
+#         # have to fetch from service
+
+#     except EOFError:
+#         print("Ran out of input in cache...recomputing")
+#         assert 0
+
+
+
 def main():
     """Entry point of the program."""
     parser = argparse.ArgumentParser(description='Solve assignment of truck load routing problem, give hours of service rules and a specified list of origins and destinations')
+    # parser.add_argument('--resume_file',type=str,dest='resumefile',
+    #                     help="resume a failed solver run from this file")
     parser.add_argument('-m,--matrixfile', type=str, dest='matrixfile',
                         help='CSV file for travel matrix (distances)')
     parser.add_argument('-d,--demandfile', type=str, dest='demand',
@@ -327,6 +347,12 @@ def main():
         droppable_nodes.append(routing.AddDisjunction([manager.NodeToIndex(c)],
                                                       p))
 
+    # can't pickle SwigPyObject... workaround?
+    # print("Writing routing object out")
+    # with open('routing.pkl', 'wb') as output:
+    #     pickle.dump(routing,output,pickle.HIGHEST_PROTOCOL)
+    #     # other stuff too?
+    # print("Done Writing routing object to file routing.pkl")
 
     print('Calling the solver')
     # [START solve]
