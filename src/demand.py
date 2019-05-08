@@ -208,7 +208,106 @@ class Demand():
 
         return breaks
 
-    def get_nth_break(self,num_veh,
+    def get_node_visit_transit(self,time_matrix):
+        node_visit_transit = {}
+        for n in time_matrix.index:
+            node_visit_transit[n] = int(self.get_service_time(n))
+        return node_visit_transit
+
+    def get_simple_breaks(self,num_veh,
+                          time_matrix,
+                          manager,
+                          routing,
+                          time_dimension,
+                          count_dimension):
+        """Clock starts at zero, driving starts at zero, so assume breaks can
+           be specified as fixed times between starting of driving
+           This version, all breaks are optional, specified individually as ranges
+
+        """
+
+        # function per vehicle
+        def trip_breaks(veh,routing):
+            solver = routing.solver()
+            breaks = []
+            # start at 0, 10 hr break every 11 hr of driving
+
+            num_breaks = math.floor(self.horizon/60/(11+10))
+            for interval in range(0,num_breaks):
+                # break start is after 11 hrs driving + earlier driving+breaks
+                start_time = 11*60 + (interval)*(10+11)*60
+                # insert the break
+                brk = solver.FixedDurationIntervalVar(
+                    start_time,  # min start time
+                    start_time,  # max start time (same)
+                    10*60,  # 10 hour duration
+                    False,  # optional
+                    # True,  # not optional
+                    '10hr break {} for vehicle {}'.format(interval,veh))
+                breaks.append(brk)
+            return breaks
+
+        breaks = {}
+        node_visit_transit = self.get_node_visit_transit(time_matrix)
+        for veh in range(0,num_veh):
+            breaks[veh] = trip_breaks(veh,routing)
+            print(breaks[veh])
+            time_dimension.SetBreakIntervalsOfVehicle(
+                breaks[veh], veh, node_visit_transit)
+        return breaks
+
+    def get_breaks_synced_first(self,num_veh,
+                                time_matrix,
+                                manager,
+                                routing,
+                                time_dimension,
+                                count_dimension):
+        """Clock starts at zero, driving starts at zero, so assume breaks can
+           be specified as fixed times between starting of driving
+
+        """
+
+        # function per vehicle
+        def trip_breaks(veh,routing):
+            solver = routing.solver()
+            breaks = []
+            # start at 0, 10 hr break every 11 hr of driving
+
+            num_breaks = math.floor(self.horizon/60/(11+10))
+            for interval in range(0,num_breaks):
+                if len(breaks) == 0:
+                    # insert the first break
+                    brk = solver.FixedDurationIntervalVar(
+                        11*60,  # min start time
+                        11*60,  # max start time (same)
+                        10*60,  # 10 hour duration
+                        False,  # optional
+                        # True,  # not optional
+                        '10hr break 0 for vehicle {}'.format(veh))
+                    breaks.append(brk)
+                else:
+                    # synced with **start** of first break,
+                    # one drive, one break per interval
+                    offset = interval*(11+10)*60
+                    brk = solver.FixedDurationStartSyncedOnStartIntervalVar(
+                        breaks[0], # synced to starting break
+                        10*60,     # 10hr duration
+                        offset # when to start after first
+                    )
+                    breaks.append(brk)
+            return breaks
+
+        breaks = {}
+        node_visit_transit = self.get_node_visit_transit(time_matrix)
+        for veh in range(0,num_veh):
+            breaks[veh] = trip_breaks(veh,routing)
+            print(breaks[veh])
+            time_dimension.SetBreakIntervalsOfVehicle(
+                breaks[veh], veh, node_visit_transit)
+        return breaks
+
+
+    def get_variable_nth_break(self,num_veh,
                       time_matrix,
                       manager,
                       routing,
@@ -234,6 +333,25 @@ class Demand():
             # origin to destination drive time
             o_idx = manager.NodeToIndex(record.origin)
             d_idx = manager.NodeToIndex(record.destination)
+
+            # might or might not be a break on the way to origin from prior
+            # if there is, it happens every 11 hours of driving
+            # if not, then that means drive to origin is less than 11 hours
+            #
+            # If this location is first pickup, then break should be aligned
+            # arrival_time % 11.  Proof:
+            #
+            #   14 hrs % 11 = 3 ..  meaning break at 11, then drive 3 more hrs
+            #    8 hrs % 11 = 8 ..  meaning drive 8 hrs, no break yet
+            #
+            # If this is second plus pickup, then that is still true, (ignoring service times)
+            # suppose pickup 1 at 18hr, this pickup at 34hr
+            # 34 % 11 = 1, meaning one hour of driving into the next 11 hr period
+            # computing the long way
+            # pickup 1: 18 hrs % 11 = 7.
+            # drive 4 hrs, break, drive 11 hrs, break,
+            #
+            #
             # last break end is arrive time - (arrive time mod 11)
             # so next break is that plus 11
             # first break time of drive to destination
@@ -419,4 +537,4 @@ class Demand():
 
         return travel_times # which holds everything of interest
 
-    def apply_breaks_rules(self,vehicles,time_matrix,routing):
+    # def apply_breaks_rules(self,vehicles,time_matrix,routing):

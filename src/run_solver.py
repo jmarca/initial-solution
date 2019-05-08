@@ -40,6 +40,13 @@ def main():
     parser.add_argument('--maxlinktime', type=int, dest='timelength', default=600,
                         help='If expand is true, this sets the maximum time for segments in the network.  Default is 600 minutes, or 10 hours.')
 
+    parser.add_argument('--narrow_destination_timewindows', type=bool,
+                        dest='destination_time_windows',
+                        default=True,
+                        help="If true, limit destination node time windows based on travel time from corresponding origin.  If false, destination nodes time windows are 0 to args.horizon.  Default true (limit the time window).")
+
+    parser.add_argument('--breaks_logic',type=int,dest='breaks_logic',default=1,
+                        help="Set the breaks logic.  \n1 => simple logic, fixed at 0 start time, all optional, specified individually;\n2 => fixed at start, not optional, 1+ breaks synced to first break")
 
     args = parser.parse_args()
 
@@ -184,35 +191,49 @@ def main():
         # and  add simulation-wide time windows (slack) for delivery nodes,
         dropoff_index = manager.NodeToIndex(record.destination)
         tt = expanded_mm.loc[record.origin,record.destination]
-        # early time windows is minimal breaks: start fresh, drive straight
-        breaks = math.floor(tt/60/11) * 600
-        early = int(record.early + tt + breaks)
-        # late time window  maybe another break will have to be inserted
-        breaks += 600
-        late = int(record.late + tt + breaks)
-        time_dimension.CumulVar(dropoff_index).SetRange(early, late)
+        if args.destination_time_windows:
+            # early time windows is minimal breaks: start fresh, drive straight
+            breaks = math.floor(tt/60/11) * 600
+            early = int(record.early + tt + breaks)
+            # late time window  maybe another break will have to be inserted
+            breaks += 600
+            late = int(record.late + tt + breaks)
+            time_dimension.CumulVar(dropoff_index).SetRange(early, late)
+        else:
+            # just set dropoff time window same as 0, horizon
+            early = 0
+            late = args.horizon
+            time_dimension.CumulVar(dropoff_index).SetRange(early, late)
         routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
 
+    # now for all dummy nodes, set time windows
+    # dummy nodes are identified by demand of zero
+    for node in expanded_mm.index:
+        # skip depot nodes---handled in vehicle time windows below
+        if node == 0:
+            continue
+        # default is to give dummy nodes infinite time windows but
+        # nodes leading to pickup nodes max out at pickup node time
+        # window
+        # optionally, don't do that for dummy nodes heading to pickups
+        if d.get_demand(node) == 0:
+            # this is a dummy node, not a pickup (1) not a dropoff (-1)
 
-    for node in range(mm.index.max()+1,expanded_mm.index.max()+1):
-        # default is to give dummy nodes infinite time windows
-        start = 0
-        end = args.horizon
-        # don't do that for dummy nodes heading to pickups
-        index = manager.NodeToIndex(node)
-        # dummy nodes can only get to one node
-        tt = expanded_mm.loc[node,:]
-        bool_idx = tt > 0
-        next_node = expanded_mm.index[bool_idx].max()
-        tw = d.get_time_window(next_node)
-        if tw[0]>0 :
-            # adjust to allow for breaks
-            # earliest time window must allow for 10 hour break
-            tw = (tw[0]- 600,tw[1])
-
-        # print('dummy node time window',node,index)
-        time_dimension.CumulVar(index).SetRange(int(tw[0]),int(tw[1]))
-        routing.AddToAssignment(time_dimension.SlackVar(index))
+            index = manager.NodeToIndex(node)
+            # dummy nodes can only get to one node
+            tt = expanded_mm.loc[node,:]
+            bool_idx = tt > 0
+            # next node is either origin, destination, or depot
+            next_node = expanded_mm.index[bool_idx].max()
+            # get next node time window to determine this node time window
+            tw = d.get_time_window(next_node)
+            if tw[0]>0 :
+                # next node is a pickup, with early time > 0
+                # but might be n breaks prior, so just zero it out
+                tw = (0,tw[1])
+            # print('dummy node time window',node,index)
+            time_dimension.CumulVar(index).SetRange(int(tw[0]),int(tw[1]))
+            routing.AddToAssignment(time_dimension.SlackVar(index))
 
     # Add time window constraints for each vehicle start node
     # and 'copy' the slack var in the solution object (aka Assignment) to print it
@@ -228,7 +249,25 @@ def main():
 
     # [START breaks logic]
     print('apply break rules')
-    d.apply_breaks_rules(vehicles,expanded_mm,routing)
+    breaks = None
+    if args.breaks_logic==1:
+        breaks = d.get_simple_breaks(len(vehicles.vehicles),
+                                     expanded_mm,
+                                     manager,
+                                     routing,
+                                     time_dimension,
+                                     count_dimension)
+    if args.breaks_logic == 2:
+        breaks = d.get_breaks_synced_first(len(vehicles.vehicles),
+                                           expanded_mm,
+                                           manager,
+                                           routing,
+                                           time_dimension,
+                                           count_dimension)
+    if breaks == None:
+        print('invalid breaks strategy')
+        assert 0
+
 
     # did it work?
     print('breaks done')
