@@ -42,7 +42,7 @@ def create_time_callback(travel_minutes_matrix,
     node_list = [n for n in travel_minutes_matrix.index]
     # print('len node list is ',len(node_list))
     for from_node in node_list:
-        if from_node % 10 == 0:
+        if from_node % 100 == 0:
             print(from_node,' of ',len(travel_minutes_matrix.index))
         _total_time[from_node] = {}
         # mapnode_from = demand.get_map_node(from_node)

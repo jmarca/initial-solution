@@ -295,6 +295,8 @@ def main():
     # prevent impossible next nodes
     print('remove impossible connections from solver')
     for onode in expanded_mm.index:
+        if onode % 100 == 0:
+            print(onode,' of ',len(expanded_mm))
         o_idx = manager.NodeToIndex(onode)
         for dnode in expanded_mm.index:
             if onode == dnode:
