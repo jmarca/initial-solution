@@ -284,6 +284,20 @@ def main():
                                            routing,
                                            time_dimension,
                                            count_dimension)
+    if args.breaks_logic == 3:
+        breaks = d.get_breaks_synced_first_variable(len(vehicles.vehicles),
+                                                    expanded_mm,
+                                                    manager,
+                                                    routing,
+                                                    time_dimension,
+                                                    count_dimension)
+    if args.breaks_logic == 4:
+        breaks = d.get_breaks_unsynced_variable(len(vehicles.vehicles),
+                                                    expanded_mm,
+                                                    manager,
+                                                    routing,
+                                                    time_dimension,
+                                                    count_dimension)
     if breaks == None:
         print('invalid breaks strategy')
         assert 0

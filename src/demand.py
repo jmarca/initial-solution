@@ -306,6 +306,124 @@ class Demand():
                 breaks[veh], veh, node_visit_transit)
         return breaks
 
+    def get_breaks_synced_first_variable(self,num_veh,
+                                         time_matrix,
+                                         manager,
+                                         routing,
+                                         time_dimension,
+                                         count_dimension):
+        """Clock starts at zero, driving starts at variable time, so breaks
+           start at time of vehicle departure, defined as start +
+           slack.  All other breaks based on initial break plus 11
+           hours
+
+        """
+
+        # function per vehicle
+        def trip_breaks(veh,routing):
+            solver = routing.solver()
+            breaks = []
+            # start at 0, 10 hr break every 11 hr of driving
+            #
+            num_breaks = math.floor(self.horizon/60/(11+10))
+            active_start =  routing.ActiveVar(routing.Start(veh))
+            active_end = routing.VehicleVar(routing.End(veh)) == veh
+            counting_end = active_end * count_dimension.CumulVar(routing.End(veh))
+            end_count_okay = counting_end > 1
+            active_vehicle = end_count_okay
+            time_start = time_dimension.CumulVar(routing.Start(veh))
+            slack_start = time_dimension.SlackVar(routing.Start(veh))
+            time_end = time_dimension.CumulVar(routing.End(veh))
+            must_start = (time_start + slack_start + (11*60)) # 11 hours later
+            for interval in range(0,num_breaks):
+                if len(breaks) == 0:
+                    # insert the first break
+                    brk = solver.FixedDurationIntervalVar(
+                        must_start,  # min start time
+                        10*60,  # 10 hour duration
+                        active_vehicle,
+                        '10hr break 0 for vehicle {}'.format(veh))
+                    breaks.append(brk)
+                else:
+                    # synced with **start** of first break,
+                    # one drive, one break per interval
+                    offset = interval*(11+10)*60
+                    brk = solver.FixedDurationStartSyncedOnStartIntervalVar(
+                        breaks[0], # synced to starting break
+                        10*60,     # 10hr duration
+                        offset # when to start after first
+                    )
+                    breaks.append(brk)
+            return breaks
+
+        breaks = {}
+        node_visit_transit = self.get_node_visit_transit(time_matrix)
+        for veh in range(0,num_veh):
+            breaks[veh] = trip_breaks(veh,routing)
+            print(breaks[veh])
+            time_dimension.SetBreakIntervalsOfVehicle(
+                breaks[veh], veh, node_visit_transit)
+        return breaks
+
+    def get_breaks_unsynced_variable(self,num_veh,
+                                     time_matrix,
+                                     manager,
+                                     routing,
+                                     time_dimension,
+                                     count_dimension):
+        """Clock starts at zero, driving starts at variable time, so breaks
+           start at time of vehicle departure, defined as start +
+           slack.  All other breaks start if final time is large enough
+
+        """
+
+        # function per vehicle
+        def trip_breaks(veh,routing):
+            solver = routing.solver()
+            breaks = []
+            # start at 0, 10 hr break every 11 hr of driving
+            #
+            num_breaks = math.floor(self.horizon/60/(11+10))
+            active_start =  routing.ActiveVar(routing.Start(veh))
+            active_end = routing.VehicleVar(routing.End(veh)) == veh
+            counting_end = active_end * count_dimension.CumulVar(routing.End(veh))
+            end_count_okay = counting_end > 1
+            active_vehicle = end_count_okay
+            time_start = time_dimension.CumulVar(routing.Start(veh))
+            slack_start = time_dimension.SlackVar(routing.Start(veh))
+            time_end = time_dimension.CumulVar(routing.End(veh))
+            must_start = active_start*(time_start + slack_start + (11*60)) # 11 hours later
+            for interval in range(0,num_breaks):
+                if interval > 0:
+                    must_start = active_start*(time_start +
+                                               slack_start +
+                                               active_vehicle * (11*60 +  # 11 hours of driving
+                                                                 interval*(11+10)*60)) # prior drive/breaks
+
+
+                #indicator_intvar = active_vehicle
+                # indicator_intvar = active_vehicle*(time_start+slack_start)+(11+10)*60 <= active_vehicle*time_end
+
+                indicator_intvar = time_end >=  60 *(11+10)*(interval+1)
+
+                # insert the first break
+                brk = solver.FixedDurationIntervalVar(
+                    must_start,  # min start time
+                    10*60,  # 10 hour duration
+                    indicator_intvar,
+                    '10hr break 0 for vehicle {}'.format(veh))
+                breaks.append(brk)
+            return breaks
+
+        breaks = {}
+        node_visit_transit = self.get_node_visit_transit(time_matrix)
+        for veh in range(0,num_veh):
+            breaks[veh] = trip_breaks(veh,routing)
+            print(breaks[veh])
+            time_dimension.SetBreakIntervalsOfVehicle(
+                breaks[veh], veh, node_visit_transit)
+        return breaks
+
 
     def get_variable_nth_break(self,num_veh,
                       time_matrix,
