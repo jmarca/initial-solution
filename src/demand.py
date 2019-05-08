@@ -418,3 +418,5 @@ class Demand():
             travel_times = breaks.aggregate_split_nodes(travel_times,moretimes)
 
         return travel_times # which holds everything of interest
+
+    def apply_breaks_rules(self,vehicles,time_matrix,routing):
