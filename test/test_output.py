@@ -27,9 +27,11 @@ def test_output():
     horizon = 20000
     d = D.Demand('test/data/demand.csv',horizon)
     m = reader.load_matrix_from_csv('test/data/matrix.csv')
+    m = d.generate_solver_space_matrix(m)
     m_m = reader.travel_time(1,m)
+
     v = V.Vehicles(5)
-    demand_callback = E.create_demand_callback(d)
+    demand_callback = E.create_demand_callback(m_m.index,d)
     time_callback = E.create_time_callback(m_m,d)
     dist_callback = E.create_dist_callback(m,d)
 

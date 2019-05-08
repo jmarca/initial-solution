@@ -1,24 +1,22 @@
 # create simple 2D array for distance lookup?
 # Define cost of each arc.
 import numpy as np
+import sys
 
-def create_demand_callback(demand):
+def create_demand_callback(node_list,demand):
     """ create a callback function for demand """
     _demand = {}
-    # if node supplied is not one of the O D nodes, return 0 for demand
-    for idx in demand.demand.index:
-        record = demand.demand.loc[idx]
-        # from node has 1 supply, to node has -1 demand
-        _demand[record.origin]=int(1)
-        _demand[record.destination]=int(-1)
-
+    for node in node_list:
+        _demand[node] = demand.get_demand(node)
+    print('size of demand matrix is ',len(_demand))
     def demand_callback(manager, index):
         """Returns the demand at the index, if defined, or zero."""
         # Convert from routing variable Index to demand array Node.
         node = manager.IndexToNode(index)
-        if node in _demand:
-            return _demand[node]
-        return int(0)
+        # print(node)
+        # print(_demand[node])
+        return _demand[node]
+
 
     # return the callback, which will need to be set up with partial
     return demand_callback
@@ -26,40 +24,50 @@ def create_demand_callback(demand):
 
 def create_time_callback(travel_minutes_matrix,
                          demand):
-    """ create a callback function for time """
+    """create a callback function for time.  presumes that
+       travel_minutes_matrix is in solver space, not map space (has
+       been passed through demand.generate_solver_space_matrix
 
+    """
+    # time matrix is now in model space, not map space
     # preprocess travel and service time to speed up solver
     _total_time = {}
-    depot_list = np.array([0]) # hack---will fail when depots is not just node 0
-    node_list = np.append(depot_list,demand.get_node_list())
+    max_time = travel_minutes_matrix.max().max()
+    penalty_time =  int(10000000 * max_time)
+    # penalty_time =  int(9223372036854775808)
+    # penalty_time = int(100 * max_time)
+    print ('using a maximum time for forbidden links of ',penalty_time)
+
+    # nodes are in travel time matrix
+    node_list = [n for n in travel_minutes_matrix.index]
+    # print('len node list is ',len(node_list))
     for from_node in node_list:
+        if from_node % 100 == 0:
+            print(from_node,' of ',len(travel_minutes_matrix.index))
         _total_time[from_node] = {}
-        mapnode_from = 0
-        service_time = 0
-        if (from_node>0):
-            mapnode_from = demand.get_map_node(from_node)
-            service_time = demand.get_service_time(from_node)
+        # mapnode_from = demand.get_map_node(from_node)
+        service_time = demand.get_service_time(from_node)
         for to_node in node_list:
             if from_node == to_node:
                 _total_time[from_node][to_node] = 0
             else:
-                mapnode_to = 0
-                if(to_node > 0):
-                    # print(to_node)
-                    mapnode_to = demand.get_map_node(to_node)
-                _total_time[from_node][to_node] = int(
-                    travel_minutes_matrix.loc[mapnode_from,mapnode_to]
-                    + service_time
-                    # adding service time at both ends would double count
-                    # + demand.service_time(to_node)
-                )
+                # mapnode_to = demand.get_map_node(to_node)
+                if not np.isnan(travel_minutes_matrix.loc[from_node,to_node]) :
+                    _total_time[from_node][to_node] = int(
+                        travel_minutes_matrix.loc[from_node,to_node]
+                        + service_time
+                    )
+                else:
+                    _total_time[from_node][to_node] = penalty_time
+                # print(from_node,to_node,mapnode_from,mapnode_to,_total_time[from_node][to_node])
 
     def time_callback(manager, from_index, to_index):
         """Returns the travel time between the two nodes."""
         # Convert from routing variable Index to distance matrix NodeIndex.
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        # calling pandas object might break C++, so switched to
+        # print(from_node,to_node)
+        # print(_total_time[from_node][to_node])
         return _total_time[from_node][to_node]
 
     # return the callback, which will need to be set up with partial
@@ -68,27 +76,28 @@ def create_time_callback(travel_minutes_matrix,
 def create_dist_callback(dist_matrix,
                          demand):
     """ create a callback function for dist """
-
+    # dist matrix is now in model space, not map space
     # preprocess travel and service dist to speed up solver
     _total_dist = {}
-    depot_list = np.array([0]) # hack---will fail when depots is not just node 0
-    node_list = np.append(depot_list,demand.get_node_list())
+    # can get node list from dist matrix now
+    node_list = [ n for n in dist_matrix.index ]
     for from_node in node_list:
         _total_dist[from_node] = {}
-        mapnode_from = 0
-        if (from_node>0):
-            mapnode_from = demand.get_map_node(from_node)
+        # no longer need to get map node, as distance matrix is in solver node space
+        # mapnode_from = demand.get_map_node(from_node)
+
         for to_node in node_list:
             if from_node == to_node:
                 _total_dist[from_node][to_node] = 0
             else:
-                mapnode_to = 0
-                if(to_node > 0):
-                    # print(to_node)
-                    mapnode_to = demand.get_map_node(to_node)
-                _total_dist[from_node][to_node] = int(
-                    dist_matrix.loc[mapnode_from,mapnode_to]
-                )
+                # mapnode_to = demand.get_map_node(to_node)
+                if not np.isnan(dist_matrix.loc[from_node,to_node]) :
+                    _total_dist[from_node][to_node] = int(
+                        dist_matrix.loc[from_node,to_node]
+                    )
+                else:
+                    _total_dist[from_node][to_node] = sys.maxsize
+
 
     def dist_callback(manager, from_index, to_index):
         """Returns the travel dist between the two nodes."""

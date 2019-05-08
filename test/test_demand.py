@@ -36,3 +36,14 @@ def test_demand():
     assert d_alt.get_service_time(1) == 20
     # unloading time is 25 in alternate
     assert d_alt.get_service_time(6) == 25
+
+    # test making a demand map
+    dm = d.get_demand_map()
+    assert len(dm) == 10
+    assert not (0 in dm.keys())
+    assert 1 in dm.keys()
+    assert 1 == dm[1]
+    assert 6 in dm.keys()
+    assert -1 == dm[6]
+
+    # other functions tested in test_evaluators, as they involve other modules
