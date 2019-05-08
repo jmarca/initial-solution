@@ -85,8 +85,8 @@ def print_solution(demand,
 
             this_time = routing.GetArcCostForVehicle(previous_index, index,
                                                      vehicle_id)
-            this_distance = dist_matrix.loc[manager.IndexToNode(previous_index),
-                                            manager.IndexToNode(index)]
+            this_distance = int(dist_matrix.loc[manager.IndexToNode(previous_index),
+                                                manager.IndexToNode(index)])
             distance += this_distance
         load_var = capacity_dimension.CumulVar(index)
         visits_var  = count_dimension.CumulVar(index)
