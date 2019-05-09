@@ -774,15 +774,61 @@ class Demand():
         print('fixme')
         solver = routing.solver()
         for bn in self.break_nodes.values():
-            next_node = bn.destination
+            origin_node = bn.origin
+            destination_node = bn.destination
             break_node = bn.node
-            tt = bn.tt_d
-            print('break node',break_node,'next node',next_node,'tt',tt)
-            d_idx = manager.NodeToIndex(next_node)
+            tt_bd = bn.tt_d
+            tt_ob = bn.tt_d
+            tt = tt_bd + tt_ob
+            tt_checked = time_matrix.loc[origin_node,destination_node]
+            print('origin node',origin_node,
+                  'break node',break_node,
+                  'next node',destination_node,
+                  'tt',tt,
+                  'tt_checked',tt_checked)
+            o_idx = manager.NodeToIndex(origin_node)
+            d_idx = manager.NodeToIndex(destination_node)
             b_idx = manager.NodeToIndex(break_node)
-            # only visit if less than 660, forcing a break visit to reduce drive.CumulVar
-            #solver.AddConstraint(drive_dimension.CumulVar(d_idx)<=1050)
 
+            # only visit if less than 660, forcing a break visit to reduce drive.CumulVar
+            break_count = bn.break_count
+            #solver.AddConstraint(drive_dimension.CumulVar(d_idx)<=1050)
+            origin_break_condition = drive_dimension.CumulVar(o_idx) >=  (break_count*660) - tt
+            origin_nobreak_condition = drive_dimension.CumulVar(o_idx) < (break_count*660) - tt
+            active_break_o = routing.ActiveVar(b_idx) == routing.ActiveVar(o_idx)
+            active_break_d = routing.ActiveVar(b_idx) == routing.ActiveVar(d_idx)
+            skip_break_o = routing.ActiveVar(b_idx) == 0
+            skip_break_d = routing.ActiveVar(b_idx) == 0
+            if origin_node == 0:
+                # constrain on destination
+                expression = solver.ConditionalExpression(origin_break_condition,
+                                                          active_break_d,
+                                                          1)
+                solver.AddConstraint(expression>=1)
+                not_expression = solver.ConditionalExpression(origin_nobreak_condition,
+                                                              skip_break_d,
+                                                              1)
+                solver.AddConstraint(not_expression>=1)
+            else:
+                # constrain on origin
+                expression = solver.ConditionalExpression(origin_break_condition,
+                                                          active_break_o,
+                                                          1)
+                solver.AddConstraint(expression>=1)
+                not_expression = solver.ConditionalExpression(origin_nobreak_condition,
+                                                              skip_break_o,
+                                                              1)
+                solver.AddConstraint(not_expression>=1)
+            # expression = solver.ConditionalExpression(origin_condition,
+            #                                           active_break,
+            #                                           1)
+            # solver.AddConstraint(expression>=1)
+            # if(destination_node >0 ):
+            #     print(active_break_d)
+            #     solver.Add(active_break_d)
+            # if(origin_node >0 ):
+            #     print(active_break_o)
+            #     solver.Add(active_break_o)
 
             # only visit break node if need to do so, preventing
             # spurious resets 660 is break rule.  Will trigger break
@@ -791,7 +837,19 @@ class Demand():
             # to next real node is tt minutes, so if we are at 660 -
             # tt, or more now, then we will be above 660 at real node,
             # and we need to take a break.
-            print ('break node cumul var >=',660 - tt)
+            # if 660 - tt <= 0:
+            #     print ('break node cumul var >=',660 - tt)
+            #     if origin_node == 0:
+            #         # constrain on destination
+            #         solver.AddConstraint(routing.ActiveVar(b_idx) == routing.ActiveVar(d_idx))
+            #     else:
+            #         # constrain on origin
+            #         solver.AddConstraint(routing.ActiveVar(b_idx) == routing.ActiveVar(o_idx))
+
+            # else:
+            #     if break_node == 6:
+            #         print ('try to force node 6 break')
+            #         solver.AddConstraint(routing.ActiveVar(b_idx) == routing.ActiveVar(d_idx))
             #solver.AddConstraint(drive_dimension.CumulVar(b_idx) >= 660 - tt)
 
         # for veh in range(0,num_veh):

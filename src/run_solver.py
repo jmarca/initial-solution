@@ -185,7 +185,7 @@ def main():
         drive_callback_index = routing.RegisterTransitCallback(drive_callback)
         routing.AddDimension(
             drive_callback_index, # same "cost" evaluator as above
-            0,  # No slack for drive dimension
+            660,  # No slack for drive dimension?
             args.horizon,  # max drive is end of drive horizon
             True, # set to zero for each vehicle
             drive_dimension_name)
@@ -344,22 +344,22 @@ def main():
     # did it work?
     print('breaks done')
 
-    # prevent impossible next nodes
-    print('remove impossible connections from solver')
-    for onode in expanded_mm.index:
-        if onode % 100 == 0:
-            print(onode,' of ',len(expanded_mm))
-        o_idx = manager.NodeToIndex(onode)
-        for dnode in expanded_mm.index:
-            if onode == dnode:
-                continue
-            if np.isnan(expanded_mm.loc[onode,dnode]):
-                # cannot connect, to prevent this combo
-                d_idx = manager.NodeToIndex(dnode)
-                if routing.NextVar(o_idx).Contains(d_idx):
-                    # print('remove link from',onode,'to',dnode)
-                    routing.NextVar(o_idx).RemoveValue(d_idx)
-    print('done with RemoveValue calls')
+    # # prevent impossible next nodes
+    # print('remove impossible connections from solver')
+    # for onode in expanded_mm.index:
+    #     if onode % 100 == 0:
+    #         print(onode,' of ',len(expanded_mm))
+    #     o_idx = manager.NodeToIndex(onode)
+    #     for dnode in expanded_mm.index:
+    #         if onode == dnode:
+    #             continue
+    #         if np.isnan(expanded_mm.loc[onode,dnode]):
+    #             # cannot connect, to prevent this combo
+    #             d_idx = manager.NodeToIndex(dnode)
+    #             if routing.NextVar(o_idx).Contains(d_idx):
+    #                 # print('remove link from',onode,'to',dnode)
+    #                 routing.NextVar(o_idx).RemoveValue(d_idx)
+    # print('done with RemoveValue calls')
 
 
     # Setting first solution heuristic.
