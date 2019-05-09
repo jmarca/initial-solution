@@ -780,7 +780,9 @@ class Demand():
             d_idx = manager.NodeToIndex(next_node)
             b_idx = manager.NodeToIndex(break_node)
             # only visit if less than 660, forcing a break visit to reduce drive.CumulVar
-            cidx0 = solver.AddConstraint(drive_dimension.CumulVar(d_idx)<660)
+            #solver.AddConstraint(drive_dimension.CumulVar(d_idx)<=660)
+
+
             # only visit break node if need to do so, preventing
             # spurious resets 660 is break rule.  Will trigger break
             # rule if CumulVar at d_idx is at 660, but we aren't
@@ -788,6 +790,7 @@ class Demand():
             # to next real node is tt minutes, so if we are at 660 -
             # tt, or more now, then we will be above 660 at real node,
             # and we need to take a break.
-            cidx1 = solver.AddConstraint(drive_dimension.CumulVar(b_idx) >= 660 - tt)
+
+            solver.AddConstraint(drive_dimension.CumulVar(b_idx) >= 660 - tt)
 
         # assert 0
