@@ -641,7 +641,7 @@ class Demand():
             do_tt = travel_times.loc[0,record.origin]
             do_breaks = (math.floor(do_tt/60/11)) * 60*10
             do_total = do_tt + do_breaks
-            origin_trip_cost = record['round_trip'] - do_total
+            # origin_trip_cost = record['round_trip'] - do_total
 
             od_tt = travel_times.loc[record.origin,record.destination]
             od_breaks = (math.floor(do_tt/60/11)) * 60*10
@@ -695,31 +695,25 @@ class Demand():
         # ditto for each dropoff node and pickup node pairing
         # and for each dropoff node and depot node pairing
         new_node = len(travel_times.index)
-        gb = breaks.split_break_node_generator(travel_times)
+        # gb = breaks.split_break_node_generator(travel_times)
         # apply to demand pairs
         feasible_index = self.demand.feasible
-        new_times_nodes = self.demand.loc[feasible_index,:].apply(gb,axis=1,result_type='reduce')
-        # fixup newtimes into augmented_matrix
-        # travel_times = breaks.aggregate_split_nodes(travel_times,newtimes)
-        print('First pass, merge',
-              3 * len(new_times_nodes.index),
-              'new times with existing times.')
-        travel_times = breaks.aggregate_split_nodes(travel_times,new_times_nodes.new_times)
-        # print(new_node,'\n',travel_times)
-
-        # store the newly created dummy node details
-        break_nodes= list(
-            itertools.chain.from_iterable(
-                new_times_nodes.loc[:,'new_nodes'].values.tolist()))
+        # can't use apply here...it breaks
+        # new_times_nodes = self.demand.loc[feasible_index,:].apply(gb,axis=1,result_type='reduce')
         self.break_nodes = {}
-        # renumber the nodes.  lordy this is dangerous, hence the asserts
-        for node in break_nodes:
-            node.node = new_node
-            assert travel_times.loc[node.origin,node.node] == node.tt_o
-            assert travel_times.loc[node.node,node.destination] == node.tt_d
-            self.break_nodes[node.node]=node
-            new_node += 1
+        new_times = []
+        new_nodes = []
+        for idx in self.demand.index[feasible_index]:
+            record = self.demand.loc[idx]
+            pair = breaks.split_break_node(record,travel_times,new_node)
+            travel_times = breaks.aggregate_split_nodes(travel_times,pair[0])
+            for bn in  pair[1]:
+                self.break_nodes[bn.node]=bn
+                assert travel_times.loc[bn.origin,bn.node] == bn.tt_o
+                assert travel_times.loc[bn.node,bn.destination] == bn.tt_d
 
+            new_node = len(travel_times.index)
+            assert new_node > max(self.break_nodes.keys())
 
         print('Next deal with destinations crossed with all origins')
 
@@ -733,47 +727,65 @@ class Demand():
         origin_details = []
         for idx in self.demand.index[feasible_index]:
             record = self.demand.loc[idx]
-            do_tt = travel_times.loc[0,record.origin]
-            do_breaks = (math.floor(do_tt/60/11)) * 60*10
-            do_total = do_tt + do_breaks
-            origin_trip_cost = record['round_trip'] - do_total
+            destination_details.append((record.destination,
+                                        record.earliest_destination,
+                                        record.origin))
+            origin_details.append((record.origin,
+                                   record.late))
+        #     # do_tt = travel_times.loc[0,record.origin]
+        #     # do_breaks = (math.floor(do_tt/60/11)) * 60*10
+        #     # do_total = do_tt + do_breaks
+        #     # # origin_trip_cost = record['round_trip'] - do_total
 
-            od_tt = travel_times.loc[record.origin,record.destination]
-            od_breaks = (math.floor(do_tt/60/11)) * 60*10
-            od_total = od_tt + od_breaks
+        #     # od_tt = travel_times.loc[record.origin,record.destination]
+        #     # od_breaks = (math.floor(do_tt/60/11)) * 60*10
+        #     # od_total = od_tt + od_breaks
 
-            dd_tt = travel_times.loc[record.destination,0]
-            dd_breaks = (math.floor(dd_tt/60/11)) * 60*10
-            dd_total = dd_tt + dd_breaks
-            destination_trip_cost = record['round_trip'] - dd_total
+        #     # dd_tt = travel_times.loc[record.destination,0]
+        #     # dd_breaks = (math.floor(dd_tt/60/11)) * 60*10
+        #     # dd_total = dd_tt + dd_breaks
+        #     # destination_trip_cost = record['round_trip'] - dd_total
+        #     destinations.append[
+        #     destination_details.append((record.destination,destination_trip_cost,record.origin,record.late+od_total))
+        #     origin_details.append((record.origin,origin_trip_cost,record.destination,record.late))
 
-            destination_details.append((record.destination,destination_trip_cost,record.origin,record.late+od_total))
-            origin_details.append((record.origin,origin_trip_cost,record.destination,record.late))
-
-        for didx in range(0,len(destination_details)):
-            dd = destination_details[didx]
+        for dd in destination_details:
+            didx = dd[0]
             moretimes = []
             for oo in origin_details:
-                if dd[1] + oo[1] > self.horizon:
-                    print("can't get to origin before horizon")
-                    continue
-                if dd[2] == oo[0]:
+                oidx = oo[0]
+                if dd[2] == oidx:
                     # that means traveling back to origin, which is impossible
                     continue
-                # check that even possible
-                tt = travel_times.loc[dd[0],oo[0]]
-                if dd[3] + tt > oo[3]:
-                    print("can't get to origin before time window ends")
+                # what is min time to destination, and from then, can
+                # we get to origin before horizon?
+                tt = travel_times.loc[didx,oidx]
+                assert not np.isnan(tt)
+                if dd[1] + tt > self.horizon:
+                    print("can't get from",didx,"to",oidx,"before horizon")
+                    continue
+                # check that can get to next origin before its time horizon ends
+                if dd[1] + tt > oo[1]:
+                    print("can't get from",didx,"to",oidx,"before origin pickup horizon",oo[1])
                     continue
                 # trip chain is possible, so split destination to origin
                 if (not np.isnan(tt)): # don't bother if no break node will happen
-                    new_times_nodes = breaks.split_links_break_nodes(dd[0],oo[0],tt,new_node)
-                    moretimes.append([new_times_nodes[0]])
-                    new_break_node = new_times_nodes[1]
-                    new_break_node.node = new_node
-                    # save it to the hash
-                    self.break_nodes[new_node] = new_break_node
-                    new_node += 1
+                    possible_breaks = math.ceil(tt/60/11)
+                    extra_times = []
+                    extra_nodes = []
+                    origin = dd[0]
+                    for i in range(0,possible_breaks):
+                        count = i+1
+                        pair = breaks.split_links_break_nodes(origin,oo[0],tt,new_node,count)
+                        extra_times.append(pair[0])
+                        # save it to the hash
+                        self.break_nodes[new_node] = pair[1]
+                        assert pair[1].node == new_node
+                        # creep closer if count > 0
+                        tt = pair[1].tt_d
+                        origin=new_node
+                        new_node += 1
+                    moretimes.append(extra_times)
             print(didx,'of',len(destination_details)-1,',append',len(moretimes),'more')
             travel_times = breaks.aggregate_split_nodes(travel_times,moretimes)
 
@@ -792,8 +804,9 @@ class Demand():
                                     routing,
                                     time_dimension,
                                     count_dimension,
-                                    drive_dimension):
-        print('fixme')
+                                    drive_dimension,
+                                    drive_dimension_start_value):
+
         solver = routing.solver()
         for bn in self.break_nodes.values():
             origin_node = bn.origin
@@ -808,15 +821,28 @@ class Demand():
                   'next node',destination_node,
                   'tt',tt,
                   'tt_checked',tt_checked)
+
+            # diagnosic prior to bombing out
+            if math.floor(tt / int(tt_checked)) != 1:
+                print(time_matrix)
+
+            assert math.floor(tt / int(tt_checked)) == 1
             o_idx = manager.NodeToIndex(origin_node)
             d_idx = manager.NodeToIndex(destination_node)
             b_idx = manager.NodeToIndex(break_node)
 
             # only visit if less than 660, forcing a break visit to reduce drive.CumulVar
             break_count = bn.break_count
-            #solver.AddConstraint(drive_dimension.CumulVar(d_idx)<=1050)
-            origin_break_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) >=  (break_count*660) - tt
-            origin_nobreak_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) < (break_count*660) - tt
+
+            origin_break_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) >=  (660) - tt  + drive_dimension_start_value
+            origin_nobreak_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) < (660) - tt + drive_dimension_start_value
+
+            # if the origin node is a break node itself, might not need to visit
+            if origin_node in self.break_nodes:
+                origin_break_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) >=  2*(660) - tt + drive_dimension_start_value
+                origin_nobreak_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) < 2*(660) - tt + drive_dimension_start_value
+
+
             active_break_o = routing.ActiveVar(b_idx) == routing.ActiveVar(o_idx)
             active_break_d = routing.ActiveVar(b_idx) == routing.ActiveVar(d_idx)
             skip_break_o = routing.ActiveVar(b_idx) == 0

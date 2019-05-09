@@ -88,7 +88,7 @@ def split_links(O,D,travel_time,starting_node):
     return new_times
 
 
-def split_links_break_nodes(O,D,travel_time,new_node):
+def split_links_break_nodes(O,D,travel_time,new_node,count):
     """split the link from O to D in half
     arguments: O: origin node, integer
                D: destination node, integer
@@ -100,7 +100,7 @@ def split_links_break_nodes(O,D,travel_time,new_node):
              new_node
     """
 
-    bn = BN.BreakNode(O,D,travel_time,new_node)
+    bn = BN.BreakNode(O,D,travel_time,new_node,count)
     new_times = {}
     new_times[O] = {}
     new_times[D] = {}
@@ -125,36 +125,117 @@ def split_break_node_generator(travel_times):
         min_start = len(travel_times.index)
         new_times = []
         new_nodes = []
-        idx = 0
         tt = travel_times.loc[0,record.origin]
+        origin = 0
         if not np.isnan(tt):
-            pair = split_links_break_nodes(0,record.origin,
-                                           tt,
-                                           min_start)
-            new_times.append(pair[0])
-            new_nodes.append(pair[1])
-            min_start += 1
-            idx += 1
+            possible_breaks = math.ceil(tt/60/11)
+            for i in range(0,possible_breaks):
+                count = i+1
+                pair = split_links_break_nodes(origin,
+                                               record.origin,
+                                               tt,
+                                               min_start,
+                                               count)
+                new_times.append(pair[0])
+                new_nodes.append(pair[1])
+                # creep closer if count > 0
+                tt = pair[1].tt_d
+                origin=min_start
+                min_start += 1
+
         tt = travel_times.loc[record.origin,record.destination]
+        origin = record.origin
         if not np.isnan(tt):
-            pair = split_links_break_nodes(record.origin,
-                                           record.destination,
-                                           tt,
-                                           min_start)
-            new_times.append(pair[0])
-            new_nodes.append(pair[1])
-            min_start += 1
-            idx += 1
+            possible_breaks = math.ceil(tt/60/11)
+            for i in range(0,possible_breaks):
+                pair = split_links_break_nodes(origin,
+                                               record.destination,
+                                               tt,
+                                               min_start,
+                                               count)
+                new_times.append(pair[0])
+                new_nodes.append(pair[1])
+                # creep closer if count > 0
+                tt = pair[1].tt_d
+                origin=min_start
+                min_start += 1
+
         tt = travel_times.loc[record.destination,0]
+        origin=record.destination
         if not np.isnan(tt):
-            pair = split_links_break_nodes(record.destination,0,
-                                           tt,
-                                           min_start)
-            new_times.append(pair[0])
-            new_nodes.append(pair[1])
-        # return [new_times,new_nodes]
+            possible_breaks = math.ceil(tt/60/11)
+            for i in range(0,possible_breaks):
+                pair = split_links_break_nodes(origin,
+                                               0,
+                                               tt,
+                                               min_start,
+                                               count)
+                new_times.append(pair[0])
+                new_nodes.append(pair[1])
+                # creep closer if count > 0
+                tt = pair[1].tt_d
+                origin=min_start
+                min_start += 1
+
         return pd.Series([new_times,new_nodes],index=['new_times','new_nodes'])
     return gen_breaks
+
+def split_break_node(record,travel_times,min_start):
+    new_times = []
+    new_nodes = []
+    tt = travel_times.loc[0,record.origin]
+    origin = 0
+    if not np.isnan(tt):
+        possible_breaks = math.ceil(tt/60/11)
+        for i in range(0,possible_breaks):
+            count = i+1
+            pair = split_links_break_nodes(origin,
+                                           record.origin,
+                                           tt,
+                                           min_start,
+                                           count)
+            new_times.append(pair[0])
+            new_nodes.append(pair[1])
+            # creep closer if count > 0
+            tt = pair[1].tt_d
+            origin=min_start
+            min_start += 1
+
+    tt = travel_times.loc[record.origin,record.destination]
+    origin = record.origin
+    if not np.isnan(tt):
+        possible_breaks = math.ceil(tt/60/11)
+        for i in range(0,possible_breaks):
+            pair = split_links_break_nodes(origin,
+                                           record.destination,
+                                           tt,
+                                           min_start,
+                                           count)
+            new_times.append(pair[0])
+            new_nodes.append(pair[1])
+            # creep closer if count > 0
+            tt = pair[1].tt_d
+            origin=min_start
+            min_start += 1
+
+    tt = travel_times.loc[record.destination,0]
+    origin=record.destination
+    if not np.isnan(tt):
+        possible_breaks = math.ceil(tt/60/11)
+        for i in range(0,possible_breaks):
+            pair = split_links_break_nodes(origin,
+                                           0,
+                                           tt,
+                                           min_start,
+                                           count)
+            new_times.append(pair[0])
+            new_nodes.append(pair[1])
+            # creep closer if count > 0
+            tt = pair[1].tt_d
+            origin=min_start
+            min_start += 1
+
+    return (new_times,new_nodes)
 
 
 
@@ -365,10 +446,12 @@ def aggregate_split_nodes(travel_time,newtimes):
     for nt in newtimes:
         if len(nt) == 0:
             continue
-        # nt is now an array, of 1 or 3 values, depending
-        for nt_entry in nt:
-            travel_time = agg_fn(nt_entry,travel_time)
-
+        if isinstance(nt, list):
+            # nt is now an array or arrays
+            for nt_entry in nt:
+                travel_time = agg_fn(nt_entry,travel_time)
+        else:
+            travel_time = agg_fn(nt,travel_time)
         # loop
     # now replace NaN with infinity
     # travel_time = travel_time.fillna(sys.maxsize)

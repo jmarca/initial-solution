@@ -154,8 +154,8 @@ def create_time_callback2(travel_minutes_matrix,
                     )
                 else:
                     _total_time[from_node][to_node] = penalty_time
-    print(travel_minutes_matrix)
-    print (pd.DataFrame.from_dict(_total_time,orient='index'))
+    # print(travel_minutes_matrix)
+    # print (pd.DataFrame.from_dict(_total_time,orient='index'))
 
     def time_callback(manager, from_index, to_index):
         """Returns the travel time between the two nodes."""
@@ -209,8 +209,8 @@ def create_drive_callback(travel_minutes_matrix,
                     )
                 else:
                     _total_time[from_node][to_node] = penalty_time
-    print(travel_minutes_matrix)
-    print (pd.DataFrame.from_dict(_total_time,orient='index'))
+    # print(travel_minutes_matrix)
+    # print (pd.DataFrame.from_dict(_total_time,orient='index'))
     # assert 0
 
     def time_callback(manager, from_index, to_index):

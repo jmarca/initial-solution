@@ -72,6 +72,8 @@ def main():
     parser.add_argument('--breaks_at_nodes', type=bool, dest='breaks_at_nodes', default=False,
                         help="Expand the time matrix and break all links to include a dummy node for a break.  Defaults to false, which means nothing.")
 
+    parser.add_argument('--drive_dim_start_value',type=int,dest='drive_dimension_start_value',default=1000,
+                        help="If you are breaking at nodes, the drive dimension can't go below zero.  So to get around this, the starting point for the drive time dimension has to be greater than zero.  The default is 1000.  Change it with this variable")
     args = parser.parse_args()
 
     print('read in distance matrix')
@@ -185,12 +187,17 @@ def main():
         drive_callback_index = routing.RegisterTransitCallback(drive_callback)
         routing.AddDimension(
             drive_callback_index, # same "cost" evaluator as above
-            500,  # No slack for drive dimension?
+            1000,  # No slack for drive dimension? infinite slack?
             args.horizon,  # max drive is end of drive horizon
-            True, # set to zero for each vehicle
+            False, # set to zero for each vehicle
             drive_dimension_name)
         drive_dimension = routing.GetDimensionOrDie(drive_dimension_name)
 
+    # constrain drive dimension to be drive_dimension_start_value at start, so avoid negative numbers
+    for vehicle in vehicles.vehicles:
+        vehicle_id = vehicle.index
+        index = routing.Start(vehicle_id)
+        routing.solver().Add(drive_dimension.CumulVar(index)==args.drive_dimension_start_value)
 
 
     demand_evaluator_index = routing.RegisterUnaryTransitCallback(
@@ -268,18 +275,21 @@ def main():
             # this is a dummy node, not a pickup (1) not a dropoff (-1)
 
             index = manager.NodeToIndex(node)
-            # dummy nodes can only get to one node
-            tt = expanded_mm.loc[node,:]
-            bool_idx = tt > 0
-            # next node is either origin, destination, or depot
-            next_node = expanded_mm.index[bool_idx].max()
-            # get next node time window to determine this node time window
-            tw = d.get_time_window(next_node)
-            if tw[0]>0 :
-                # next node is a pickup, with early time > 0
-                # but might be n breaks prior, so just zero it out
-                tw = (0,tw[1])
-            # print('dummy node time window',node,index)
+            # set maximal time window
+            tw = [0,args.horizon]
+            print(index,tw)
+            # # dummy nodes can only get to one node
+            # tt = expanded_mm.loc[node,:]
+            # bool_idx = tt > 0
+            # # next node is either origin, destination, or depot
+            # next_node = expanded_mm.index[bool_idx].max()
+            # # get next node time window to determine this node time window
+            # tw = d.get_time_window(next_node)
+            # if tw[0]>0 :
+            #     # next node is a pickup, with early time > 0
+            #     # but might be n breaks prior, so just zero it out
+            #     tw = (0,tw[1])
+            # # print('dummy node time window',node,index)
             time_dimension.CumulVar(index).SetRange(int(tw[0]),int(tw[1]))
             routing.AddToAssignment(time_dimension.SlackVar(index))
 
@@ -288,11 +298,11 @@ def main():
     for vehicle in vehicles.vehicles:
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
+        # print(vehicle_id,index,vehicle.time_window)
         # not really needed unless different from 0, horizon
         time_dimension.CumulVar(index).SetRange(vehicle.time_window[0],
                                                 vehicle.time_window[1])
         routing.AddToAssignment(time_dimension.SlackVar(index))
-
 
 
     # [START breaks logic]
@@ -333,7 +343,8 @@ def main():
                                       routing,
                                       time_dimension,
                                       count_dimension,
-                                      drive_dimension)
+                                      drive_dimension,
+                                      args.drive_dimension_start_value)
 
         breaks = []
     if breaks == None:
@@ -369,6 +380,9 @@ def main():
     parameters = pywrapcp.DefaultRoutingSearchParameters()
     parameters.first_solution_strategy = (
         routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
+        # routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
+        # routing_enums_pb2.FirstSolutionStrategy.ALL_UNPERFORMED)
+        # routing_enums_pb2.FirstSolutionStrategy.LOCAL_CHEAPEST_INSERTION)
 
     # Disabling path Large Neighborhood Search is the default behaviour.  enable
     parameters.local_search_operators.use_path_lns = pywrapcp.BOOL_TRUE
@@ -378,15 +392,15 @@ def main():
     # set a time limit
     parameters.time_limit.seconds = args.timelimit * 60   # timelimit minutes
     # sometimes helps with difficult solutions
-    parameters.lns_time_limit.seconds = 1000  # 1000 milliseconds
+    parameters.lns_time_limit.seconds = 10000  # 10000 milliseconds
     # i think this is the default
     # parameters.use_light_propagation = False
     # set to true to see the dump of search iterations
     parameters.log_search = pywrapcp.BOOL_TRUE
 
     # add disjunctions to deliveries to make it not fail
-    penalty = 10000000  # The cost for dropping a demand node from the plan.
-    break_penalty = 0  # The cost for dropping a break node from the plan.
+    penalty = 1000000000  # The cost for dropping a demand node from the plan.
+    break_penalty = 1000000  # The cost for dropping a break node from the plan.
     # all nodes are droppable, so add disjunctions
 
     droppable_nodes = []
@@ -397,7 +411,7 @@ def main():
         p = penalty
         if d.get_demand(c) == 0:
             # no demand means break node
-            p = penalty #break_penalty
+            p = break_penalty
         droppable_nodes.append(routing.AddDisjunction([manager.NodeToIndex(c)],
                                                       p))
 
