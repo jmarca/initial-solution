@@ -57,6 +57,7 @@ def main():
 
     parser.add_argument('--expand', type=bool, dest='expand', default=False,
                         help="Expand the time matrix to break long links.  Can help solver find a solution.  Defaults to False, which means to just use the input matrix.")
+
     parser.add_argument('--maxlinktime', type=int, dest='timelength', default=600,
                         help='If expand is true, this sets the maximum time for segments in the network.  Default is 600 minutes, or 10 hours.')
 
@@ -65,8 +66,11 @@ def main():
                         default=True,
                         help="If true, limit destination node time windows based on travel time from corresponding origin.  If false, destination nodes time windows are 0 to args.horizon.  Default true (limit the time window).")
 
-    parser.add_argument('--breaks_logic',type=int,dest='breaks_logic',default=1,
+    parser.add_argument('--breaks_logic',type=int,dest='breaks_logic',default=None,
                         help="Set the breaks logic.  \n1 => simple logic, fixed at 0 start time, all optional, specified individually;\n2 => fixed at start, not optional, 1+ breaks synced to first break")
+
+    parser.add_argument('--breaks_at_nodes', type=bool, dest='breaks_at_nodes', default=False,
+                        help="Expand the time matrix and break all links to include a dummy node for a break.  Defaults to false, which means nothing.")
 
     args = parser.parse_args()
 
@@ -85,10 +89,12 @@ def main():
     # create dummy nodes every 20 hours
     # expanded_mm = minutes_matrix
     # might want to expand matrix, but I don't see any benefit from this
+    expanded_mm = mm
     if args.expand:
         expanded_mm = d.insert_nodes_for_slack(mm,args.timelength)
-    else:
-        expanded_mm = mm
+    if args.breaks_at_nodes:
+        expanded_mm = d.insert_nodes_for_breaks(mm)
+
     # print(expanded_mm)
 
     # copy to distance matrix
@@ -125,17 +131,18 @@ def main():
     #solver = routing.solver()
     print('creating time callback for solver')
     # Define cost of each arc using travel time + service time
-    time_callback = partial(E.create_time_callback(expanded_mm,
-                                                   d),
-                            manager)
+    time_callback = None
 
-    # print('creating distance callbacks for solver')
-    # dist_callback = partial(E.create_dist_callback(expanded_m,
-    #                                                d),
-    #                         manager)
+    if not args.breaks_at_nodes:
+        time_callback = partial(E.create_time_callback(expanded_mm, d),
+                                manager)
+    else:
+        # this version adds "service times" of 10 hours at breaks nodes.
+        # FIXME need to fix the callback to also handle 30 min breaks
+        time_callback = partial(E.create_time_callback2(expanded_mm, d),
+                                manager)
 
     print('registering callbacks with routing solver')
-
     transit_callback_index = routing.RegisterTransitCallback(time_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
     # might want to remove service time from the above
@@ -163,7 +170,28 @@ def main():
     time_dimension = routing.GetDimensionOrDie(time_dimension_name)
     # this is new in v7.0, not sure what it does yet
     # time_dimension.SetGlobalSpanCostCoefficient(100)
-    # Define Transportation Requests.
+    # turned it on and nothing worked, so leave off
+
+    drive_dimension = None
+    drive_dimension_name = 'Drive'
+    print('create drive dimension')
+    # Add Drive dimension for breaks logic
+    if args.breaks_at_nodes:
+
+        print('creating drive callback for solver')
+        drive_callback = partial(E.create_drive_callback(expanded_mm,
+                                                         d),
+                                 manager)
+        drive_callback_index = routing.RegisterTransitCallback(drive_callback)
+        routing.AddDimension(
+            drive_callback_index, # same "cost" evaluator as above
+            0,  # No slack for drive dimension
+            args.horizon,  # max drive is end of drive horizon
+            True, # set to zero for each vehicle
+            drive_dimension_name)
+        drive_dimension = routing.GetDimensionOrDie(drive_dimension_name)
+
+
 
     demand_evaluator_index = routing.RegisterUnaryTransitCallback(
         partial(E.create_demand_callback(expanded_m.index,d), manager))
@@ -298,6 +326,16 @@ def main():
                                                     routing,
                                                     time_dimension,
                                                     count_dimension)
+    if args.breaks_at_nodes:
+        d.breaks_at_nodes_constraints(len(vehicles.vehicles),
+                                      expanded_mm,
+                                      manager,
+                                      routing,
+                                      time_dimension,
+                                      count_dimension,
+                                      drive_dimension)
+
+        breaks = []
     if breaks == None:
         print('invalid breaks strategy')
         assert 0

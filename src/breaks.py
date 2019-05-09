@@ -4,6 +4,8 @@ import numpy as np
 import math
 import sys
 
+import break_node as BN
+
 def make_nodes(O,D,travel_time,starting_node,timelength=60):
     """starting with O, ending with D, make a dummy node every timelength minutes
     arguments: O: origin node, integer
@@ -85,6 +87,74 @@ def split_links(O,D,travel_time,starting_node):
     # so those values are NaN and easily set to infinity
     return new_times
 
+
+def split_links_break_nodes(O,D,travel_time,new_node):
+    """split the link from O to D in half
+    arguments: O: origin node, integer
+               D: destination node, integer
+               travel_time: time from O to D, integer
+               starting_node: starting point for new nodes, integer
+    returns: 2 dimensional array of travel times for new nodes.
+             This array is one-directional, from O to D.  Nodes
+             are numbered from starting_node + zero, sequentially,
+             new_node
+    """
+
+    bn = BN.BreakNode(O,D,travel_time,new_node)
+    new_times = {}
+    new_times[O] = {}
+    new_times[D] = {}
+    new_times[O][O] = 0
+    new_times[O][D] = travel_time
+    new_times[D][D] = 0
+
+    new_times[new_node] = {}
+    # compute travel minutes
+    new_times[O][new_node] = bn.tt_o
+    new_times[new_node][new_node] = 0
+    new_times[new_node][D] = bn.tt_d
+
+    # new nodes are stored in "new_times" as keys of second dimension
+    # not symmetric, but rather, directional.  Opposite way is impossible
+    # so those values are NaN and easily set to infinity
+    return (new_times,bn)
+
+
+def split_break_node_generator(travel_times):
+    def gen_breaks(record):
+        min_start = len(travel_times.index)
+        new_times = []
+        new_nodes = []
+        idx = 0
+        tt = travel_times.loc[0,record.origin]
+        if not np.isnan(tt):
+            pair = split_links_break_nodes(0,record.origin,
+                                           tt,
+                                           min_start)
+            new_times.append(pair[0])
+            new_nodes.append(pair[1])
+            min_start += 1
+            idx += 1
+        tt = travel_times.loc[record.origin,record.destination]
+        if not np.isnan(tt):
+            pair = split_links_break_nodes(record.origin,
+                                           record.destination,
+                                           tt,
+                                           min_start)
+            new_times.append(pair[0])
+            new_nodes.append(pair[1])
+            min_start += 1
+            idx += 1
+        tt = travel_times.loc[record.destination,0]
+        if not np.isnan(tt):
+            pair = split_links_break_nodes(record.destination,0,
+                                           tt,
+                                           min_start)
+            new_times.append(pair[0])
+            new_nodes.append(pair[1])
+        # return [new_times,new_nodes]
+        return pd.Series([new_times,new_nodes],index=['new_times','new_nodes'])
+    return gen_breaks
 
 
 

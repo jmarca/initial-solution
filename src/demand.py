@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import itertools
 import read_csv as reader
 import breaks
 import sys
@@ -655,4 +656,138 @@ class Demand():
 
         return travel_times # which holds everything of interest
 
+
+    # FIXME need to expand this likely for the 30 minutes in 8 hours rule
+    def insert_nodes_for_breaks(self,travel_times):
+        """Use travel time matrix, pickup and dropoff pairs to create the
+        necessary dummy nodes for modeling breaks between pairs of nodes.
+
+        """
+
+        # logic:
+        #
+        # for each pickup and dropoff pair in the demand records,
+        #
+        #   split it in half, insert a break
+        #
+        # ditto for each dropoff node and pickup node pairing
+        # and for each dropoff node and depot node pairing
+        new_node = len(travel_times.index)
+        gb = breaks.split_break_node_generator(travel_times)
+        # apply to demand pairs
+        feasible_index = self.demand.feasible
+        new_times_nodes = self.demand.loc[feasible_index,:].apply(gb,axis=1,result_type='reduce')
+        # fixup newtimes into augmented_matrix
+        # travel_times = breaks.aggregate_split_nodes(travel_times,newtimes)
+        print('First pass, merge',
+              3 * len(new_times_nodes.index),
+              'new times with existing times.')
+        travel_times = breaks.aggregate_split_nodes(travel_times,new_times_nodes.new_times)
+        # print(new_node,'\n',travel_times)
+
+        # store the newly created dummy node details
+        break_nodes= list(
+            itertools.chain.from_iterable(
+                new_times_nodes.loc[:,'new_nodes'].values.tolist()))
+        self.break_nodes = {}
+        # renumber the nodes.  lordy this is dangerous, hence the asserts
+        for node in break_nodes:
+            node.node = new_node
+            assert travel_times.loc[node.origin,node.node] == node.tt_o
+            assert travel_times.loc[node.node,node.destination] == node.tt_d
+            self.break_nodes[node.node]=node
+            new_node += 1
+
+
+        print('Next deal with destinations crossed with all origins')
+
+        # now do that for all destinations to all origins plus depot
+        # (0). Yes, this can blow up quite large so only merge those that
+        # are possible inside horizon given the total travel time
+
+
+        new_node = len(travel_times.index)
+        destination_details = []
+        origin_details = []
+        for idx in self.demand.index[feasible_index]:
+            record = self.demand.loc[idx]
+            do_tt = travel_times.loc[0,record.origin]
+            do_breaks = (math.floor(do_tt/60/11)) * 60*10
+            do_total = do_tt + do_breaks
+            origin_trip_cost = record['round_trip'] - do_total
+
+            od_tt = travel_times.loc[record.origin,record.destination]
+            od_breaks = (math.floor(do_tt/60/11)) * 60*10
+            od_total = od_tt + od_breaks
+
+            dd_tt = travel_times.loc[record.destination,0]
+            dd_breaks = (math.floor(dd_tt/60/11)) * 60*10
+            dd_total = dd_tt + dd_breaks
+            destination_trip_cost = record['round_trip'] - dd_total
+
+            destination_details.append((record.destination,destination_trip_cost,record.origin,record.late+od_total))
+            origin_details.append((record.origin,origin_trip_cost,record.destination,record.late))
+
+        for didx in range(0,len(destination_details)):
+            dd = destination_details[didx]
+            moretimes = []
+            for oo in origin_details:
+                if dd[1] + oo[1] > self.horizon:
+                    print("can't get to origin before horizon")
+                    continue
+                if dd[2] == oo[0]:
+                    # that means traveling back to origin, which is impossible
+                    continue
+                # check that even possible
+                tt = travel_times.loc[dd[0],oo[0]]
+                if dd[3] + tt > oo[3]:
+                    print("can't get to origin before time window ends")
+                    continue
+                # trip chain is possible, so split destination to origin
+                if (not np.isnan(tt)): # don't bother if no break node will happen
+                    new_times_nodes = breaks.split_links_break_nodes(dd[0],oo[0],tt,new_node)
+                    moretimes.append([new_times_nodes[0]])
+                    new_break_node = new_times_nodes[1]
+                    new_break_node.node = new_node
+                    # save it to the hash
+                    self.break_nodes[new_node] = new_break_node
+                    new_node += 1
+            print(didx,'of',len(destination_details)-1,',append',len(moretimes),'more')
+            travel_times = breaks.aggregate_split_nodes(travel_times,moretimes)
+
+        # print(self.break_nodes, len(self.break_nodes))
+        return travel_times # which holds everything of interest except self.break_nodes
+
     # def apply_breaks_rules(self,vehicles,time_matrix,routing):
+
+    def get_break_node(self,node):
+        return self.break_nodes[node]
+
+    def breaks_at_nodes_constraints(self,
+                                    num_veh,
+                                    time_matrix,
+                                    manager,
+                                    routing,
+                                    time_dimension,
+                                    count_dimension,
+                                    drive_dimension):
+        print('fixme')
+        solver = routing.solver()
+        for bn in self.break_nodes.values():
+            next_node = bn.destination
+            break_node = bn.node
+            tt = bn.tt_d
+            d_idx = manager.NodeToIndex(next_node)
+            b_idx = manager.NodeToIndex(break_node)
+            # only visit if less than 660, forcing a break visit to reduce drive.CumulVar
+            cidx0 = solver.AddConstraint(drive_dimension.CumulVar(d_idx)<660)
+            # only visit break node if need to do so, preventing
+            # spurious resets 660 is break rule.  Will trigger break
+            # rule if CumulVar at d_idx is at 660, but we aren't
+            # there, we are at the break node, but we know that drive
+            # to next real node is tt minutes, so if we are at 660 -
+            # tt, or more now, then we will be above 660 at real node,
+            # and we need to take a break.
+            cidx1 = solver.AddConstraint(drive_dimension.CumulVar(b_idx) >= 660 - tt)
+
+        # assert 0
