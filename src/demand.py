@@ -793,8 +793,8 @@ class Demand():
             # only visit if less than 660, forcing a break visit to reduce drive.CumulVar
             break_count = bn.break_count
             #solver.AddConstraint(drive_dimension.CumulVar(d_idx)<=1050)
-            origin_break_condition = drive_dimension.CumulVar(o_idx) >=  (break_count*660) - tt
-            origin_nobreak_condition = drive_dimension.CumulVar(o_idx) < (break_count*660) - tt
+            origin_break_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) >=  (break_count*660) - tt
+            origin_nobreak_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) < (break_count*660) - tt
             active_break_o = routing.ActiveVar(b_idx) == routing.ActiveVar(o_idx)
             active_break_d = routing.ActiveVar(b_idx) == routing.ActiveVar(d_idx)
             skip_break_o = routing.ActiveVar(b_idx) == 0
