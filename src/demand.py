@@ -41,38 +41,58 @@ class Demand():
 
             """
             feasible = True
+
             # depot to origin
             do_tt = time_matrix.loc[0,record.from_node]
-            # 11 hr drive rule
-            do_breaks = math.floor(do_tt/60/11)
+
             # origin to destination
             od_tt = time_matrix.loc[record.from_node,record.to_node]
-            # 11 hr drive rule
-            od_breaks = math.floor(od_tt/60/11)
+
             # destination to depot
             dd_tt = time_matrix.loc[record.to_node,0]
-            # 11 hr drive rule
-            dd_breaks = math.floor(dd_tt/60/11)
 
+            # 11 hr drive rule, calc number of breaks
+            total_breaks = math.floor( (do_tt+od_tt+dd_tt) / (60*11) )
+            cumul_break_time = total_breaks * 600
+
+            do_breaks = math.floor(do_tt/(11*60))
             depot_origin_tt = do_tt + do_breaks*600
-            round_trip = (record.pickup_time +
-                          od_tt + od_breaks*600 +
-                          record.dropoff_time +
-                          dd_tt + dd_breaks*600 )
-            if record.early > depot_origin_tt:
-                round_trip += record.early
-            else:
-                # don't use early time.  earliest arrival possible is depot_origin_tt
-                round_trip += depot_origin_tt
 
-            if round_trip > horizon:
-                print("Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,round_trip,horizon))
+            pickup_to_depot_breaks = total_breaks - do_breaks
+
+            od_breaks = math.floor((do_tt + od_tt)/(11*60)) - do_breaks
+
+            earliest_pickup = record.early
+            if record.early < depot_origin_tt:
+                earliest_pickup = depot_origin_tt
+
+            time_return_depot = (earliest_pickup + # arrive at orign
+                                 record.pickup_time + # load up
+                                 od_tt + dd_tt +      # link travel time
+                                 record.dropoff_time +# unload
+                                 pickup_to_depot_breaks*600 ) # required 10hr breaks
+
+            time_destination = (earliest_pickup + # arrive at orign
+                                record.pickup_time + # load up
+                                dd_tt +      # link travel time
+                                record.dropoff_time +# unload
+                                od_breaks*600 ) # required 10hr breaks from O to D
+
+            if time_return_depot > horizon:
+                print("Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,time_return_depot,horizon))
                 feasible = False
             if depot_origin_tt > record.late:
                 print("Pair from {} to {} has infeasible pickup time.  {} is less than earliest arrival possible of {}".format(record.from_node,record.to_node,
                                                                                                                                record.late,depot_origin_tt))
                 feasible = False
-            return pd.Series([math.ceil(round_trip),math.ceil(do_tt + do_breaks*600),feasible],index=['round_trip','depot_origin','feasible'])
+            return pd.Series([math.ceil(time_return_depot),
+                              math.ceil(depot_origin_tt),
+                              math.ceil(time_destination),
+                              feasible],
+                             index=['round_trip',
+                                    'depot_origin',
+                                    'earliest_destination',
+                                    'feasible'])
 
         morecols = demand.apply(check_feasible,axis=1)
         # print(morecols)

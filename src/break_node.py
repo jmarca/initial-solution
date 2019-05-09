@@ -13,8 +13,13 @@ class BreakNode():
                  ):
         self.origin = origin
         self.destination = destination
-        self.tt_o = math.floor(tt_od/2)
-        self.tt_d = int(tt_od - self.tt_o)
+        if tt_od > 0:
+            self.tt_o = math.floor(tt_od/2)
+            self.tt_d = int(tt_od - self.tt_o)
+        else:
+            self.tt_o = 0
+            self.tt_d = 0
+
         self.node = new_node
         self.break_count = break_count
 
