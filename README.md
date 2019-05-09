@@ -94,6 +94,106 @@ pip install ortools
 
 # Run solver
 
+## feature/breaks_at_nodes branch
+
+This branch allows for breaks at nodes, as breaks using the breaks
+functionality is broken.
+
+To run this, do something like:
+
+```
+python src/run_solver.py -m data/distance_matrix.csv --speed 65 -d test/data/demand3.csv -t 1 -v 5  --maxtime 15000 --breaks_at_nodes 1
+```
+
+Output looks like:
+
+```
+Objective: 2008012111
+Breaks:
+Routes:
+Route for vehicle 0:
+node 0, mapnode 0, Load 0, Drive Time 16:40:00,  Time(0:00:00,2 days, 23:38:00) Slack(0:00:00,2 days, 23:38:00) Time(0:00:00)  Link (Time 0:00:00, distance 0 mi), visits: 0
+ ->node 12, mapnode -1, Load 0, Drive Time 11:13:00,  Time(5:33:00,3 days, 5:11:00) Slack(0:00:00,2 days, 23:38:00) Time(5:33:00)  Link (Time 5:33:00, distance 360 mi), visits: 1
+ ->node 2, mapnode 8, Load 0, Drive Time 17:54:00,  Time(3 days, 9:00:00,3 days, 20:45:00) Slack(0:00:00,11:45:00) Time(15:34:00)  Link (Time 5:34:00, distance 361 mi), visits: 2
+ ->node 14, mapnode -1, Load 1, Drive Time 1 day, 7:06:00,  Time(3 days, 16:47:00,4 days, 4:32:00) Slack(0:00:00,11:45:00) Time(7:47:00)  Link (Time 7:32:00, distance 489 mi), visits: 3
+ ->node 15, mapnode -1, Load 1, Drive Time 23:52:00,  Time(4 days, 6:33:00,4 days, 18:18:00) Slack(0:00:00,11:45:00) Time(13:46:00)  Link (Time 3:46:00, distance 244 mi), visits: 4
+ ->node 6, mapnode 51, Load 1, Drive Time 1 day, 3:39:00,  Time(4 days, 20:20:00,5 days, 8:05:00) Slack(0:00:00,4 days, 23:25:00) Time(13:47:00)  Link (Time 3:47:00, distance 245 mi), visits: 5
+ ->node 16, mapnode -1, Load 0, Drive Time 18:39:00,  Time(4 days, 22:35:00,9 days, 22:00:00) Slack(0:00:00,4 days, 23:25:00) Time(2:15:00)  Link (Time 2:00:00, distance 130 mi), visits: 6
+ -> 0 Load(0)  Time(5 days, 10:35:00,10 days, 10:00:00)  Link time(12:00:00) Link distance(130 mi), visits 7
+Distance of the route: 1959 miles
+Loads served by route: 1
+Time of the route: 5 days, 10:35:00
+
+Route for vehicle 1:
+node 0, mapnode 0, Load 0, Drive Time 16:40:00,  Time(0:00:00,1 day, 6:28:00) Slack(0:00:00,1 day, 6:28:00) Time(0:00:00)  Link (Time 0:00:00, distance 0 mi), visits: 0
+ ->node 17, mapnode -1, Load 0, Drive Time 1 day, 5:30:00,  Time(9:08:00,1 day, 15:36:00) Slack(0:00:00,1 day, 6:28:00) Time(9:08:00)  Link (Time 9:08:00, distance 593 mi), visits: 1
+ ->node 18, mapnode -1, Load 0, Drive Time 23:04:00,  Time(23:42:00,2 days, 6:10:00) Slack(0:00:00,1 day, 6:28:00) Time(14:34:00)  Link (Time 4:34:00, distance 296 mi), visits: 2
+ ->node 3, mapnode 39, Load 0, Drive Time 1 day, 3:39:00,  Time(2 days, 9:00:00,2 days, 20:45:00) Slack(0:00:00,11:45:00) Time(14:35:00)  Link (Time 4:35:00, distance 297 mi), visits: 3
+ ->node 19, mapnode -1, Load 1, Drive Time 18:20:00,  Time(2 days, 10:56:00,2 days, 22:41:00) Slack(0:00:00,11:45:00) Time(1:56:00)  Link (Time 1:41:00, distance 109 mi), visits: 4
+ ->node 7, mapnode 60, Load 1, Drive Time 20:02:00,  Time(2 days, 22:38:00,3 days, 10:23:00) Slack(0:00:00,5 days, 17:56:00) Time(11:42:00)  Link (Time 1:42:00, distance 110 mi), visits: 5
+ ->node 20, mapnode -1, Load 0, Drive Time 1 day, 4:04:00,  Time(3 days, 9:28:00,9 days, 3:24:00) Slack(0:00:00,5 days, 17:56:00) Time(10:50:00)  Link (Time 10:35:00, distance 687 mi), visits: 6
+ ->node 21, mapnode -1, Load 0, Drive Time 22:22:00,  Time(4 days, 0:46:00,9 days, 18:42:00) Slack(0:00:00,5 days, 17:56:00) Time(15:18:00)  Link (Time 5:18:00, distance 344 mi), visits: 7
+ -> 0 Load(0)  Time(4 days, 16:04:00,10 days, 10:00:00)  Link time(15:18:00) Link distance(344 mi), visits 8
+Distance of the route: 2780 miles
+Loads served by route: 1
+Time of the route: 4 days, 16:04:00
+
+Route for vehicle 2:
+node 0, mapnode 0, Load 0, Drive Time 16:40:00,  Time(0:00:00,1 day, 17:02:00) Slack(0:00:00,1 day, 17:02:00) Time(0:00:00)  Link (Time 0:00:00, distance 0 mi), visits: 0
+ ->node 1, mapnode 16, Load 0, Drive Time 20:23:00,  Time(1 day, 9:00:00,1 day, 20:45:00) Slack(0:00:00,11:45:00) Time(3:43:00)  Link (Time 3:43:00, distance 242 mi), visits: 1
+ ->node 10, mapnode -1, Load 1, Drive Time 13:34:00,  Time(1 day, 13:26:00,2 days, 1:11:00) Slack(0:00:00,11:45:00) Time(4:26:00)  Link (Time 4:11:00, distance 271 mi), visits: 2
+ ->node 5, mapnode 20, Load 1, Drive Time 22:28:00,  Time(2 days, 3:38:00,2 days, 15:23:00) Slack(0:00:00,7 days, 14:55:00) Time(14:12:00)  Link (Time 4:12:00, distance 273 mi), visits: 3
+ ->node 11, mapnode -1, Load 0, Drive Time 14:04:00,  Time(2 days, 6:29:00,9 days, 21:24:00) Slack(0:00:00,7 days, 14:55:00) Time(2:51:00)  Link (Time 2:36:00, distance 169 mi), visits: 4
+ -> 0 Load(0)  Time(2 days, 19:05:00,10 days, 10:00:00)  Link time(12:36:00) Link distance(169 mi), visits 5
+Distance of the route: 1124 miles
+Loads served by route: 1
+Time of the route: 2 days, 19:05:00
+
+Route for vehicle 3:
+node 0, mapnode 0, Load 0, Drive Time 16:40:00,  Time(0:00:00,10 days, 10:00:00) Slack(0:00:00,10 days, 10:00:00) Time(0:00:00)  Link (Time 0:00:00, distance 0 mi), visits: 0
+ -> 0 Load(0)  Time(0:00:00,10 days, 10:00:00)  Link time(0:00:00) Link distance(0 mi), visits 1
+Distance of the route: 0 miles
+Loads served by route: 0
+Time of the route: 0:00:00
+
+Route for vehicle 4:
+node 0, mapnode 0, Load 0, Drive Time 16:40:00,  Time(0:00:00,10 days, 10:00:00) Slack(0:00:00,10 days, 10:00:00) Time(0:00:00)  Link (Time 0:00:00, distance 0 mi), visits: 0
+ -> 0 Load(0)  Time(0:00:00,10 days, 10:00:00)  Link time(0:00:00) Link distance(0 mi), visits 1
+Distance of the route: 0 miles
+Loads served by route: 0
+Time of the route: 0:00:00
+
+Total Distance of all routes: 5863 miles
+Total Loads picked up by all routes: 3
+Total Time of all routes: 12 days, 21:44:00
+```
+
+Dummy nodes are indicated by "mapnode -1."
+
+Disjunction penalties on nodes and dummy nodes are different, so that
+you can read the Objective value and see what is happening.  Node
+penalties are set to 1000000000; dummy node penalties are set to
+1000000.
+
+For example, the above value of
+```
+Objective: 2008012111
+```
+
+The left most 2xxx tells me that two nodes are dropped---one trip
+pair.
+
+The inner 0080... tells me that 8 of the dummy nodes are dropped.  I
+don't care about these as they only exist to implement nodes.
+
+The final 12111 value is the actual cost of travel incurred by the
+vehicles serving demand.
+
+A pending todo item is to add the list of dropped demand pairs to the
+output.
+
+
+
 ## dependent_breaks branch
 
 To run on the dependent breaks branch, try:
