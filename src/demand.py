@@ -134,11 +134,13 @@ class Demand():
         return self.equivalence.index.view(int)
 
     def get_map_node(self,demand_node):
+        if demand_node == 0:
+            return 0
         if demand_node in self.equivalence.index:
             return (self.equivalence.loc[demand_node].mapnode)
         # handles case of depot, and all augmenting nodes for
         # breaks, etc
-        return demand_node
+        return -1
 
     def get_service_time(self,demand_node):
         if demand_node in self.equivalence.index:
