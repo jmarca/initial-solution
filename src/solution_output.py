@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 # copied from Google v7.0 example
 def print_solution(demand,
                    dist_matrix,
+                   time_matrix,
                    vehicles,
                    manager,
                    routing,
@@ -36,6 +37,10 @@ def print_solution(demand,
     capacity_dimension = routing.GetDimensionOrDie('Capacity')
     time_dimension = routing.GetDimensionOrDie('Time')
     count_dimension = routing.GetDimensionOrDie('Count')
+    drive_dimension = False
+    if len(demand.break_nodes.keys()) > 0:
+        drive_dimension = routing.GetDimensionOrDie('Drive')
+
     print('Routes:')
     for vehicle in vehicles.vehicles:
         vehicle_id = vehicle.index
@@ -44,6 +49,7 @@ def print_solution(demand,
         distance = 0
         this_distance = 0
         this_time = 0
+        link_time = 0
         pickups = 0
         while not routing.IsEnd(index):
             # load_var = capacity_dimension.CumulVar(index)
@@ -67,19 +73,38 @@ def print_solution(demand,
             # at this point, everything should have slack var
             slack_var_min = timedelta(minutes=assignment.Min(slack_var))
             slack_var_max = timedelta(minutes=assignment.Max(slack_var))
+            if drive_dimension:
+                drive_var = drive_dimension.CumulVar(index)
+                drive_time = timedelta(minutes=assignment.Value(drive_var))
+                plan_output += 'node {0}, mapnode {1}, Load {2}, Drive Time {3},  Time({4},{5}) Slack({6},{7}) Time({8})  Link (Time {10}, distance {9} mi), visits: {11}\n ->'.format(
+                    node,
+                    mapnode,
+                    load,
+                    drive_time,
+                    min_time,
+                    max_time,
+                    slack_var_min,
+                    slack_var_max,
+                    timedelta(minutes=this_time),
+                    this_distance,
+                    timedelta(minutes=link_time),
+                    visits
+                )
+            else:
+                plan_output += 'node {0}, mapnode {1}, Load {2},  Time({3},{4}) Slack({5},{6}) Time({7}) Link (Time {9}, distance {8} mi),visits: {10}\n ->'.format(
+                    node,
+                    mapnode,
+                    load,
+                    min_time,
+                    max_time,
+                    slack_var_min,
+                    slack_var_max,
+                    timedelta(minutes=this_time),
+                    this_distance,
+                    timedelta(minutes=link_time),
+                    visits
+                )
 
-            plan_output += 'node {0}, mapnode {1}, Load {2},  Time({3},{4}) Slack({5},{6}) Link time({7}) Link distance({8} mi),visits: {9}\n ->'.format(
-                node,
-                mapnode,
-                load,
-                min_time,
-                max_time,
-                slack_var_min,
-                slack_var_max,
-                timedelta(minutes=this_time),
-                this_distance,
-                visits
-            )
             previous_index = index
             index = assignment.Value(routing.NextVar(index))
 
@@ -87,6 +112,8 @@ def print_solution(demand,
                                                      vehicle_id)
             this_distance = int(dist_matrix.loc[manager.IndexToNode(previous_index),
                                                 manager.IndexToNode(index)])
+            link_time = int(time_matrix.loc[manager.IndexToNode(previous_index),
+                                            manager.IndexToNode(index)])
             distance += this_distance
         load_var = capacity_dimension.CumulVar(index)
         visits_var  = count_dimension.CumulVar(index)

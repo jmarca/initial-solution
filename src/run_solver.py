@@ -422,7 +422,8 @@ def main():
 
         print('The Objective Value is {0}'.format(assignment.ObjectiveValue()))
         print('details:')
-        SO.print_solution(d,expanded_m,vehicles,manager,routing,assignment,args.horizon)
+        SO.print_solution(d,expanded_m,expanded_mm,
+                          vehicles,manager,routing,assignment,args.horizon)
 
 
     else:
