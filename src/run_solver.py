@@ -86,7 +86,7 @@ def main():
     # expanded_mm = minutes_matrix
     # might want to expand matrix, but I don't see any benefit from this
     if args.expand:
-        expanded_mm = d.make_break_nodes(mm,args.timelength)
+        expanded_mm = d.insert_nodes_for_slack(mm,args.timelength)
     else:
         expanded_mm = mm
     # print(expanded_mm)

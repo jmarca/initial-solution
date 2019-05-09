@@ -573,7 +573,7 @@ class Demand():
 
 
 
-    def make_break_nodes(self,travel_times,timelength=600):
+    def insert_nodes_for_slack(self,travel_times,timelength=600):
         """Use travel time matrix, pickup and dropoff pairs to create the
         necessary break opportunities between pairs of nodes.  Assumes
         that travel_times are in solver space, that is, the original
