@@ -277,7 +277,7 @@ def main():
             index = manager.NodeToIndex(node)
             # set maximal time window
             tw = [0,args.horizon]
-            print(index,tw)
+            #print(index,tw)
             # # dummy nodes can only get to one node
             # tt = expanded_mm.loc[node,:]
             # bool_idx = tt > 0

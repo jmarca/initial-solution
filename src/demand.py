@@ -792,7 +792,6 @@ class Demand():
         # print(self.break_nodes, len(self.break_nodes))
         return travel_times # which holds everything of interest except self.break_nodes
 
-    # def apply_breaks_rules(self,vehicles,time_matrix,routing):
 
     def get_break_node(self,node):
         return self.break_nodes[node]
@@ -816,15 +815,20 @@ class Demand():
             tt_ob = bn.tt_d
             tt = tt_bd + tt_ob
             tt_checked = time_matrix.loc[origin_node,destination_node]
-            print('origin node',origin_node,
-                  'break node',break_node,
-                  'next node',destination_node,
-                  'tt',tt,
-                  'tt_checked',tt_checked)
+            # print('origin node',origin_node,
+            #       'break node',break_node,
+            #       'next node',destination_node,
+            #       'tt',tt,
+            #       'tt_checked',tt_checked)
 
             # diagnosic prior to bombing out
             if math.floor(tt / int(tt_checked)) != 1:
                 print(time_matrix)
+                print('origin node',origin_node,
+                      'break node',break_node,
+                      'next node',destination_node,
+                      'tt',tt,
+                      'tt_checked',tt_checked)
 
             assert math.floor(tt / int(tt_checked)) == 1
             o_idx = manager.NodeToIndex(origin_node)
