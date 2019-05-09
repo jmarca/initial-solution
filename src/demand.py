@@ -777,10 +777,11 @@ class Demand():
             next_node = bn.destination
             break_node = bn.node
             tt = bn.tt_d
+            print('break node',break_node,'next node',next_node,'tt',tt)
             d_idx = manager.NodeToIndex(next_node)
             b_idx = manager.NodeToIndex(break_node)
             # only visit if less than 660, forcing a break visit to reduce drive.CumulVar
-            #solver.AddConstraint(drive_dimension.CumulVar(d_idx)<=660)
+            #solver.AddConstraint(drive_dimension.CumulVar(d_idx)<=1050)
 
 
             # only visit break node if need to do so, preventing
@@ -790,7 +791,11 @@ class Demand():
             # to next real node is tt minutes, so if we are at 660 -
             # tt, or more now, then we will be above 660 at real node,
             # and we need to take a break.
+            print ('break node cumul var >=',660 - tt)
+            #solver.AddConstraint(drive_dimension.CumulVar(b_idx) >= 660 - tt)
 
-            solver.AddConstraint(drive_dimension.CumulVar(b_idx) >= 660 - tt)
+        # for veh in range(0,num_veh):
+        #     index = routing.End(veh)
+        #     solver.Add(drive_dimension.CumulVar(index) < 1050)
 
         # assert 0
