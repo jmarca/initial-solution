@@ -124,6 +124,8 @@ def create_time_callback2(travel_minutes_matrix,
     # time matrix is now in model space, not map space
     # preprocess travel and service time to speed up solver
     _total_time = {}
+    max_time = travel_minutes_matrix.max().max()
+    penalty_time =  int(10000000 * max_time)
     # nodes are in travel time matrix
     node_list = [n for n in travel_minutes_matrix.index]
     # print('len node list is ',len(node_list))
@@ -149,14 +151,15 @@ def create_time_callback2(travel_minutes_matrix,
                         travel_minutes_matrix.loc[from_node,to_node]
                         + service_time
                     )
+                else:
+                    _total_time[from_node][to_node] = penalty_time
 
     def time_callback(manager, from_index, to_index):
         """Returns the travel time between the two nodes."""
         # Convert from routing variable Index to distance matrix NodeIndex.
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        # print(from_node,to_node)
-        # print(_total_time[from_node][to_node])
+        # print('time',from_node,to_node,_total_time[from_node][to_node])
         return _total_time[from_node][to_node]
 
     # return the callback, which will need to be set up with partial
@@ -175,7 +178,8 @@ def create_drive_callback(travel_minutes_matrix,
     # time matrix is now in model space, not map space
     # preprocess travel and service time to speed up solver
     _total_time = {}
-
+    max_time = travel_minutes_matrix.max().max()
+    penalty_time =  int(10000000 * max_time)
     # nodes are in travel time matrix
     node_list = [n for n in travel_minutes_matrix.index]
     # print('len node list is ',len(node_list))
@@ -195,19 +199,20 @@ def create_drive_callback(travel_minutes_matrix,
                     if to_node > 0 and demand.get_demand(to_node) == 0:
                         # this is a break node, so account for rest time
                         bn = demand.get_break_node(to_node)
-                        service_time = bn.drive_time_restore()
+                        service_time = int(bn.drive_time_restore())
 
                     _total_time[from_node][to_node] = int(
                         service_time + tt
                     )
+                else:
+                    _total_time[from_node][to_node] = penalty_time
 
     def time_callback(manager, from_index, to_index):
         """Returns the travel time between the two nodes."""
         # Convert from routing variable Index to distance matrix NodeIndex.
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        # print(from_node,to_node)
-        # print(_total_time[from_node][to_node])
+        # print('drive time',from_node,to_node,_total_time[from_node][to_node])
         return _total_time[from_node][to_node]
 
     # return the callback, which will need to be set up with partial
