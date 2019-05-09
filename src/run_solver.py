@@ -185,7 +185,7 @@ def main():
         drive_callback_index = routing.RegisterTransitCallback(drive_callback)
         routing.AddDimension(
             drive_callback_index, # same "cost" evaluator as above
-            660,  # No slack for drive dimension?
+            500,  # No slack for drive dimension?
             args.horizon,  # max drive is end of drive horizon
             True, # set to zero for each vehicle
             drive_dimension_name)
