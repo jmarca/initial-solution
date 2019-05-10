@@ -106,6 +106,26 @@ def main():
     # vehicles:
     vehicles = V.Vehicles(args.numvehicles,args.horizon)
 
+    # the following was trying to hunt down a bug.  not needed
+    # timing_needs = d.get_starting_times()
+    # # first column is count, second is travel time from depot
+    # needs = {pair[0]:{'count':pair[1],'start':tn[0]-tn[1]}
+    #          for (pair,tn) in zip (timing_needs[0],timing_needs[1])}
+    # needed_vehicles = 0
+    # for i in timing_needs[0]:
+    #     needed_vehicles += i[1]
+    # print(needed_vehicles)
+    # if needed_vehicles < args.numvehicles:
+    #     print('might need more vehicles to serve demands if trips cannot be combined')
+    #     print (needs)
+    # veh = 0
+    # for nv in needs.values():
+    #     print(nv)
+    #     for i in range(0,nv['count']):
+    #         vehicles.vehicles[veh].time_window[0]=int(nv['start']-120)
+    #         veh += 1
+    # for veh in vehicles.vehicles:
+    #     print( veh.time_window)
 
 
     # Create the routing index manager.
@@ -187,7 +207,7 @@ def main():
         drive_callback_index = routing.RegisterTransitCallback(drive_callback)
         routing.AddDimension(
             drive_callback_index, # same "cost" evaluator as above
-            1000,  # No slack for drive dimension? infinite slack?
+            0,  # No slack for drive dimension? infinite slack?
             args.horizon,  # max drive is end of drive horizon
             False, # set to zero for each vehicle
             drive_dimension_name)
@@ -298,7 +318,7 @@ def main():
     for vehicle in vehicles.vehicles:
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
-        # print(vehicle_id,index,vehicle.time_window)
+        print('vehicle time window:',vehicle_id,index,vehicle.time_window)
         # not really needed unless different from 0, horizon
         time_dimension.CumulVar(index).SetRange(vehicle.time_window[0],
                                                 vehicle.time_window[1])
@@ -434,6 +454,7 @@ def main():
         #    print('succesfully wrote assignment to file ' + save_file_base +
         #          '_assignment.ass')
 
+        print(expanded_mm)
         print('The Objective Value is {0}'.format(assignment.ObjectiveValue()))
         print('details:')
         SO.print_solution(d,expanded_m,expanded_mm,

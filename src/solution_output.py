@@ -75,7 +75,7 @@ def print_solution(demand,
             slack_var_max = timedelta(minutes=assignment.Max(slack_var))
             if drive_dimension:
                 drive_var = drive_dimension.CumulVar(index)
-                drive_time = timedelta(minutes=assignment.Value(drive_var))
+                drive_time = assignment.Value(drive_var)
                 plan_output += 'node {0}, mapnode {1}, Load {2}, Drive Time {3},  Time({4},{5}) Slack({6},{7}) Time({8})  Link (Time {10}, distance {9} mi), visits: {11}\n ->'.format(
                     node,
                     mapnode,
