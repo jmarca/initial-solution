@@ -850,13 +850,16 @@ class Demand():
             solver.AddConstraint(origin_drive >= origin_active*drive_dimension_start_value)
 
             # try this one off ?  need on for demand_12
-            solver.AddConstraint(origin_drive <= origin_active*(drive_dimension_start_value)+660)
-            # try this one off
-            # solver.AddConstraint(dest_drive >= dest_active*drive_dimension_start_value)
+            solver.AddConstraint(origin_drive < origin_active*(drive_dimension_start_value)+660)
+            # try this one off?  haven't seen it triggered if left off, but
+            # doesn't speed up the solution any either
+            solver.AddConstraint(dest_drive >= dest_active*drive_dimension_start_value)
 
             # try this one on its own.
-            solver.AddConstraint(dest_drive <= dest_active*(drive_dimension_start_value)+660)
+            solver.AddConstraint(dest_drive < dest_active*(drive_dimension_start_value)+660)
 
+        # constraints on return to depot, otherwise we just collect
+        # break nodes on the way back
         for veh in range(0,num_veh):
             index = routing.End(veh)
             solver.AddConstraint(drive_dimension.CumulVar(index) >= drive_dimension_start_value)
