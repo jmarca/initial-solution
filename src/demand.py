@@ -862,4 +862,6 @@ class Demand():
         # break nodes on the way back
         for veh in range(0,num_veh):
             index = routing.End(veh)
-            solver.AddConstraint(drive_dimension.CumulVar(index) >= drive_dimension_start_value)
+            end_drive = drive_dimension.CumulVar(index)
+            solver.AddConstraint(
+                end_drive >= drive_dimension_start_value)
