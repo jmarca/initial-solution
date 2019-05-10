@@ -624,10 +624,10 @@ class Demand():
             record = self.demand.loc[idx]
             pair = breaks.split_break_node(record,travel_times,new_node)
             travel_times = breaks.aggregate_split_nodes(travel_times,pair[0])
-            print(travel_times)
+            # print(travel_times)
             for bn in  pair[1]:
                 self.break_nodes[bn.node]=bn
-                print('checking',bn.origin,bn.node,bn.destination)
+                # print('checking',bn.origin,bn.node,bn.destination)
                 assert int(travel_times.loc[bn.origin,bn.node]) == bn.tt_o
                 assert int(travel_times.loc[bn.node,bn.destination]) == bn.tt_d
 
@@ -839,7 +839,7 @@ class Demand():
             origin_active =routing.ActiveVar(o_idx)
             dest_active =routing.ActiveVar(d_idx)
 
-            origin_drive = dest_active*drive_dimension.CumulVar(o_idx)
+            origin_drive = origin_active*drive_dimension.CumulVar(o_idx)
             dest_drive = dest_active*drive_dimension.CumulVar(d_idx)
 
             solver.AddConstraint(origin_drive >= origin_active*drive_dimension_start_value)

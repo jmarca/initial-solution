@@ -123,6 +123,7 @@ def break_node_splitter(origin,destination,tt,min_start):
     new_times = []
     new_nodes = []
     possible_breaks = math.ceil(tt/660) + 1
+
     for i in range(0,possible_breaks):
         count = i+1
         pair = split_links_break_nodes(origin,
@@ -136,7 +137,7 @@ def break_node_splitter(origin,destination,tt,min_start):
         tt = pair[1].tt_d
         origin=min_start
         min_start += 1
-        return (new_times,new_nodes,min_start)
+    return (new_times,new_nodes,min_start)
 
 def split_break_node(record,travel_times,min_start=None):
     if min_start == None:
@@ -165,7 +166,7 @@ def split_break_node(record,travel_times,min_start=None):
         new_times.extend(pair[0])
         new_nodes.extend(pair[1])
         min_start = pair[2]
-    print(new_times)
+    #print(new_times)
     return (new_times,new_nodes)
 
 
