@@ -58,7 +58,7 @@ class Demand():
             cumul_break_time = total_breaks * 600
 
             do_breaks = math.floor(do_tt/(11*60))
-            depot_origin_tt = do_tt + do_breaks*600
+            depot_origin_tt = do_tt + do_breaks*600 + record.pickup_time
 
             pickup_to_depot_breaks = total_breaks - do_breaks
 
@@ -735,16 +735,19 @@ class Demand():
             #       'tt_checked',tt_checked)
 
             # diagnosic prior to bombing out
-            if math.floor(tt / int(tt_checked)) != 1:
-                print(time_matrix.loc[:,[origin_node,break_node,destination_node]])
-                print('origin node',origin_node,
-                      'break node',break_node,
-                      'next node',destination_node,
-                      'tt',tt,
-                      'tt_checked',tt_checked
-                )
+            if(int(tt_checked) > 0):
+                if math.floor(tt / int(tt_checked)) != 1:
+                    print(time_matrix.loc[:,[origin_node,break_node,destination_node]])
+                    print('origin node',origin_node,
+                          'break node',break_node,
+                          'next node',destination_node,
+                          'tt',tt,
+                          'tt_checked',tt_checked
+                    )
 
-            assert math.floor(tt / int(tt_checked)) == 1
+                    assert math.floor(tt / int(tt_checked)) == 1
+            else:
+                assert math.floor(tt) == math.floor(tt_checked)
             o_idx = manager.NodeToIndex(origin_node)
             d_idx = manager.NodeToIndex(destination_node)
             b_idx = manager.NodeToIndex(break_node)
