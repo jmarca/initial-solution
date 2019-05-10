@@ -454,7 +454,7 @@ def main():
         #    print('succesfully wrote assignment to file ' + save_file_base +
         #          '_assignment.ass')
 
-        print(expanded_mm)
+        #print(expanded_mm)
         print('The Objective Value is {0}'.format(assignment.ObjectiveValue()))
         print('details:')
         SO.print_solution(d,expanded_m,expanded_mm,

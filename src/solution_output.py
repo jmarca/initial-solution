@@ -120,15 +120,30 @@ def print_solution(demand,
         time_var = time_dimension.CumulVar(index)
         slack_var = time_dimension.SlackVar(index)
         visits = assignment.Value(visits_var)
-        plan_output += ' {0} Load({1})  Time({2},{3})  Link time({4}) Link distance({5} mi), visits {6}\n'.format(
-            manager.IndexToNode(index),
-            assignment.Value(load_var),
-            timedelta(minutes=assignment.Min(time_var)),
-            timedelta(minutes=assignment.Max(time_var)),
-            timedelta(minutes=this_time),
-            this_distance,
-            visits
-        )
+        if drive_dimension:
+            drive_var = drive_dimension.CumulVar(index)
+            drive_time = assignment.Value(drive_var)
+            plan_output += 'End:{0}, Load({1}), Drive Time {7},  Time({2},{3})  Link time({4}) Link distance({5} mi), visits {6}\n'.format(
+                manager.IndexToNode(index),
+                assignment.Value(load_var),
+                timedelta(minutes=assignment.Min(time_var)),
+                timedelta(minutes=assignment.Max(time_var)),
+                timedelta(minutes=this_time),
+                this_distance,
+                visits,
+                drive_time
+            )
+
+        else:
+            plan_output += ' {0} Load({1})  Time({2},{3})  Link time({4}) Link distance({5} mi), visits {6}\n'.format(
+                manager.IndexToNode(index),
+                assignment.Value(load_var),
+                timedelta(minutes=assignment.Min(time_var)),
+                timedelta(minutes=assignment.Max(time_var)),
+                timedelta(minutes=this_time),
+                this_distance,
+                visits
+            )
         plan_output += 'Distance of the route: {0} miles\n'.format(distance)
         plan_output += 'Loads served by route: {}\n'.format(
             pickups)
