@@ -22,8 +22,10 @@ class Demand():
                  time_matrix,
                  horizon,
                  pickup_time=15,
-                 dropoff_time=15):
+                 dropoff_time=15,
+                 debug = False):
 
+        self.debug = debug
         demand = reader.load_demand_from_csv(filename)
         # for now, just use identical pickup and dropoff times
         demand['pickup_time']=pickup_time
@@ -681,24 +683,26 @@ class Demand():
                 tt = travel_times.loc[didx,oidx]
                 assert not np.isnan(tt)
                 if dd[1] + tt > self.horizon:
-                    print("can't get from",didx,"to",oidx,"before horizon")
+                    if self.debug:
+                        print("can't get from",didx,"to",oidx,"before horizon")
                     continue
                 # check that can get to next origin before its time horizon ends
                 if dd[1] + tt > oo[1]:
-                    print("can't get from",didx,"to",oidx,"before origin pickup horizon",oo[1])
+                    if self.debug:
+                        print("can't get from",didx,"to",oidx,"before origin pickup horizon",oo[1])
                     continue
                 # trip chain is possible, so split destination to origin
-                if (not np.isnan(tt)): # don't bother if no break node will happen
-                    pair = breaks.break_node_splitter(dd[0],oo[0],tt,new_node)
-                    moretimes.append(pair[0])
-                    for nn in pair[1]:
-                        self.break_nodes[nn.node] = nn
-                    new_node = pair[2]
+                pair = breaks.break_node_splitter(dd[0],oo[0],tt,new_node)
+                moretimes.append(pair[0])
+                for nn in pair[1]:
+                    if self.debug:
+                        print('add new node',nn.node,'bewteen',nn.origin,nn.destination)
+                    self.break_nodes[nn.node] = nn
+                new_node = pair[2]
 
-            print(didx,'of',len(destination_details)-1,',append',len(moretimes),'more')
+            print(didx,'append',len(moretimes),'more')
             travel_times = breaks.aggregate_split_nodes(travel_times,moretimes)
-
-        # print(self.break_nodes, len(self.break_nodes))
+        # print(len(self.break_nodes.keys()), len(travel_times.index))
         return travel_times # which holds everything of interest except self.break_nodes
 
 
@@ -842,8 +846,17 @@ class Demand():
             origin_drive = origin_active*drive_dimension.CumulVar(o_idx)
             dest_drive = dest_active*drive_dimension.CumulVar(d_idx)
 
+            # this one on
             solver.AddConstraint(origin_drive >= origin_active*drive_dimension_start_value)
-            # solver.AddConstraint(origin_drive <= origin_active*(drive_dimension_start_value)+660)
 
+            # try this one off ?  need on for demand_12
+            solver.AddConstraint(origin_drive <= origin_active*(drive_dimension_start_value)+660)
+            # try this one off
             # solver.AddConstraint(dest_drive >= dest_active*drive_dimension_start_value)
+
+            # try this one on its own.
             solver.AddConstraint(dest_drive <= dest_active*(drive_dimension_start_value)+660)
+
+        for veh in range(0,num_veh):
+            index = routing.End(veh)
+            solver.AddConstraint(drive_dimension.CumulVar(index) >= drive_dimension_start_value)
