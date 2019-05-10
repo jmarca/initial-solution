@@ -14,6 +14,8 @@ import demand as D
 import evaluators as E
 import solution_output as SO
 
+import initial_routes as IR
+
 # def resume_routing(file):
 #     print('reading',file)
 #     try:
@@ -442,9 +444,34 @@ def main():
     #     # other stuff too?
     # print("Done Writing routing object to file routing.pkl")
 
+
+    if args.breaks_at_nodes:
+        # set up initial routes
+        trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
+                                        manager,
+                                        time_callback,
+                                        drive_callback)
+
+        initial_routes = [v for v in trip_chains.values()]
+        print(initial_routes)
+
+        initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
+                                                            True)
+        print('did it work',initial_solution)
+        assert initial_solution
+        print('Initial solution:')
+        SO.print_initial_solution(d,expanded_m,expanded_mm,
+                              vehicles,manager,routing,initial_solution,args.horizon)
+
+
+
     print('Calling the solver')
     # [START solve]
-    assignment = routing.SolveWithParameters(parameters)
+    if args.breaks_at_nodes:
+        assignment = routing.SolveFromAssignmentWithParameters(
+            initial_solution, parameters)
+    else:
+        assignment = routing.SolveWithParameters(parameters)
     # [END solve]
 
     if assignment:

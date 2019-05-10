@@ -2,7 +2,35 @@
 from six.moves import xrange
 from datetime import datetime, timedelta
 
-# copied from Google v7.0 example
+def print_initial_solution(demand,
+                           dist_matrix,
+                           time_matrix,
+                           vehicles,
+                           manager,
+                           routing,
+                           assignment,
+                           horizon):
+    max_route_time = 0
+    for vehicle in vehicles.vehicles:
+        vehicle_id = vehicle.index
+        index = routing.Start(vehicle_id)
+        plan_output = 'Route for vehicle {}:\n'.format(vehicle_id)
+        route_time = 0
+        while not routing.IsEnd(index):
+            plan_output += ' {} -> '.format(manager.IndexToNode(index))
+            previous_index = index
+            index = assignment.Value(routing.NextVar(index))
+            route_time += routing.GetArcCostForVehicle(
+                previous_index, index, vehicle_id)
+        plan_output += '{}\n'.format(manager.IndexToNode(index))
+        plan_output += 'Time of the route: {}\n'.format(timedelta(minutes=route_time))
+        print(plan_output)
+        max_route_time = max(route_time, max_route_time)
+    print('Maximum of the route times: {}m'.format(timedelta(minutes=max_route_time)))
+
+
+
+# heavily modified from Google v7.0 example
 def print_solution(demand,
                    dist_matrix,
                    time_matrix,
