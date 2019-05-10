@@ -9,7 +9,8 @@ import math
 """Functions for setting up intial routes"""
 
 def initial_routes(demand,vehicles,time_matrix,
-                   manager,time_callback,drive_callback):#,time_callback,drive_callback):
+                   manager,time_callback,drive_callback,
+                   debug=False):#,time_callback,drive_callback):
     # initial routes should be a list of nodes to visit, in node space
     # (not solver index space, not map space)
 
@@ -27,6 +28,8 @@ def initial_routes(demand,vehicles,time_matrix,
         reached_depot = False
         trip_chain = []
         record = demand.demand.loc[idx,:]
+        if debug:
+            print (record)
         goal = record.origin
         tt = 0
         dt = 0
@@ -39,14 +42,18 @@ def initial_routes(demand,vehicles,time_matrix,
             from_filter = time_matrix.loc[prior,:].apply(lambda a: not np.isnan(a))
             to_filter   = time_matrix.loc[:,goal].apply(lambda a: not np.isnan(a))
             local_df = time_matrix.loc[from_filter & to_filter,from_filter & to_filter]
-            if (drive_time + local_df.loc[prior,goal] < 660):
+            travel_to_goal =  math.floor(time_matrix.loc[prior,goal])
+            # if debug:
+            #     print('prior',prior,'goal',goal,'\n',local_df)
+            if (drive_time + travel_to_goal < 660):
+                if debug:
+                    print('drive time plus travel less than 660')
                 tt += time_callback(manager.NodeToIndex(prior),
                                     manager.NodeToIndex(goal))
                 dt += drive_callback(manager.NodeToIndex(prior),
                                      manager.NodeToIndex(goal))
                 dest_demand = demand.get_demand(goal)
                 origin_demand = demand.get_demand(prior)
-                travel_to_goal =  math.floor(time_matrix.loc[prior,goal])
                 if(dest_demand == 0):
                     if goal > 0:
                         # not depot node
@@ -70,10 +77,13 @@ def initial_routes(demand,vehicles,time_matrix,
                     else:
                         travel_time += travel_to_goal + record.dropoff_time
 
-                #print(travel_time,tt,drive_time,dt,'from',prior,'to',goal)
+                if debug:
+                    print(travel_time,tt,drive_time,dt,'from',prior,'to',goal)
                 assert int(travel_time) == tt
                 assert math.floor(drive_time) == dt
 
+                if debug:
+                    print('reached',goal)
                 if goal == 0:
                     # don't append depot to trip chain
                     # loop to next demand record
@@ -92,17 +102,27 @@ def initial_routes(demand,vehicles,time_matrix,
                         goal = 0
                     else:
                         goal = record.destination
-                # print('reached',goal)
-            else:
-                # trip to goal is not short enough, use a break node
 
+            else:
+                if debug:
+                    print('drive time plus travel to goal greater than 660')
+                # trip to goal is not short enough, use a break node
+                # remove goal from local_df so we don't get confused
+                #to_filter[goal] = False
+                local_df = time_matrix.loc[from_filter & to_filter,from_filter & to_filter]
+
+                # if debug:
+                #     print('prior',prior,'goal',goal,'\n',local_df)
                 # find the cheapest link from prior
                 minval = local_df[local_df>0].min()
                 ismin = local_df.loc[prior,:] == minval
+                # if debug:
+                #     print(minval, '\n',ismin )
                 nextnode = local_df.loc[prior,ismin].index[0]
                 trip_chain.append(nextnode)
 
-                # print(travel_time,tt,drive_time,dt,'from',prior,'to',trip_chain[-1])
+                if debug:
+                    print(travel_time,tt,drive_time,dt,'from',prior,'to',trip_chain[-1])
                 # track travel time
                 tt += time_callback(manager.NodeToIndex(prior),
                                     manager.NodeToIndex(nextnode))

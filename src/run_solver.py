@@ -76,6 +76,9 @@ def main():
 
     parser.add_argument('--drive_dim_start_value',type=int,dest='drive_dimension_start_value',default=1000,
                         help="If you are breaking at nodes, the drive dimension can't go below zero.  So to get around this, the starting point for the drive time dimension has to be greater than zero.  The default is 1000.  Change it with this variable")
+
+    parser.add_argument('--debug', type=bool, dest='debug', default=False,
+                        help="Turn on some print statements.")
     args = parser.parse_args()
 
     print('read in distance matrix')
@@ -450,14 +453,27 @@ def main():
         trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
                                         manager,
                                         time_callback,
-                                        drive_callback)
+                                        drive_callback,
+                                        debug = args.debug)
 
         initial_routes = [v for v in trip_chains.values()]
         print(initial_routes)
 
         initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
                                                             True)
-        print('did it work',initial_solution)
+
+        # debug loop which is the bug?
+        if not initial_solution:
+            bug_route = []
+            for route in initial_routes:
+                single_solution = routing.ReadAssignmentFromRoutes([route],
+                                                                    True)
+                if not single_solution:
+                    bug_route.append(route)
+            for route in bug_route:
+                for node in route:
+                    print(d.get_map_node(node))
+
         assert initial_solution
         print('Initial solution:')
         SO.print_initial_solution(d,expanded_m,expanded_mm,
