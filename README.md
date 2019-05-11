@@ -94,6 +94,24 @@ pip install ortools
 
 # Run solver
 
+
+## feature/initial_routes branch
+
+Works for 100 trips case.
+
+Command line is:
+
+```
+python src/run_solver.py -m data/distance_matrix.csv --speed 65 -d data/demand.csv -t 5 -v 90  --maxtime 15000 --breaks_at_nodes 1
+```
+Running time is
+
+```
+real	15m29.336s
+user	12m23.496s
+sys	3m6.715s
+```
+
 ## feature/breaks_at_nodes branch
 
 This branch allows for breaks at nodes, as breaks using the breaks
