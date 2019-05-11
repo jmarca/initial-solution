@@ -95,8 +95,11 @@ def initial_routes(demand,vehicles,time_matrix,
                     if goal == record.origin:
                         # check that time window requirements are satisfied
                         # print(record.from_node,record.origin,record.early,tt,record.late)
-                        assert tt-1 <= record.depot_origin
-                        assert record.depot_origin <= tt+1
+                        if (tt+record.pickup_time -1 > record.depot_origin or
+                            record.depot_origin > tt+1 + record.pickup_time):
+                            print(record,'\n',tt,travel_time,dt,drive_time)
+                        assert tt  + record.pickup_time -1 <= record.depot_origin
+                        assert record.depot_origin <= tt+1  + record.pickup_time
 
                     if goal == record.destination:
                         goal = 0
