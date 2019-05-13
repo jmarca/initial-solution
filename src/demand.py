@@ -620,6 +620,7 @@ class Demand():
         # can't use apply here...it breaks
         # new_times_nodes = self.demand.loc[feasible_index,:].apply(gb,axis=1,result_type='reduce')
         self.break_nodes = {}
+        self.break_node_chains = {}
         new_times = []
         new_nodes = []
         for idx in self.demand.index[feasible_index]:
@@ -627,8 +628,11 @@ class Demand():
             pair = breaks.split_break_node(record,travel_times,new_node)
             travel_times = breaks.aggregate_split_nodes(travel_times,pair[0])
             # print(travel_times)
+            if len(pair[1]) > 0:
+                self.break_node_chains[record.origin]={record.destination:[]}
             for bn in  pair[1]:
                 self.break_nodes[bn.node]=bn
+                self.break_node_chains[record.origin][record.destination].append(bn.node)
                 # print('checking',bn.origin,bn.node,bn.destination)
                 assert int(travel_times.loc[bn.origin,bn.node]) == bn.tt_o
                 assert int(travel_times.loc[bn.node,bn.destination]) == bn.tt_d
@@ -698,6 +702,11 @@ class Demand():
                     if self.debug:
                         print('add new node',nn.node,'bewteen',nn.origin,nn.destination)
                     self.break_nodes[nn.node] = nn
+                    if not dd[0] in self.break_node_chains:
+                        self.break_node_chains[dd[0]]={}
+                    if not dd[1] in self.break_node_chains[dd[0]]:
+                        self.break_node_chains[dd[0]][oo[0]]=[]
+                    self.break_node_chains[dd[0]][oo[0]].append(bn.node)
                 new_node = pair[2]
 
             print(didx,'append',len(moretimes),'more')
@@ -706,8 +715,16 @@ class Demand():
         return travel_times # which holds everything of interest except self.break_nodes
 
 
+    def get_break_node_chain(self,from_node,to_node):
+        if from_node in self.break_node_chains:
+            if to_node in self.break_node_chains[from_node]:
+                return self.break_node_chains[from_node][to_node]
+        return None
+
     def get_break_node(self,node):
-        return self.break_nodes[node]
+        if node in self.break_nodes:
+            return self.break_nodes[node]
+        return None
 
     def breaks_at_nodes_constraints(self,
                                     num_veh,
