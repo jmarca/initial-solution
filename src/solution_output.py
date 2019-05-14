@@ -175,11 +175,15 @@ def print_solution(demand,
                 this_distance,
                 visits
             )
-        plan_output += 'Distance of the route: {0} miles\n'.format(distance)
-        plan_output += 'Loads served by route: {}\n'.format(
-            pickups)
-        plan_output += 'Time of the route: {}\n'.format(
-            timedelta(minutes=assignment.Value(time_var)))
+        # if vehicle does nothing, don't print depot to depot
+        if visits < 2:
+            plan_output  ='Route for vehicle {}: unused'.format(vehicle_id)
+        else:
+            plan_output += 'Distance of the route: {0} miles\n'.format(distance)
+            plan_output += 'Loads served by route: {}\n'.format(
+                pickups)
+            plan_output += 'Time of the route: {}\n'.format(
+                timedelta(minutes=assignment.Value(time_var)))
         print(plan_output)
         total_distance += distance
         total_load_served += pickups
@@ -188,6 +192,14 @@ def print_solution(demand,
     print('Total Loads picked up by all routes: {}'.format(total_load_served))
     print('Total Time of all routes: {0}'.format(timedelta(minutes=total_time)))
 
+    # print gimpy demands
+
+    infeasible_index = ~demand.demand.feasible
+    if len(infeasible_index[infeasible_index]) > 0:
+        print('\nDemands that are infeasible:')
+        for idx in demand.demand.index[infeasible_index]:
+            d = demand.demand.loc[idx]
+            print(d.constraint)
 
 def csv_output(demand,
                dist_matrix,

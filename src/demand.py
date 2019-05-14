@@ -43,7 +43,7 @@ class Demand():
 
             """
             feasible = True
-
+            constraint = "None"
             # depot to origin
             do_tt = time_matrix.loc[0,record.from_node]
 
@@ -81,20 +81,24 @@ class Demand():
                                 od_breaks*600 ) # required 10hr breaks from O to D
 
             if time_return_depot > horizon:
-                print("Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,time_return_depot,horizon))
+                constraint = "Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,time_return_depot,horizon)
+                print(constraint)
                 feasible = False
             if depot_origin_tt > record.late:
-                print("Pair from {} to {} has infeasible pickup time.  {} is less than earliest arrival possible of {}".format(record.from_node,record.to_node,
-                                                                                                                               record.late,depot_origin_tt))
+                constraint = "Pair from {} to {} has infeasible pickup time.  {} is less than earliest arrival possible of {}".format(record.from_node,record.to_node,
+                                                                                                                               record.late,depot_origin_tt)
+                print(constraint)
                 feasible = False
             return pd.Series([math.ceil(time_return_depot),
                               math.ceil(depot_origin_tt),
                               math.ceil(time_destination),
-                              feasible],
+                              feasible,
+                              constraint],
                              index=['round_trip',
                                     'depot_origin',
                                     'earliest_destination',
-                                    'feasible'])
+                                    'feasible',
+                                    'constraint'])
 
         morecols = demand.apply(check_feasible,axis=1)
         # print(morecols)

@@ -84,7 +84,20 @@ def main():
     # demand class
     num_nodes = len(expanded_mm.index)
     print('After augmenting network with break nodes, solving with ',num_nodes,'nodes')
-    print(d.demand.loc[d.demand.feasible,:])
+    #print(d.demand.loc[d.demand.feasible,:])
+    print(d.demand.loc[:,['from_node',
+                          'to_node',
+                          'early',
+                          'late',
+                          'pickup_time',
+                          'dropoff_time',
+                          'round_trip',
+                          'depot_origin',
+                          'earliest_destination',
+                          'feasible',
+                          'origin',
+                          'destination']])
+
 
     # print(expanded_mm)
     # assuming here that all depots are in the same place
@@ -261,7 +274,7 @@ def main():
     for vehicle in vehicles.vehicles:
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
-        print('vehicle time window:',vehicle_id,index,vehicle.time_window)
+        # print('vehicle time window:',vehicle_id,index,vehicle.time_window)
         # not really needed unless different from 0, horizon
         time_dimension.CumulVar(index).SetRange(vehicle.time_window[0],
                                                 vehicle.time_window[1])
@@ -357,7 +370,7 @@ def main():
                                     debug = args.debug)
 
     initial_routes = [v for v in trip_chains.values()]
-    print(initial_routes)
+    #print(initial_routes)
 
     initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
                                                         True)
