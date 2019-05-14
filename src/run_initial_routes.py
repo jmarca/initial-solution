@@ -268,52 +268,15 @@ def main():
 
     # [START breaks logic]
     print('apply break rules')
-    breaks = None
-    if args.breaks_logic==1:
-        breaks = d.get_simple_breaks(len(vehicles.vehicles),
-                                     expanded_mm,
-                                     manager,
-                                     routing,
-                                     time_dimension,
-                                     count_dimension)
-    if args.breaks_logic == 2:
-        breaks = d.get_breaks_synced_first(len(vehicles.vehicles),
-                                           expanded_mm,
-                                           manager,
-                                           routing,
-                                           time_dimension,
-                                           count_dimension)
-    if args.breaks_logic == 3:
-        breaks = d.get_breaks_synced_first_variable(len(vehicles.vehicles),
-                                                    expanded_mm,
-                                                    manager,
-                                                    routing,
-                                                    time_dimension,
-                                                    count_dimension)
-    if args.breaks_logic == 4:
-        breaks = d.get_breaks_unsynced_variable(len(vehicles.vehicles),
-                                                    expanded_mm,
-                                                    manager,
-                                                    routing,
-                                                    time_dimension,
-                                                    count_dimension)
-    if args.breaks_at_nodes:
-        d.breaks_at_nodes_constraints(len(vehicles.vehicles),
-                                      expanded_mm,
-                                      manager,
-                                      routing,
-                                      time_dimension,
-                                      count_dimension,
-                                      drive_dimension,
-                                      args.drive_dimension_start_value)
+    d.breaks_at_nodes_constraints(len(vehicles.vehicles),
+                                  expanded_mm,
+                                  manager,
+                                  routing,
+                                  time_dimension,
+                                  count_dimension,
+                                  drive_dimension,
+                                  args.drive_dimension_start_value)
 
-        breaks = []
-    if breaks == None:
-        print('invalid breaks strategy')
-        assert 0
-
-
-    # did it work?
     print('breaks done')
 
     # # prevent impossible next nodes
@@ -384,46 +347,44 @@ def main():
     # print("Done Writing routing object to file routing.pkl")
 
 
-    if args.breaks_at_nodes:
-        # set up initial routes
-        trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
-                                        manager,
-                                        time_callback,
-                                        drive_callback,
-                                        debug = args.debug)
+    # set up initial routes
+    trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
+                                    manager,
+                                    time_callback,
+                                    drive_callback,
+                                    debug = args.debug)
 
-        initial_routes = [v for v in trip_chains.values()]
-        print(initial_routes)
+    initial_routes = [v for v in trip_chains.values()]
+    print(initial_routes)
 
-        initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
-                                                            True)
+    initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
+                                                        True)
 
-        # debug loop which is the bug?
-        if not initial_solution:
-            bug_route = []
-            for route in initial_routes:
-                single_solution = routing.ReadAssignmentFromRoutes([route],
-                                                                    True)
-                if not single_solution:
-                    bug_route.append(route)
-            for route in bug_route:
-                for node in route:
-                    print(d.get_map_node(node))
+    # debug loop which is the bug?
+    if not initial_solution:
+        bug_route = []
+        for route in initial_routes:
+            single_solution = routing.ReadAssignmentFromRoutes([route],
+                                                                True)
+            if not single_solution:
+                bug_route.append(route)
+        for route in bug_route:
+            for node in route:
+                print(d.get_map_node(node))
 
-        assert initial_solution
-        print('Initial solution:')
-        SO.print_initial_solution(d,expanded_m,expanded_mm,
-                              vehicles,manager,routing,initial_solution,args.horizon)
+    assert initial_solution
+    print('Initial solution:')
+    SO.print_initial_solution(d,expanded_m,expanded_mm,
+                          vehicles,manager,routing,initial_solution,args.horizon)
 
 
 
     print('Calling the solver')
     # [START solve]
-    if args.breaks_at_nodes:
-        assignment = routing.SolveFromAssignmentWithParameters(
-            initial_solution, parameters)
-    else:
-        assignment = routing.SolveWithParameters(parameters)
+
+    assignment = routing.SolveFromAssignmentWithParameters(
+        initial_solution, parameters)
+
     # [END solve]
 
     if assignment:

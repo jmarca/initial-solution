@@ -170,6 +170,7 @@ class Demand():
             min_intervals[i] += offset
         return min_intervals
 
+    """ deprecated """
     def get_first_break(self,num_veh,time_matrix):
 
         # function
@@ -239,6 +240,7 @@ class Demand():
             node_visit_transit[n] = int(self.get_service_time(n))
         return node_visit_transit
 
+    """ deprecated """
     def get_simple_breaks(self,num_veh,
                           time_matrix,
                           manager,
@@ -281,6 +283,7 @@ class Demand():
                 breaks[veh], veh, node_visit_transit)
         return breaks
 
+    """ deprecated """
     def get_breaks_synced_first(self,num_veh,
                                 time_matrix,
                                 manager,
@@ -331,6 +334,7 @@ class Demand():
                 breaks[veh], veh, node_visit_transit)
         return breaks
 
+    """ deprecated """
     def get_breaks_synced_first_variable(self,num_veh,
                                          time_matrix,
                                          manager,
@@ -390,6 +394,7 @@ class Demand():
                 breaks[veh], veh, node_visit_transit)
         return breaks
 
+    """ deprecated """
     def get_breaks_unsynced_variable(self,num_veh,
                                      time_matrix,
                                      manager,
@@ -514,7 +519,7 @@ class Demand():
         return df
 
 
-
+    """deprecated"""
     def insert_nodes_for_slack(self,travel_times,timelength=600):
         """Use travel time matrix, pickup and dropoff pairs to create the
         necessary break opportunities between pairs of nodes.  Assumes
@@ -740,123 +745,6 @@ class Demand():
                                     drive_dimension_start_value):
 
         solver = routing.solver()
-        for bn in self.break_nodes.values():
-            origin_node = bn.origin
-            destination_node = bn.destination
-            break_node = bn.node
-            tt_bd = bn.tt_d
-            tt_ob = bn.tt_o
-            tt = tt_bd + tt_ob
-            tt_checked = time_matrix.loc[origin_node,destination_node]
-            # print('origin node',origin_node,
-            #       'break node',break_node,
-            #       'next node',destination_node,
-            #       'tt',tt,
-            #       'tt_checked',tt_checked)
-
-            # diagnosic prior to bombing out
-            if(int(tt_checked) > 0):
-                if math.floor(tt / int(tt_checked)) != 1:
-                    print(time_matrix.loc[:,[origin_node,break_node,destination_node]])
-                    print('origin node',origin_node,
-                          'break node',break_node,
-                          'next node',destination_node,
-                          'tt',tt,
-                          'tt_checked',tt_checked
-                    )
-
-                    assert math.floor(tt / int(tt_checked)) == 1
-            else:
-                assert math.floor(tt) == math.floor(tt_checked)
-            o_idx = manager.NodeToIndex(origin_node)
-            d_idx = manager.NodeToIndex(destination_node)
-            b_idx = manager.NodeToIndex(break_node)
-
-            # goal: if the trip from origin to destination happens,
-            # decide if need to insert the break.
-
-            # the trick is that we might not be going to destination
-            # from origin, but rather from some other node.
-
-            # so need to build up some conditions that guarantee that
-            # we're going from origin to destination, *and* that given
-            # that fact, that we need to incur this break or not
-
-            # condition 1, same vehicle at origin and destination
-            same_vehicle = routing.VehicleVar(o_idx) == routing.VehicleVar(d_idx)
-
-            # condition 2, both nodes are active and sequential..harder to prove
-            # try the count dimension, but they won't be sequential, and if there are
-            # multiple breaks they will be 2 or more apart...
-            dest_active =routing.ActiveVar(d_idx)
-            origin_active =routing.ActiveVar(o_idx)
-            break_active =routing.ActiveVar(b_idx)
-
-            origin_count = routing.ActiveVar(o_idx)*count_dimension.CumulVar(o_idx)
-            dest_count = dest_active*count_dimension.CumulVar(d_idx)
-
-            dest_drive = dest_active*drive_dimension.CumulVar(d_idx)
-
-            break_drive = break_active*drive_dimension.CumulVar(b_idx)
-
-            # condition:  Does the origin immediately precede this node
-
-
-            # get the break count.  actually, this is the wrong thing
-            break_count = bn.break_count
-
-            origin_break_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) >= drive_dimension_start_value +  (660) - tt
-            origin_nobreak_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) <  drive_dimension_start_value + (660) - tt
-            #print(origin_nobreak_condition)
-
-            # if the origin node is a break node itself, might not need to visit
-            if origin_node in self.break_nodes:
-                # print('constraint from a break node',origin_node, drive_dimension_start_value + 2*(660) - tt)
-                origin_break_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) >= drive_dimension_start_value + 2*(660) - tt
-                origin_nobreak_condition = routing.ActiveVar(o_idx)*drive_dimension.CumulVar(o_idx) < drive_dimension_start_value + 2*(660) - tt
-
-            # else:
-            #     print('constraint from a regular node',origin_node, drive_dimension_start_value + (660) - tt)
-
-            active_break_o = routing.ActiveVar(b_idx) == routing.ActiveVar(o_idx)
-            active_break_d = routing.ActiveVar(b_idx) == routing.ActiveVar(d_idx)
-            skip_break = routing.ActiveVar(b_idx) == 0
-            # if origin_node == 0:
-            #     # can take some short cuts with the conditionals if
-            #     # origin is depot node basically, if the travel time
-            #     # is > 660, will need this break if visiting the node
-            #     # with this vehicle from this depot
-            #     #
-
-
-            #     # constrain on destination
-            #     # expression = solver.ConditionalExpression(origin_break_condition,
-            #     #                                           active_break_d,
-            #     #                                           1)
-            #     # solver.AddConstraint(expression>=1)
-            #     not_expression = solver.ConditionalExpression(same_vehicle*origin_nobreak_condition,
-            #                                                   skip_break,
-            #                                                   1)
-            #     solver.AddConstraint(not_expression>=1)
-            # else:
-            #     # constrain on origin
-            #     # expression = solver.ConditionalExpression(origin_break_condition,
-            #     #                                           active_break_o,
-            #     #                                           1)
-            #     # solver.AddConstraint(expression>=1)
-            #     not_expression = solver.ConditionalExpression(same_vehicle*origin_nobreak_condition,
-            #                                                   skip_break,
-            #                                                   1)
-            #     solver.AddConstraint(not_expression>=1)
-
-            #             # set condition
-
-
-            # if not destination_node in self.break_nodes:
-            #     solver.AddConstraint(dest_drive >= dest_active*drive_dimension_start_value)
-            #     solver.AddConstraint(dest_drive <= dest_active*(drive_dimension_start_value + 660))
-            # the next is redundant, I think
-            # solver.AddConstraint(break_drive >= break_active*(drive_dimension_start_value - 660))
 
         feasible_index = self.demand.feasible
         for idx in self.demand.index[feasible_index]:
