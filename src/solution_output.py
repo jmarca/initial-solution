@@ -296,3 +296,135 @@ def csv_output(demand,
         # os.unlink(basename+"_assignments.csv")
 
     dump_obj.to_csv(checkname, index=False)
+
+
+def csv_demand_output(demand,
+                      dist_matrix,
+                      time_matrix,
+                      vehicles,
+                      manager,
+                      routing,
+                      assignment,
+                      horizon,
+                      basename):
+
+    # First up, handle the Routes output.
+    # For each route, dump each pickup dropoff event in a list
+    demand_details = {}
+
+    total_distance = 0
+    total_load_served = 0
+    total_time = 0
+    capacity_dimension = routing.GetDimensionOrDie('Capacity')
+    time_dimension = routing.GetDimensionOrDie('Time')
+    count_dimension = routing.GetDimensionOrDie('Count')
+    drive_dimension = routing.GetDimensionOrDie('Drive')
+    for vehicle in vehicles.vehicles:
+        this_vehicle_rows=[]
+        vehicle_id = vehicle.index
+        index = routing.Start(vehicle_id)
+        distance = 0
+        this_distance = 0
+        this_time = 0
+        link_time = 0
+        pickups = 0
+        while not routing.IsEnd(index):
+            time_var = time_dimension.CumulVar(index)
+            load_var  = capacity_dimension.CumulVar(index)
+            slack_var = time_dimension.SlackVar(index)
+            visits_var  = count_dimension.CumulVar(index)
+
+            node = manager.IndexToNode(index)
+            mapnode = demand.get_map_node(node)
+            load = assignment.Value(load_var)
+            visits = assignment.Value(visits_var)
+            min_time =  assignment.Min(time_var)
+            max_time =  assignment.Max(time_var)
+            slack_var_min = 0
+            slack_var_max = 0
+            node_demand = demand.get_demand(node)
+            drive_var = drive_dimension.CumulVar(index)
+            drive_time = assignment.Value(drive_var)
+
+            if node_demand != 0:
+                if node_demand > 0:
+                    # pickup
+                    row = {'pickup_node':mapnode,
+                           'pickup_order':visits,
+                           'pickup_time':assignment.Value(time_var),
+                           'pickup_distance':this_distance,
+                           'veh':vehicle_id}
+                    demand_details[node] = row
+                if node_demand < 0:
+                    # pickup
+                    row = {'dropoff_node':mapnode,
+                           'dropoff_order':visits,
+                           'dropoff_time':assignment.Value(time_var),
+                           'dropoff_distance':this_distance,
+                           'veh':vehicle_id}
+                    demand_details[node] = row
+
+            previous_index = index
+            index = assignment.Value(routing.NextVar(index))
+            this_time = routing.GetArcCostForVehicle(previous_index, index,
+                                                     vehicle_id)
+            this_distance = int(dist_matrix.loc[manager.IndexToNode(previous_index),
+                                                manager.IndexToNode(index)])
+            link_time = int(time_matrix.loc[manager.IndexToNode(previous_index),
+                                            manager.IndexToNode(index)])
+            distance += this_distance
+
+        # done with loop, have returned to depot
+        load_var = capacity_dimension.CumulVar(index)
+        visits_var  = count_dimension.CumulVar(index)
+        time_var = time_dimension.CumulVar(index)
+        slack_var = time_dimension.SlackVar(index)
+        visits = assignment.Value(visits_var)
+        drive_var = drive_dimension.CumulVar(index)
+        drive_time = assignment.Value(drive_var)
+        node = manager.IndexToNode(index)
+        mapnode = demand.get_map_node(node)
+
+    # now cycle over demands, create output records
+    rows = []
+
+    for didx in demand.demand.index:
+        d = demand.demand.loc[didx]
+
+        if d.origin in demand_details:
+            row = {}
+            for entry in demand_details[d.origin].items():
+                row[entry[0]]=entry[1]
+            for entry in demand_details[d.destination].items():
+                row[entry[0]]=entry[1]
+            rows.append(row)
+        else:
+            # demand not served
+            row = {'pickup_node':d.from_node,
+                   'dropoff_node':d.to_node,
+                   'pickup_order':-1,
+                   'pickup_time':0,
+                   'pickup_distance':0,
+                   'dropoff_order':-1,
+                   'dropoff_time':0,
+                   'dropoff_distance':0,
+                   'veh':-1}
+            rows.append(row)
+
+    # now save to csv
+    dump_obj = pd.DataFrame(rows)
+    # check for any existing file
+    idx = 1
+
+    checkname = basename
+    match = re.search(r"\.csv", checkname)
+    if not match:
+        print ('no match',basename)
+        basename += ".csv"
+
+    checkname = basename
+    while os.path.exists(checkname):
+        checkname = re.sub(r"\.csv","_{}.csv".format(idx),basename)
+        idx += 1
+
+    dump_obj.to_csv(checkname, index=False)
