@@ -9,7 +9,6 @@ class BreakNode():
                  destination, # where to
                  tt_od, # travel time origin to destination
                  new_node=0, # the numbering of the new node
-                 break_count=1,
                  break_time=600,
                  accumulator_reset=660
                  ):
@@ -29,7 +28,6 @@ class BreakNode():
             self.tt_d = 0
 
         self.node = new_node
-        self.break_count = break_count
 
     # FIXME this is a little bit bald
     def drive_time_restore(self):

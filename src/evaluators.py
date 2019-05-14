@@ -134,7 +134,10 @@ def f(pair):
         value = 0
     return [from_node,to_node,value]
 
-
+# this function works to set up impact of any node on total time
+# breaks add break_time to cumulative time
+# pickup and delivery nodes add service time to cumulative time
+# depot nodes add nothing
 def make_location_data(pair):
     (node,demand) = pair
     service_time = demand.get_service_time(node)
@@ -144,13 +147,21 @@ def make_location_data(pair):
         service_time = break_node.break_time
     return (node,d,service_time)
 
-def make_drive_data(pair):
+# this function works to set up impact of a break node on the drive time dimensions
+# The 11 hr rule resets both the 30 minute break and the 10 hr break
+# The 8hr rule resets just the 30 minute break
+# so the if statement filters out any impact the 30 min break might have on the
+# 11 hr rule counter
+def make_drive_data(pair,period,break_time):
     (node,demand) = pair
     service_time = 0
     d = demand.get_demand(node)
     break_node = demand.get_break_node(node)
     if break_node != None:
-        service_time = break_node.drive_time_restore()
+        # duck typing of a sorts
+        if break_node.break_time >= break_time and break_node.drive_time_restore()>=period:
+            # quacks like the duck we're looking for
+            service_time = -break_node.period
     return (node,d,service_time)
 
 
@@ -202,7 +213,9 @@ def create_time_callback2(travel_minutes_matrix,
 
 
 def create_drive_callback(travel_minutes_matrix,
-                          demand):
+                          demand,
+                          period,
+                          break_time):
     """create a callback function for drivetime.  presumes that
        travel_minutes_matrix is in solver space, not map space (has
        been passed through demand.generate_solver_space_matrix.  Also,
@@ -215,7 +228,7 @@ def create_drive_callback(travel_minutes_matrix,
     max_time = travel_minutes_matrix.max().max()
     penalty_time =  int(10000000 * max_time)
 
-    node_list = [(n,demand) for n in travel_minutes_matrix.index]
+    node_list = [(n,demand,period,break_time) for n in travel_minutes_matrix.index]
     # print('len node list is ',len(node_list))
     ncpus = len(os.sched_getaffinity(0))
     p = Pool(ncpus)

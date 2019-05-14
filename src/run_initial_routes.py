@@ -151,14 +151,40 @@ def main():
     # time_dimension.SetGlobalSpanCostCoefficient(100)
     # turned it on and nothing worked, so leave off
 
-    drive_dimension = None
+    print('create 11hr drive dimension')
     drive_dimension_name = 'Drive'
-    print('create drive dimension')
     # Add Drive dimension for breaks logic
     print('creating drive callback for solver')
     drive_callback = partial(E.create_drive_callback(expanded_mm,
-                                                     d),
+                                                     d,
+                                                     11*60,
+                                                     10*60),
                              manager)
+    drive_callback_index = routing.RegisterTransitCallback(drive_callback)
+    routing.AddDimension(
+        drive_callback_index, # same "cost" evaluator as above
+        0,  # No slack for drive dimension? infinite slack?
+        args.horizon,  # max drive is end of drive horizon
+        False, # set to zero for each vehicle
+        drive_dimension_name)
+    drive_dimension = routing.GetDimensionOrDie(drive_dimension_name)
+
+    # constrain drive dimension to be drive_dimension_start_value at
+    # start, so avoid negative numbers
+    for vehicle in vehicles.vehicles:
+        vehicle_id = vehicle.index
+        index = routing.Start(vehicle_id)
+        routing.solver().Add(drive_dimension.CumulVar(index)==args.drive_dimension_start_value)
+
+    print('create 11hr 30min_break dimension')
+    short_break_dimension_name = '30 Min Break'
+    # Add short_Break dimension for breaks logic
+    print('creating short_break callback for solver')
+    short_break_callback = partial(E.create_drive_callback(expanded_mm,
+                                                           d,
+                                                           8*60,
+                                                           30),
+                                   manager)
     drive_callback_index = routing.RegisterTransitCallback(drive_callback)
     routing.AddDimension(
         drive_callback_index, # same "cost" evaluator as above

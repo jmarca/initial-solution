@@ -661,7 +661,7 @@ class Demand():
                         self.break_node_chains[record.destination][0]=[]
                     self.break_node_chains[record.destination][0].append(bn.node)
 
-                # print('checking',bn.origin,bn.node,bn.destination)
+                print('checking',bn.origin,bn.node,bn.destination)
                 assert int(travel_times.loc[bn.origin,bn.node]) == bn.tt_o
                 assert int(travel_times.loc[bn.node,bn.destination]) == bn.tt_d
             new_node = len(travel_times.index)

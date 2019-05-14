@@ -88,7 +88,7 @@ def split_links(O,D,travel_time,starting_node):
     return new_times
 
 
-def split_links_break_nodes(O,D,travel_time,new_node,count):
+def split_links_break_nodes(O,D,travel_time,new_node):
     """split the link from O to D in half
     arguments: O: origin node, integer
                D: destination node, integer
@@ -99,7 +99,7 @@ def split_links_break_nodes(O,D,travel_time,new_node,count):
              are numbered from starting_node + zero, sequentially,
              new_node
     """
-    bn = BN.BreakNode(O,D,travel_time,new_node,count)
+    bn = BN.BreakNode(O,D,travel_time,new_node)
     new_times = {}
     new_times[O] = {}
     new_times[D] = {}
@@ -119,27 +119,97 @@ def split_links_break_nodes(O,D,travel_time,new_node,count):
     return (new_times,bn)
 
 
+"""Code that gets used a lot, so split out into its own fn"""
 def break_node_splitter(origin,destination,tt,min_start):
+    """Given an Origin and a Destination node, plus travel time between
+    and the numbering of nodes (min start is an integer for the first
+    node that will be created), create necessary break nodes between O
+    and D that will satisfy the break rules.
+
+    Currently knows only about the 11hr drive, 10hr break rule.
+
+    Going to make it work for 8hr drive, 0.5hr break.
+
+    """
     new_times = []
     new_nodes = []
-    possible_breaks = math.ceil(tt/660) + 1
 
-    for i in range(0,possible_breaks):
-        count = i+1
-        pair = split_links_break_nodes(origin,
-                                       destination,
-                                       tt,
-                                       min_start,
-                                       count)
-        new_times.append(pair[0])
-        new_nodes.append(pair[1])
-        # creep closer if count > 0
-        tt = pair[1].tt_d
-        origin=min_start
+    # for the 11 hour drive rule
+    long_possible_breaks = math.ceil(tt/(11*60)) + 1
+
+    # no real need to count up 8 hr breaks...at a minimum, can slot
+    # one in between each 11 hr break
+    segment_tt = tt
+    for i in range(0,long_possible_breaks):
+        # insert 11 hr break opportunity
+        pair11 = split_links_break_nodes(origin,
+                                         destination,
+                                         segment_tt,
+                                         min_start)
         min_start += 1
+
+        node11 = pair11[1]
+        node11.break_time = 10*60
+        node11.accumulator_reset = 11*60
+        # possibly set up a dimension thing here?
+        # node11.add_dimension_name('Drive') # or similar?
+
+        # slot in an 8 hr break between origin and 11 hr
+        pair8 = split_links_break_nodes(node11.node,
+                                        destination,
+                                        node11.tt_o,
+                                        min_start)
+        min_start += 1
+
+        pair8[1].break_time = 30
+        pair8[1].accumulator_reset = 8*60
+        # possibly set up a dimension thing here too?
+        # pair8[1].add_dimension_name('halfhrbreak') # or similar?
+
+        new_times.append(pair8[0])
+        new_nodes.append(pair8[1])
+
+        new_times.append(pair11[0])
+        new_nodes.append(pair11[1])
+
+        # set for next loop
+        segment_tt = node11.tt_d
+        origin=node11.node
+
+    # finally, slot in an 8 hr break between last 11 hr and destination
+    node11 = new_nodes[-1]
+    # only put in another 8 hr node if need to do so
+    if node11.break_time == 10*60 or tt >= 8*60:
+        # either the last break node is an 11 hr node, or the travel
+        # time requires at least two 8hr break nodes
+        pair8 = split_links_break_nodes(node11.node,
+                                        destination,
+                                        node11.tt_d,
+                                        min_start)
+        min_start += 1 # not necessary, but good habit
+
+        pair8[1].break_time = 30
+        pair8[1].accumulator_reset = 8*60
+        # possibly set up a dimension thing here too?
+        # pair8[1].add_dimension_name('halfhrbreak') # or similar?
+
+        new_times.append(pair8[0])
+        new_nodes.append(pair8[1])
+
     return (new_times,new_nodes,min_start)
 
+"""Yes, this seems redundant with above by the name, but it isn't"""
 def split_break_node(record,travel_times,min_start=None):
+    """Pass in a demand record, and split out all the required break nodes
+    to get to the origin from the depot, to the destination from the
+    origin, and back to the depot from the destination
+
+    This function knows about the break rules.  Currently only one is
+    implemented (drive 11, break 10).  Working on drive 8 break 0.5,
+    then will work on on-duty 14 break 10.
+
+    """
+
     if min_start == None:
         min_start = len(travel_times.index)
     new_times = []
