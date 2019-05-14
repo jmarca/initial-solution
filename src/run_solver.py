@@ -81,7 +81,18 @@ def main():
 
     parser.add_argument('--debug', type=bool, dest='debug', default=False,
                         help="Turn on some print statements.")
+
+    parser.add_argument('--force',type=bool,dest='force',default=False,
+                        help="This program is deprecated.  Set this to true in order to force running this code.")
+
     args = parser.parse_args()
+
+    if not args.force:
+        print('This program is deprecated.  You should be using run_initial_routes.py.')
+        assert 0
+    else:
+        print('This program is deprecated. You should be using run_initial_routes.py.')
+        print('But apparently you know what you are doing??')
 
     print('read in distance matrix')
     matrix = reader.load_matrix_from_csv(args.matrixfile)
