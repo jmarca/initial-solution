@@ -210,8 +210,8 @@ def csv_output(demand,
     time_dimension = routing.GetDimensionOrDie('Time')
     count_dimension = routing.GetDimensionOrDie('Count')
     drive_dimension = routing.GetDimensionOrDie('Drive')
-
     for vehicle in vehicles.vehicles:
+        this_vehicle_rows=[]
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
         distance = 0
@@ -229,8 +229,8 @@ def csv_output(demand,
             mapnode = demand.get_map_node(node)
             load = assignment.Value(load_var)
             visits = assignment.Value(visits_var)
-            min_time =  timedelta(minutes=assignment.Min(time_var))
-            max_time =  timedelta(minutes=assignment.Max(time_var))
+            min_time =  assignment.Min(time_var)
+            max_time =  assignment.Max(time_var)
             slack_var_min = 0
             slack_var_max = 0
             node_demand = demand.get_demand(node)
@@ -239,11 +239,11 @@ def csv_output(demand,
             row = {'location':mapnode,
                    'demand':node_demand,
                    'order':visits,
-                   'time':timedelta(minutes=assignment.Value(time_var)),
+                   'time':assignment.Value(time_var),
                    'distance':this_distance,
                    'veh':vehicle_id}
 
-            vcsv.append(row)
+            this_vehicle_rows.append(row)
             previous_index = index
             index = assignment.Value(routing.NextVar(index))
             this_time = routing.GetArcCostForVehicle(previous_index, index,
@@ -268,10 +268,14 @@ def csv_output(demand,
         row = {'location':mapnode,
                'demand':0,
                'order':visits,
-               'time':timedelta(minutes=assignment.Value(time_var)),
+               'time':assignment.Value(time_var),
                'distance':this_distance,
                'veh':vehicle_id}
-        vcsv.append(row)
+        this_vehicle_rows.append(row)
+        if visits>1:
+            vcsv.extend(this_vehicle_rows)
+
+
 
     # now save to csv
     dump_obj = pd.DataFrame(vcsv)
