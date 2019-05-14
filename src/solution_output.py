@@ -1,6 +1,8 @@
 """Solution output routines"""
 from six.moves import xrange
 from datetime import datetime, timedelta
+import pandas as pd
+import os
 
 def print_initial_solution(demand,
                            dist_matrix,
@@ -184,3 +186,101 @@ def print_solution(demand,
     print('Total Distance of all routes: {0} miles'.format(total_distance))
     print('Total Loads picked up by all routes: {}'.format(total_load_served))
     print('Total Time of all routes: {0}'.format(timedelta(minutes=total_time)))
+
+
+def csv_output(demand,
+               dist_matrix,
+               time_matrix,
+               vehicles,
+               manager,
+               routing,
+               assignment,
+               horizon,
+               basename):
+
+    # First up, handle the Routes output.
+    # For each route, dump each pickup dropoff event in a list
+    vcsv = []
+
+    total_distance = 0
+    total_load_served = 0
+    total_time = 0
+    capacity_dimension = routing.GetDimensionOrDie('Capacity')
+    time_dimension = routing.GetDimensionOrDie('Time')
+    count_dimension = routing.GetDimensionOrDie('Count')
+    drive_dimension = routing.GetDimensionOrDie('Drive')
+
+    for vehicle in vehicles.vehicles:
+        vehicle_id = vehicle.index
+        index = routing.Start(vehicle_id)
+        distance = 0
+        this_distance = 0
+        this_time = 0
+        link_time = 0
+        pickups = 0
+        while not routing.IsEnd(index):
+            time_var = time_dimension.CumulVar(index)
+            load_var  = capacity_dimension.CumulVar(index)
+            slack_var = time_dimension.SlackVar(index)
+            visits_var  = count_dimension.CumulVar(index)
+
+            node = manager.IndexToNode(index)
+            mapnode = demand.get_map_node(node)
+            load = assignment.Value(load_var)
+            visits = assignment.Value(visits_var)
+            min_time =  timedelta(minutes=assignment.Min(time_var))
+            max_time =  timedelta(minutes=assignment.Max(time_var))
+            slack_var_min = 0
+            slack_var_max = 0
+            node_demand = demand.get_demand(node)
+            drive_var = drive_dimension.CumulVar(index)
+            drive_time = assignment.Value(drive_var)
+            row = {'location':mapnode,
+                   'demand':node_demand,
+                   'order':visits,
+                   'time':timedelta(minutes=assignment.Value(time_var)),
+                   'distance':this_distance,
+                   'veh':vehicle_id}
+
+            vcsv.append(row)
+            previous_index = index
+            index = assignment.Value(routing.NextVar(index))
+            this_time = routing.GetArcCostForVehicle(previous_index, index,
+                                                     vehicle_id)
+            this_distance = int(dist_matrix.loc[manager.IndexToNode(previous_index),
+                                                manager.IndexToNode(index)])
+            link_time = int(time_matrix.loc[manager.IndexToNode(previous_index),
+                                            manager.IndexToNode(index)])
+            distance += this_distance
+
+        # done with loop, have returned to depot
+        load_var = capacity_dimension.CumulVar(index)
+        visits_var  = count_dimension.CumulVar(index)
+        time_var = time_dimension.CumulVar(index)
+        slack_var = time_dimension.SlackVar(index)
+        visits = assignment.Value(visits_var)
+        drive_var = drive_dimension.CumulVar(index)
+        drive_time = assignment.Value(drive_var)
+        node = manager.IndexToNode(index)
+        mapnode = demand.get_map_node(node)
+
+        row = {'location':mapnode,
+               'demand':0,
+               'order':visits,
+               'time':timedelta(minutes=assignment.Value(time_var)),
+               'distance':this_distance,
+               'veh':vehicle_id}
+        vcsv.append(row)
+
+    # now save to csv
+    dump_obj = pd.DataFrame(vcsv)
+    # check for any existing file
+    idx = 1
+    checkname = basename
+    while os.path.exists(checkname+"_assignments.csv"):
+        checkname = basename + "_{}".format(idx)
+        idx += 1
+        # or just get rid of it
+        # os.unlink(basename+"_assignments.csv")
+
+    dump_obj.to_csv(checkname+"_assignments.csv", index=False)
