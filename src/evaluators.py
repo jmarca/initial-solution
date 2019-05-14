@@ -152,8 +152,8 @@ def make_location_data(pair):
 # The 8hr rule resets just the 30 minute break
 # so the if statement filters out any impact the 30 min break might have on the
 # 11 hr rule counter
-def make_drive_data(pair,period,break_time):
-    (node,demand) = pair
+def make_drive_data(pair):
+    (node,demand,period,break_time) = pair
     service_time = 0
     d = demand.get_demand(node)
     break_node = demand.get_break_node(node)

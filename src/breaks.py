@@ -155,11 +155,13 @@ def break_node_splitter(origin,destination,tt,min_start):
         # node11.add_dimension_name('Drive') # or similar?
 
         # slot in an 8 hr break between origin and 11 hr
-        pair8 = split_links_break_nodes(node11.node,
-                                        destination,
+        pair8 = split_links_break_nodes(origin,
+                                        node11.node,
                                         node11.tt_o,
                                         min_start)
         min_start += 1
+        # pandas preserves order, so need to push time first
+        new_times.append(pair11[0])
 
         pair8[1].break_time = 30
         pair8[1].accumulator_reset = 8*60
@@ -169,7 +171,6 @@ def break_node_splitter(origin,destination,tt,min_start):
         new_times.append(pair8[0])
         new_nodes.append(pair8[1])
 
-        new_times.append(pair11[0])
         new_nodes.append(pair11[1])
 
         # set for next loop
@@ -237,7 +238,7 @@ def split_break_node(record,travel_times,min_start=None):
         new_nodes.extend(pair[1])
         min_start = pair[2]
     #print(new_times)
-    return (new_times,new_nodes)
+    return (new_times,new_nodes,min_start)
 
 
 
@@ -419,49 +420,35 @@ def aggregate_dummy_nodes(travel_time,newtimes):
 
 def aggregate_split_nodes(travel_time,newtimes):
     """combine current time matrix with list of new times for each new node"""
-    def agg_fn(nt,tt_matrix):
-        max_old_node = tt_matrix.index.max()
-        new_df = pd.DataFrame.from_dict(data=nt,orient='index')
-        # print(new_df)
-        old_cols = [i for i in new_df.columns.view(int)]
-        old_cols.sort() # shift new node to last
-        new_cols = [old_cols.pop()]
-        # print(old_cols,new_cols)
-        # need to adjust the dataframe so no overlapping new columns
-        offset = (max_old_node+1) - min(new_df.loc[:,new_cols].columns)
-        # first the columns
-        adjustment = [0  for i in range(0,len(new_df.columns))]
-        adjustment[-1] = offset
-        if offset > 0:
-            new_df.columns = [i + adj for (i,adj) in zip(new_df.columns,adjustment)]
-            new_df.index = [i + adj for (i,adj) in zip(new_df.index,adjustment)]
-            new_df = new_df.reindex()
-            new_cols = new_df.index.max()
-        # first append the new destinations for existing columns
+    # at this time, I keep careful track of new nodes, so there should
+    # be no need for the adjustment code.
 
-        tt_matrix = tt_matrix.append(new_df.loc[new_cols,old_cols])
-        # if debug:
-        # print(tt_matrix)
-        # then join in the new rows and columns
-        reduced_df = new_df.loc[:,new_cols]
-        reduced_df = reduced_df.reindex()
-        return tt_matrix.join(reduced_df
-                                ,how='outer'
-        )
-
+    all_new_df=None
+    # merge new times?
+    # brute force for now
+    merged_nt = []
     for nt in newtimes:
-        if len(nt) == 0:
-            continue
-        if isinstance(nt, list):
-            # nt is now an array or arrays
-            for nt_entry in nt:
-                travel_time = agg_fn(nt_entry,travel_time)
-        else:
-            travel_time = agg_fn(nt,travel_time)
-        # loop
-    # now replace NaN with infinity
-    # travel_time = travel_time.fillna(sys.maxsize)
-    # print(travel_time)
+        print(nt)
+        for entry in nt.items():
+            origin = entry[0]
+            for end in entry[1].items():
+                merged_nt.append([origin,
+                                  end[0],
+                                  end[1]])
+
+    new_df = pd.DataFrame(data=merged_nt,columns=['from','to','time'])
+    new_df.drop_duplicates(inplace=True)
+    df_new_times = new_df.pivot(index='from',columns='to',values='time')
+
+    df_new_times.update(travel_time)
+    for idx in travel_time.index:
+        if not idx in df_new_times.index:
+            print('problems ahead.  missing',idx,'from',df_new_times.index,' Bailing out')
+        assert idx in df_new_times.index
+    # print(df_new_times.index)
+    # print(travel_time.index)
+    # print(df_new_times)
+    travel_time = df_new_times
     return travel_time
 
 

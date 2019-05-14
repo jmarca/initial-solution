@@ -636,8 +636,9 @@ class Demand():
         for idx in self.demand.index[feasible_index]:
             record = self.demand.loc[idx]
             pair = breaks.split_break_node(record,travel_times,new_node)
-            travel_times = breaks.aggregate_split_nodes(travel_times,pair[0])
-            # print(travel_times)
+            # travel_times = breaks.aggregate_split_nodes(travel_times,pair[0])
+            new_times.extend(pair[0])
+            new_node = pair[2]
             for bn in  pair[1]:
                 self.break_nodes[bn.node]=bn
                 # from 0, origin, or destination
@@ -661,11 +662,11 @@ class Demand():
                         self.break_node_chains[record.destination][0]=[]
                     self.break_node_chains[record.destination][0].append(bn.node)
 
-                print('checking',bn.origin,bn.node,bn.destination)
-                assert int(travel_times.loc[bn.origin,bn.node]) == bn.tt_o
-                assert int(travel_times.loc[bn.node,bn.destination]) == bn.tt_d
-            new_node = len(travel_times.index)
+                # print('checking',bn.origin,bn.node,bn.destination)
+                # assert int(travel_times.loc[bn.origin,bn.node]) == bn.tt_o
+                # assert int(travel_times.loc[bn.node,bn.destination]) == bn.tt_d
             assert new_node > max(self.break_nodes.keys())
+
         # print(self.break_node_chains)
 
         print('Next deal with destinations crossed with all origins')
@@ -675,7 +676,7 @@ class Demand():
         # are possible inside horizon given the total travel time
 
 
-        new_node = len(travel_times.index)
+        # new_node = len(travel_times.index)
         destination_details = []
         origin_details = []
         for idx in self.demand.index[feasible_index]:
@@ -688,7 +689,7 @@ class Demand():
         last_didx = destination_details[-1][0]
         for dd in destination_details:
             didx = dd[0]
-            moretimes = []
+            # moretimes = []
             for oo in origin_details:
                 oidx = oo[0]
                 if dd[2] == oidx:
@@ -709,7 +710,10 @@ class Demand():
                     continue
                 # trip chain is possible, so split destination to origin
                 pair = breaks.break_node_splitter(dd[0],oo[0],tt,new_node)
-                moretimes.append(pair[0])
+                new_times.extend(pair[0])
+                #print(new_times[-2])
+                print(new_times[-1])
+
                 for nn in pair[1]:
                     if self.debug:
                         print('add new node',nn.node,'bewteen',nn.origin,nn.destination)
@@ -721,9 +725,11 @@ class Demand():
                     self.break_node_chains[dd[0]][oo[0]].append(bn.node)
                 new_node = pair[2]
 
-            print(didx,'of',last_didx,'append',len(moretimes),'more')
-            travel_times = breaks.aggregate_split_nodes(travel_times,moretimes)
+
         # print(len(self.break_nodes.keys()), len(travel_times.index))
+
+        # now at end of loop, incorporate the new travel times all at once
+        travel_times = breaks.aggregate_split_nodes(travel_times,new_times)
         return travel_times # which holds everything of interest except self.break_nodes
 
 
