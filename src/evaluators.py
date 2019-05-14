@@ -2,7 +2,10 @@
 # Define cost of each arc.
 import numpy as np
 import sys
+import os
 import pandas as pd
+from multiprocessing import Pool
+import itertools as iter
 
 def create_demand_callback(node_list,demand):
     """ create a callback function for demand """
@@ -30,37 +33,39 @@ def create_time_callback(travel_minutes_matrix,
        been passed through demand.generate_solver_space_matrix
 
     """
-    # time matrix is now in model space, not map space
     # preprocess travel and service time to speed up solver
-    _total_time = {}
+
+    number = len(travel_minutes_matrix)
     max_time = travel_minutes_matrix.max().max()
     penalty_time =  int(10000000 * max_time)
     # penalty_time =  int(9223372036854775808)
     # penalty_time = int(100 * max_time)
     print ('using a maximum time for forbidden links of ',penalty_time)
+    _total_time = penalty_time * np.ones(number,number)
+    def g(from_node,to_node):
+        if from_node == to_node:
+            _total_time[from_node][to_node] = 0
+        else:
+            service_time = demand.get_service_time(from_node)
+            if not np.isnan(travel_minutes_matrix.loc[from_node,to_node]) :
+                _total_time[from_node,to_node] = int(
+                    travel_minutes_matrix.loc[from_node,to_node]
+                    + service_time
+                )
+            # redundant
+            # else:
+            #     _total_time[from_node,to_node] = penalty_time
+
+    ncpus = len(os.sched_getaffinity(0))
+    p = Pool(ncpus)
 
     # nodes are in travel time matrix
     node_list = [n for n in travel_minutes_matrix.index]
+
+    travel_times = p.map(g,iter.permutations(node_list,2))
+    # print(travel_times)
+    assert 0
     # print('len node list is ',len(node_list))
-    for from_node in node_list:
-        if from_node % 100 == 0:
-            print(from_node,' of ',len(travel_minutes_matrix.index))
-        _total_time[from_node] = {}
-        # mapnode_from = demand.get_map_node(from_node)
-        service_time = demand.get_service_time(from_node)
-        for to_node in node_list:
-            if from_node == to_node:
-                _total_time[from_node][to_node] = 0
-            else:
-                # mapnode_to = demand.get_map_node(to_node)
-                if not np.isnan(travel_minutes_matrix.loc[from_node,to_node]) :
-                    _total_time[from_node][to_node] = int(
-                        travel_minutes_matrix.loc[from_node,to_node]
-                        + service_time
-                    )
-                else:
-                    _total_time[from_node][to_node] = penalty_time
-                # print(from_node,to_node,mapnode_from,mapnode_to,_total_time[from_node][to_node])
 
     def time_callback(manager, from_index, to_index):
         """Returns the travel time between the two nodes."""
@@ -111,6 +116,43 @@ def create_dist_callback(dist_matrix,
     # return the callback, which will need to be set up with partial
     return dist_callback
 
+def g(pair):
+    (a,b) = pair
+    (from_node,from_demand,from_service) = a
+    (to_node,to_demand,to_service) = b
+    value = to_service
+    if from_node == to_node:
+        value = 0
+    return [from_node,to_node,value]
+
+def f(pair):
+    (a,b) = pair
+    (from_node,from_demand,from_service) = a
+    (to_node,to_demand,to_service) = b
+    value = from_service
+    if from_node == to_node:
+        value = 0
+    return [from_node,to_node,value]
+
+
+def make_location_data(pair):
+    (node,demand) = pair
+    service_time = demand.get_service_time(node)
+    d = demand.get_demand(node)
+    break_node = demand.get_break_node(node)
+    if break_node != None:
+        service_time = break_node.break_time
+    return (node,d,service_time)
+
+def make_drive_data(pair):
+    (node,demand) = pair
+    service_time = 0
+    d = demand.get_demand(node)
+    break_node = demand.get_break_node(node)
+    if break_node != None:
+        service_time = break_node.drive_time_restore()
+    return (node,d,service_time)
+
 
 def create_time_callback2(travel_minutes_matrix,
                           demand):
@@ -122,39 +164,29 @@ def create_time_callback2(travel_minutes_matrix,
        taking the break.
 
     """
-    # time matrix is now in model space, not map space
     # preprocess travel and service time to speed up solver
-    _total_time = {}
+    number = len(travel_minutes_matrix)
     max_time = travel_minutes_matrix.max().max()
     penalty_time =  int(10000000 * max_time)
-    # nodes are in travel time matrix
-    node_list = [n for n in travel_minutes_matrix.index]
+
+    _total_time = penalty_time * np.ones((number,number))
+
+    node_list = [(n,demand) for n in travel_minutes_matrix.index]
     # print('len node list is ',len(node_list))
-    for from_node in node_list:
-        if from_node % 100 == 0:
-            print(from_node,' of ',len(travel_minutes_matrix.index))
-        _total_time[from_node] = {}
-        truck_service_time = demand.get_service_time(from_node)
-        service_time = truck_service_time
-        if from_node > 0 and truck_service_time == 0:
-            # this is a break node, so bump up the service time
-            service_time = 60*10 # FIXME need to also do 30 minute breaks
-                                 # probably set up a class for nodes
-                                 # have a class
-                                 # FIXME use the break node class here
-        for to_node in node_list:
-            if from_node == to_node:
-                _total_time[from_node][to_node] = 0
-            else:
-                # mapnode_to = demand.get_map_node(to_node)
-                if not np.isnan(travel_minutes_matrix.loc[from_node,to_node]) :
-                    _total_time[from_node][to_node] = int(
-                        travel_minutes_matrix.loc[from_node,to_node]
-                        + service_time
-                    )
-                else:
-                    _total_time[from_node][to_node] = penalty_time
-    # print(travel_minutes_matrix)
+    ncpus = len(os.sched_getaffinity(0))
+    p = Pool(ncpus)
+    node_demand_service_list = p.map(make_location_data,node_list)
+    # print(node_demand_service_list)
+
+    travel_times = p.map(f,iter.product(node_demand_service_list,repeat=2))
+    df_stacked_service_time = pd.DataFrame(travel_times,columns=['from','to','service_time'])
+    # print(df_stacked_service_time)
+    df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')
+
+    _total_time = (df_service_time + travel_minutes_matrix).fillna(penalty_time).values
+    # print(df_service_time)
+    # print(travel_minutes_matrix.loc[:,[0,1,5,15,16,17,18]])
+    # print(df_service_time + travel_minutes_matrix)
     # print (pd.DataFrame.from_dict(_total_time,orient='index'))
 
     def time_callback(manager, from_index, to_index):
@@ -162,8 +194,8 @@ def create_time_callback2(travel_minutes_matrix,
         # Convert from routing variable Index to distance matrix NodeIndex.
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        # print('time',from_node,to_node,_total_time[from_node][to_node])
-        return _total_time[from_node][to_node]
+        #print('time',from_node,to_node,_total_time[from_node,to_node])
+        return _total_time[from_node,to_node]
 
     # return the callback, which will need to be set up with partial
     return time_callback
@@ -178,40 +210,25 @@ def create_drive_callback(travel_minutes_matrix,
        only visit break nodes if need to do so.
 
     """
-    # time matrix is now in model space, not map space
     # preprocess travel and service time to speed up solver
-    _total_time = {}
+    number = len(travel_minutes_matrix)
     max_time = travel_minutes_matrix.max().max()
     penalty_time =  int(10000000 * max_time)
-    # nodes are in travel time matrix
-    node_list = [n for n in travel_minutes_matrix.index]
-    # print('len node list is ',len(node_list))
-    for from_node in node_list:
-        # don't care about type of origin node
-        if from_node % 100 == 0:
-            print(from_node,' of ',len(travel_minutes_matrix.index))
-        _total_time[from_node] = {}
-        for to_node in node_list:
-            if from_node == to_node:
-                _total_time[from_node][to_node] = 0
-            else:
-                tt = travel_minutes_matrix.loc[from_node,to_node]
-                if not np.isnan(tt) :
-                    # ascertain the type of node
-                    service_time = 0
-                    if to_node > 0 and demand.get_demand(to_node) == 0:
-                        # this is a break node, so account for rest time
-                        bn = demand.get_break_node(to_node)
-                        service_time = int(bn.drive_time_restore())
 
-                    _total_time[from_node][to_node] = int(
-                        service_time + tt
-                    )
-                else:
-                    _total_time[from_node][to_node] = penalty_time
-    # print('drive time')
-    # print (pd.DataFrame.from_dict(_total_time,orient='index'))
-    # assert 0
+    node_list = [(n,demand) for n in travel_minutes_matrix.index]
+    # print('len node list is ',len(node_list))
+    ncpus = len(os.sched_getaffinity(0))
+    p = Pool(ncpus)
+    node_demand_service_list = p.map(make_drive_data,node_list)
+    # print(node_demand_service_list)
+
+    travel_times = p.map(f,iter.product(node_demand_service_list,repeat=2))
+    df_stacked_service_time = pd.DataFrame(travel_times,columns=['from','to','service_time'])
+    # print(df_stacked_service_time)
+    df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')
+
+    _total_time = (df_service_time + travel_minutes_matrix).fillna(penalty_time).values
+    #print(df_service_time + travel_minutes_matrix)
 
     def time_callback(manager, from_index, to_index):
         """Returns the travel time between the two nodes."""
