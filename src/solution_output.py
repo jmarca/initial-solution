@@ -3,6 +3,7 @@ from six.moves import xrange
 from datetime import datetime, timedelta
 import pandas as pd
 import os
+import re
 
 def print_initial_solution(demand,
                            dist_matrix,
@@ -276,11 +277,18 @@ def csv_output(demand,
     dump_obj = pd.DataFrame(vcsv)
     # check for any existing file
     idx = 1
+
     checkname = basename
-    while os.path.exists(checkname+"_assignments.csv"):
-        checkname = basename + "_{}".format(idx)
+    match = re.search(r"\.csv", checkname)
+    if not match:
+        print ('no match',basename)
+        basename += ".csv"
+
+    checkname = basename
+    while os.path.exists(checkname):
+        checkname = re.sub(r"\.csv","_{}.csv".format(idx),basename)
         idx += 1
         # or just get rid of it
         # os.unlink(basename+"_assignments.csv")
 
-    dump_obj.to_csv(checkname+"_assignments.csv", index=False)
+    dump_obj.to_csv(checkname, index=False)
