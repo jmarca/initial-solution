@@ -621,6 +621,7 @@ class Demand():
         # new_times_nodes = self.demand.loc[feasible_index,:].apply(gb,axis=1,result_type='reduce')
         self.break_nodes = {}
         self.break_node_chains = {}
+        self.break_node_chains[0]={}
         new_times = []
         new_nodes = []
         for idx in self.demand.index[feasible_index]:
@@ -628,17 +629,35 @@ class Demand():
             pair = breaks.split_break_node(record,travel_times,new_node)
             travel_times = breaks.aggregate_split_nodes(travel_times,pair[0])
             # print(travel_times)
-            if len(pair[1]) > 0:
-                self.break_node_chains[record.origin]={record.destination:[]}
             for bn in  pair[1]:
                 self.break_nodes[bn.node]=bn
-                self.break_node_chains[record.origin][record.destination].append(bn.node)
+                # from 0, origin, or destination
+                if bn.destination == record.origin:
+                    # this break from depot to origin
+                    if not record.origin in self.break_node_chains[0]:
+                        self.break_node_chains[0][record.origin]=[]
+                    self.break_node_chains[0][record.origin].append(bn.node)
+                if bn.destination == record.destination:
+                    # this break from origin to destination
+                    if not record.origin in self.break_node_chains:
+                        self.break_node_chains[record.origin]={}
+                    if not record.destination in self.break_node_chains[record.origin]:
+                        self.break_node_chains[record.origin][record.destination]=[]
+                    self.break_node_chains[record.origin][record.destination].append(bn.node)
+                if bn.destination == 0:
+                    # this break from destination to depot
+                    if not record.destination in self.break_node_chains:
+                        self.break_node_chains[record.destination]={}
+                    if not 0 in self.break_node_chains[record.destination]:
+                        self.break_node_chains[record.destination][0]=[]
+                    self.break_node_chains[record.destination][0].append(bn.node)
+
                 # print('checking',bn.origin,bn.node,bn.destination)
                 assert int(travel_times.loc[bn.origin,bn.node]) == bn.tt_o
                 assert int(travel_times.loc[bn.node,bn.destination]) == bn.tt_d
-
             new_node = len(travel_times.index)
             assert new_node > max(self.break_nodes.keys())
+        # print(self.break_node_chains)
 
         print('Next deal with destinations crossed with all origins')
 
@@ -657,23 +676,7 @@ class Demand():
                                         record.origin))
             origin_details.append((record.origin,
                                    record.late))
-        #     # do_tt = travel_times.loc[0,record.origin]
-        #     # do_breaks = (math.floor(do_tt/60/11)) * 60*10
-        #     # do_total = do_tt + do_breaks
-        #     # # origin_trip_cost = record['round_trip'] - do_total
-
-        #     # od_tt = travel_times.loc[record.origin,record.destination]
-        #     # od_breaks = (math.floor(do_tt/60/11)) * 60*10
-        #     # od_total = od_tt + od_breaks
-
-        #     # dd_tt = travel_times.loc[record.destination,0]
-        #     # dd_breaks = (math.floor(dd_tt/60/11)) * 60*10
-        #     # dd_total = dd_tt + dd_breaks
-        #     # destination_trip_cost = record['round_trip'] - dd_total
-        #     destinations.append[
-        #     destination_details.append((record.destination,destination_trip_cost,record.origin,record.late+od_total))
-        #     origin_details.append((record.origin,origin_trip_cost,record.destination,record.late))
-
+        last_didx = destination_details[-1][0]
         for dd in destination_details:
             didx = dd[0]
             moretimes = []
@@ -709,7 +712,7 @@ class Demand():
                     self.break_node_chains[dd[0]][oo[0]].append(bn.node)
                 new_node = pair[2]
 
-            print(didx,'append',len(moretimes),'more')
+            print(didx,'of',last_didx,'append',len(moretimes),'more')
             travel_times = breaks.aggregate_split_nodes(travel_times,moretimes)
         # print(len(self.break_nodes.keys()), len(travel_times.index))
         return travel_times # which holds everything of interest except self.break_nodes
