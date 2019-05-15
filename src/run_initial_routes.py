@@ -395,11 +395,13 @@ def main():
                                     manager,
                                     time_callback,
                                     drive_callback,
+                                    short_break_callback,
                                     debug = args.debug)
 
     initial_routes = [v for v in trip_chains.values()]
     #print(initial_routes)
 
+    routing.CloseModelWithParameters(parameters)
     initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
                                                         True)
 
@@ -411,9 +413,6 @@ def main():
                                                                 True)
             if not single_solution:
                 bug_route.append(route)
-        for route in bug_route:
-            for node in route:
-                print(d.get_map_node(node))
         print(bug_route)
     assert initial_solution
     print('Initial solution:')
@@ -427,6 +426,9 @@ def main():
 
     assignment = routing.SolveFromAssignmentWithParameters(
         initial_solution, parameters)
+
+
+
 
     # [END solve]
 

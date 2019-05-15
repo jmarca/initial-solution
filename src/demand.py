@@ -787,26 +787,27 @@ class Demand():
             solver.AddConstraint(dest_drive < dest_active*(drive_dimension_start_value)+660)
 
             # same type of constraints for short drive dimension, except 8 hrs not 11 hrs
-            solver.AddConstraint(origin_short >= origin_active*drive_dimension_start_value)
-            # solver.AddConstraint(origin_short < origin_active*(drive_dimension_start_value)+(8*60))
-            solver.AddConstraint(dest_short >= dest_active*drive_dimension_start_value)
-            # solver.AddConstraint(dest_short < dest_active*(drive_dimension_start_value)+(8*60))
 
+            # troubles with letting the solver do it.  Try setting soft bounds?
+            # solver.AddConstraint(origin_short < origin_active*(drive_dimension_start_value)+(8*60))
             short_break_dimension.SetCumulVarSoftUpperBound(o_idx,
                                                             drive_dimension_start_value+(8*60),
-                                                            1000)
+                                                            100000)
 
+            solver.AddConstraint(origin_short >= origin_active*drive_dimension_start_value)
             # short_break_dimension.SetCumulVarSoftLowerBound(o_idx,
             #                                                 drive_dimension_start_value,
-            #                                                 1000)
+            #                                                 100000)
 
+            # solver.AddConstraint(dest_short < dest_active*(drive_dimension_start_value)+(8*60))
             short_break_dimension.SetCumulVarSoftUpperBound(d_idx,
                                                             drive_dimension_start_value+(8*60),
-                                                            1000)
+                                                            100000)
 
+            solver.AddConstraint(dest_short >= dest_active*drive_dimension_start_value)
             # short_break_dimension.SetCumulVarSoftLowerBound(d_idx,
             #                                                 drive_dimension_start_value+(8*60),
-            #                                                 1000)
+            #                                                 100000)
 
 
         # constraints on return to depot, otherwise we just collect
