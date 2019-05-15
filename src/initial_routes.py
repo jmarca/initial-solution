@@ -136,6 +136,7 @@ def initial_routes(demand,vehicles,time_matrix,
                     assert lbk.break_time == 600
                     assert sbk.break_time == 30
 
+                    tt_fr_goal = time_matrix.loc[fr,goal]
                     tt_fr_lbk = time_matrix.loc[fr,lbk.node]
                     tt_fr_sbk = time_matrix.loc[fr,sbk.node]
                     tt_sbk_lbk = time_matrix.loc[sbk.node,goal]
@@ -156,10 +157,20 @@ def initial_routes(demand,vehicles,time_matrix,
                             # will need to take short break
                             take_sbk = True
                     else:
+                        print('lbk false',drive_time,tt_fr_goal,drive_time+tt_fr_goal)
+
                         if debug:
                             print('do not need long break, drive time + remaining is', drive_time + tt_fr_goal, 660)
                         if (short_time + tt_fr_goal >= 480):
-                            # will need to take long break
+                            print('lbk false, sbk true',
+                                  drive_time,tt_fr_goal,drive_time+tt_fr_goal,
+                                  short_time,tt_fr_goal,short_time+tt_fr_goal)
+                            print('will need short break, though',
+                                  'short_time',short_time,
+                                  'tt_fr_goal',tt_fr_goal,
+                                  short_time + tt_fr_goal
+                            )
+                            # will need to take short break
                             take_sbk = True
 
                     if take_sbk:
@@ -180,7 +191,11 @@ def initial_routes(demand,vehicles,time_matrix,
                     if take_lbk:
                         trip_chain.append(lbk.node)
                         drive_time += tt_fr_lbk + lbk.drive_time_restore()
-                        short_time += tt_fr_lbk - (660 - 480) # hack
+                        if take_sbk:
+                            short_time += tt_fr_lbk - (660 - 480) # hack
+                        else:
+                            short_time += tt_fr_lbk - 480         # hack
+
                         fr = lbk.node
                         if debug:
                             print('take long brk',lbk.node,short_time,drive_time)
