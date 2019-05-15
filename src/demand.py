@@ -829,8 +829,11 @@ class Demand():
         for veh in range(0,num_veh):
             index = routing.End(veh)
             end_drive = drive_dimension.CumulVar(index)
-            end_short = drive_dimension.CumulVar(index)
+            end_short = short_break_dimension.CumulVar(index)
             solver.AddConstraint(
                 end_drive >= drive_dimension_start_value)
-            solver.AddConstraint(
-                end_short >= drive_dimension_start_value)
+            # solver.AddConstraint(
+            #     end_short >= drive_dimension_start_value)
+            short_break_dimension.SetCumulVarSoftLowerBound(index,
+                                                            drive_dimension_start_value,
+                                                            1000000)
