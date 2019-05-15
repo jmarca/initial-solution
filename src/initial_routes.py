@@ -125,8 +125,6 @@ def initial_routes(demand,vehicles,time_matrix,
                 while (brk_idx < len(break_list) and
                        (drive_time + tt_fr_goal >= 660 ) or
                        (short_time + tt_fr_goal >= 480 )):
-                    print(brk_idx,fr,goal,tt_fr_goal)
-
                     sbk = breaks[brk_idx]
                     lbk = breaks[brk_idx+1]
                     if sbk.break_time != 30:
@@ -167,20 +165,22 @@ def initial_routes(demand,vehicles,time_matrix,
                         drive_time += tt_fr_sbk
                         fr = sbk.node
                         tt_fr_lbk = time_matrix.loc[fr,lbk.node]
-                        print('take short brk',sbk.node,short_time,drive_time)
+                        if debug:
+                            print('take short brk',sbk.node,short_time,drive_time)
 
                     else:
-                        print('did not take short break',
-                              'drive_time',drive_time,
-                              'fr_goal',tt_fr_goal,
-                              drive_time+tt_fr_goal)
+                        if debug:
+                            print('did not take short break',
+                                  'drive_time',drive_time,
+                                  'fr_goal',tt_fr_goal,
+                                  drive_time+tt_fr_goal)
                     if take_lbk:
-                        print('take long brk',lbk.node)
                         trip_chain.append(lbk.node)
                         drive_time += tt_fr_lbk + lbk.drive_time_restore()
                         short_time += tt_fr_lbk - (660 - 480) # hack
                         fr = lbk.node
-                        print('take long brk',lbk.node,short_time,drive_time)
+                        if debug:
+                            print('take long brk',lbk.node,short_time,drive_time)
                     tt_fr_goal = time_matrix.loc[fr,goal]
 
                     brk_idx += 1
@@ -197,101 +197,12 @@ def initial_routes(demand,vehicles,time_matrix,
                     prior = goal
                     goal = next_goal
                     tt_prior_goal = time_matrix.loc[prior,goal]
-                print('chain is',trip_chain,
-                      'short time',short_time,
-                      'drive time',drive_time
-                )
+                if debug:
+                    print('chain is',trip_chain,
+                          'short time',short_time,
+                          'drive time',drive_time
+                    )
 
-
-                    # # do we need to visit another break?
-                    # if drive_time + tt_fr_node + bn.drive_time_restore() +tt_node_goal < 660:
-                    #     # will not need another break
-                    #     # account for getting to and taking this break
-
-                    #     travel_time += demand.get_service_time(fr) # pickup or dropoff
-                    #     travel_time += tt_fr_node    # travel
-                    #     travel_time += bn.break_time # take a break
-                    #     # ditto drive time
-                    #     drive_time += tt_fr_node              # travel
-                    #     drive_time += bn.drive_time_restore() # break reset the clock
-
-                    #     # account for remaining travel to goal
-                    #     travel_time += tt_node_goal  # travel to goal, no more breaks
-                    #     drive_time += tt_node_goal   # travel to goal, no more breaks
-
-                    #     tt += time_callback(manager.NodeToIndex(fr),
-                    #                         manager.NodeToIndex(node))
-                    #     tt += time_callback(manager.NodeToIndex(node),
-                    #                         manager.NodeToIndex(goal))
-                    #     dt += drive_callback(manager.NodeToIndex(fr),
-                    #                          manager.NodeToIndex(node))
-                    #     dt += drive_callback(manager.NodeToIndex(node),
-                    #                          manager.NodeToIndex(goal))
-
-
-                    #     # keep an eye on things
-                    #     if debug:
-                    #         print ('can reach goal with no more breaks\n',
-                    #                'brk_idx',brk_idx,'of',len(break_list),
-                    #                'tt_fr_node',tt_fr_node,
-                    #                'tt_node_goal',tt_node_goal,
-                    #                'prior',prior,
-                    #                'goal',goal,
-                    #                'from break',fr,
-                    #                'break node',node,
-                    #                'dt',dt,
-                    #                'drive_time',drive_time,
-                    #                'tt',tt,
-                    #                'travel_time',travel_time,'\n',record)
-
-                    #     assert int(dt) == int(drive_time)
-                    #     assert int(tt) == int(travel_time)
-                    #     next_goal = cycler(goal)
-                    #     reached_depot = next_goal == -1
-                    #     if not reached_depot:
-                    #         trip_chain.append(goal)
-                    #         prior = goal
-                    #         goal = next_goal
-                    #     node = -1
-                    # else:
-                    #     # will need to visit another break node
-                    #     # account for getting to and taking this break
-
-                    #     travel_time += demand.get_service_time(fr) # pickup or dropoff
-                    #     travel_time += tt_fr_node    # travel
-                    #     # ditto drive time
-                    #     drive_time += tt_fr_node              # travel
-                    #     tt += time_callback(manager.NodeToIndex(fr),
-                    #                         manager.NodeToIndex(node))
-                    #     dt += drive_callback(manager.NodeToIndex(fr),
-                    #                          manager.NodeToIndex(node))
-                    #     if debug:
-                    #         print ('cannot reach goal, need another break\n',
-                    #                'brk_idx',brk_idx,'of',len(break_list),
-                    #                'tt_fr_node',tt_fr_node,
-                    #                'tt_node_goal',tt_node_goal,
-                    #                'prior',prior,
-                    #                'goal',goal,
-                    #                'from break',fr,
-                    #                'break node',node,
-                    #                'dt',dt,
-                    #                'drive_time',drive_time,
-                    #                'tt',tt,
-                    #                'travel_time',travel_time,'\n',record)
-                    #     # actually, the following asserts are not true
-                    #     # because this logic is out of sync...the
-                    #     # transit at the break node is already
-                    #     # accounted for at this time
-                    #     assert int(dt) == int(drive_time)
-                    #     assert int(tt) == int(travel_time)
-
-                    #     # so now add in the transit of the break node
-                    #     travel_time += bn.break_time # take a break
-                    #     drive_time += bn.drive_time_restore() # break reset the clock
-
-                    #     # loop
-                    #     fr = node
-                    #     node = break_list[brk_idx]
 
         # examine chain and insert 30 min breaks before every 11 hr
         # break---because I'm too lazy to do that above right now, so
@@ -308,10 +219,10 @@ def initial_routes(demand,vehicles,time_matrix,
         prior = 0
         travel_time = 0
         drive_time = 0
-    print(time_matrix)
-    print(trip_chains)
-    print(travel_times)
-    print(drive_times)
-    print(short_times)
+    # print(time_matrix)
+    # print(trip_chains)
+    # print(travel_times)
+    # print(drive_times)
+    # print(short_times)
 
     return trip_chains
