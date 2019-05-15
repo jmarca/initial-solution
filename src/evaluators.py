@@ -203,22 +203,35 @@ def create_time_callback2(travel_minutes_matrix,
 
     node_list = [(n,demand) for n in travel_minutes_matrix.index]
     # print('len node list is ',len(node_list))
-    ncpus = len(os.sched_getaffinity(0))
-    p = Pool(ncpus)
-    node_demand_service_list = p.map(make_location_data,node_list)
+    # ncpus = 3# len(os.sched_getaffinity(0))
+    # p = Pool(ncpus)
+    # node_demand_service_list = p.map(make_location_data,node_list)
     # print(node_demand_service_list)
+    size = len(travel_minutes_matrix)
+    service_time = np.zeros((size,size))
+    notna = travel_minutes_matrix.notna()
+    tmm_index = travel_minutes_matrix.index
+    # service time is determined by from node
+    for o_idx in tmm_index:
+        o_sv = demand.get_service_time(o_idx)
+        o_bk = demand.get_break_node(o_idx)
+        if o_bk:
+            o_sv = o_bk.break_time
+        for d_idx in tmm_index[notna.loc[o_idx,:]]:
+            if o_idx != d_idx:
+                service_time[o_idx,d_idx] = o_sv
 
-    travel_times = p.map(f,iter.product(node_demand_service_list,repeat=2))
-    df_stacked_service_time = pd.DataFrame(travel_times,columns=['from','to','service_time'])
+    # travel_times = p.map(f,iter.product(node_demand_service_list,repeat=2))
+    # df_stacked_service_time = pd.DataFrame(travel_times,columns=['from','to','service_time'])
     # print(df_stacked_service_time)
-    df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')
-
+    #df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')
+    df_service_time = pd.DataFrame(service_time)
+    #print(df_service_time)
+    #print(travel_minutes_matrix)
+    #print(df_service_time + travel_minutes_matrix)
     _total_time = (df_service_time + travel_minutes_matrix).fillna(penalty_time).values
-    # print(df_service_time)
-    # print(travel_minutes_matrix.loc[:,[0,1,5,15,16,17,18]])
-    # print(df_service_time + travel_minutes_matrix)
     # print (pd.DataFrame.from_dict(_total_time,orient='index'))
-
+    #assert 0
     def time_callback(manager, from_index, to_index):
         """Returns the travel time between the two nodes."""
         # Convert from routing variable Index to distance matrix NodeIndex.
