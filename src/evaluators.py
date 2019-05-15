@@ -34,7 +34,8 @@ def create_time_callback(travel_minutes_matrix,
 
     """
     # preprocess travel and service time to speed up solver
-
+    print("deprecated")
+    assert 0
     number = len(travel_minutes_matrix)
     max_time = travel_minutes_matrix.max().max()
     penalty_time =  int(10000000 * max_time)
@@ -56,7 +57,7 @@ def create_time_callback(travel_minutes_matrix,
             # else:
             #     _total_time[from_node,to_node] = penalty_time
 
-    ncpus = len(os.sched_getaffinity(0))
+    ncpus = 3#len(os.sched_getaffinity(0))
     p = Pool(ncpus)
 
     # nodes are in travel time matrix
