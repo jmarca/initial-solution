@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import itertools
 import read_csv as reader
 import breaks
 import sys
@@ -21,8 +22,10 @@ class Demand():
                  time_matrix,
                  horizon,
                  pickup_time=15,
-                 dropoff_time=15):
+                 dropoff_time=15,
+                 debug = False):
 
+        self.debug = debug
         demand = reader.load_demand_from_csv(filename)
         # for now, just use identical pickup and dropoff times
         demand['pickup_time']=pickup_time
@@ -40,38 +43,79 @@ class Demand():
 
             """
             feasible = True
+            constraint = "None"
             # depot to origin
             do_tt = time_matrix.loc[0,record.from_node]
-            # 11 hr drive rule
-            do_breaks = math.floor(do_tt/60/11)
+
             # origin to destination
             od_tt = time_matrix.loc[record.from_node,record.to_node]
-            # 11 hr drive rule
-            od_breaks = math.floor(od_tt/60/11)
+
             # destination to depot
             dd_tt = time_matrix.loc[record.to_node,0]
-            # 11 hr drive rule
-            dd_breaks = math.floor(dd_tt/60/11)
 
-            depot_origin_tt = do_tt + do_breaks*600
-            round_trip = (record.pickup_time +
-                          od_tt + od_breaks*600 +
-                          record.dropoff_time +
-                          dd_tt + dd_breaks*600 )
-            if record.early > depot_origin_tt:
-                round_trip += record.early
-            else:
-                # don't use early time.  earliest arrival possible is depot_origin_tt
-                round_trip += depot_origin_tt
+            # 11 hr drive rule, calc number of breaks
+            total_breaks = math.floor( (do_tt+od_tt+dd_tt) / (60*11) )
+            cumul_break_time = total_breaks * 600
 
-            if round_trip > horizon:
-                print("Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,round_trip,horizon))
+            do_breaks = math.floor(do_tt/(11*60))
+            # for each long break, will also need at least one short break
+            # but *might* need another if drive time works out that way
+            # drive time is do_tt
+            # every 11 hr, 8 hr clock resets to zero
+            do_short_breaks = do_breaks
+            if do_tt - (do_breaks*11*60) > 8*60:
+                #print('need another break')
+                do_short_breaks += 1
+
+            depot_origin_tt = do_tt + do_breaks*600 + do_short_breaks*30 + record.pickup_time
+
+            pickup_to_depot_breaks = total_breaks - do_breaks
+            # ditto the above logic
+            pickup_to_depot_short_breaks = pickup_to_depot_breaks
+            if (od_tt + dd_tt) - (pickup_to_depot_breaks*11*60) > 8*60:
+                # print('need another break for return to depot')
+                pickup_to_depot_short_breaks += 1
+
+
+            od_breaks = math.floor((do_tt + od_tt)/(11*60)) - do_breaks
+
+            earliest_pickup = record.early
+            if record.early < depot_origin_tt:
+                earliest_pickup = depot_origin_tt
+
+            time_return_depot = (earliest_pickup + # arrive at orign
+                                 record.pickup_time + # load up
+                                 od_tt + dd_tt +      # link travel time
+                                 record.dropoff_time +# unload
+                                 pickup_to_depot_breaks*600 + # required 10hr breaks
+                                 pickup_to_depot_short_breaks*30) # required 30min breaks
+
+
+            time_destination = (earliest_pickup + # arrive at orign
+                                record.pickup_time + # load up
+                                dd_tt +      # link travel time
+                                record.dropoff_time +# unload
+                                od_breaks*600 ) # required 10hr breaks from O to D
+
+            if time_return_depot > horizon:
+                constraint = "Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,time_return_depot,horizon)
+                print(constraint)
                 feasible = False
             if depot_origin_tt > record.late:
-                print("Pair from {} to {} has infeasible pickup time.  {} is less than earliest arrival possible of {}".format(record.from_node,record.to_node,
-                                                                                                                               record.late,depot_origin_tt))
+                constraint = "Pair from {} to {} has infeasible pickup time.  {} is less than earliest arrival possible of {}".format(record.from_node,record.to_node,
+                                                                                                                               record.late,depot_origin_tt)
+                print(constraint)
                 feasible = False
-            return pd.Series([math.ceil(round_trip),math.ceil(do_tt + do_breaks*600),feasible],index=['round_trip','depot_origin','feasible'])
+            return pd.Series([math.ceil(time_return_depot),
+                              math.ceil(depot_origin_tt),
+                              math.ceil(time_destination),
+                              feasible,
+                              constraint],
+                             index=['round_trip',
+                                    'depot_origin',
+                                    'earliest_destination',
+                                    'feasible',
+                                    'constraint'])
 
         morecols = demand.apply(check_feasible,axis=1)
         # print(morecols)
@@ -113,11 +157,13 @@ class Demand():
         return self.equivalence.index.view(int)
 
     def get_map_node(self,demand_node):
+        if demand_node == 0:
+            return 0
         if demand_node in self.equivalence.index:
             return (self.equivalence.loc[demand_node].mapnode)
         # handles case of depot, and all augmenting nodes for
         # breaks, etc
-        return demand_node
+        return -1
 
     def get_service_time(self,demand_node):
         if demand_node in self.equivalence.index:
@@ -145,6 +191,7 @@ class Demand():
             min_intervals[i] += offset
         return min_intervals
 
+    """ deprecated """
     def get_first_break(self,num_veh,time_matrix):
 
         # function
@@ -214,6 +261,7 @@ class Demand():
             node_visit_transit[n] = int(self.get_service_time(n))
         return node_visit_transit
 
+    """ deprecated """
     def get_simple_breaks(self,num_veh,
                           time_matrix,
                           manager,
@@ -256,6 +304,7 @@ class Demand():
                 breaks[veh], veh, node_visit_transit)
         return breaks
 
+    """ deprecated """
     def get_breaks_synced_first(self,num_veh,
                                 time_matrix,
                                 manager,
@@ -306,6 +355,7 @@ class Demand():
                 breaks[veh], veh, node_visit_transit)
         return breaks
 
+    """ deprecated """
     def get_breaks_synced_first_variable(self,num_veh,
                                          time_matrix,
                                          manager,
@@ -365,6 +415,7 @@ class Demand():
                 breaks[veh], veh, node_visit_transit)
         return breaks
 
+    """ deprecated """
     def get_breaks_unsynced_variable(self,num_veh,
                                      time_matrix,
                                      manager,
@@ -424,98 +475,15 @@ class Demand():
                 breaks[veh], veh, node_visit_transit)
         return breaks
 
+    def get_starting_times(self):
+        """get a list of starting time windows, and the longest time to depot,
+        in order to approximate likely time windows for vehicle
+        starts
 
-    def get_variable_nth_break(self,num_veh,
-                      time_matrix,
-                      manager,
-                      routing,
-                      time_dimension,
-                      count_dimension):
+        """
+        result = self.demand.loc[:,['depot_origin','early']].groupby(['early'],as_index=False)
+        return (result.count().get_values(),result.max().get_values())
 
-        # function
-        def trip_breaks(record,veh,routing):
-            """Use travel time matrix to compute timings for breaks.  Does not
-               assume the passed in record will be the first trip.
-               Does assume breaks are taken every 11 hours of driving
-
-            """
-            # is a break even relevant?
-            od_tt = time_matrix.loc[record.origin,record.destination]
-            if record.late + od_tt < 660:
-                # do not need a break
-                print('do not need a break when serving',record.origin)
-                print(record)
-                return None
-
-            breaks = []
-            # origin to destination drive time
-            o_idx = manager.NodeToIndex(record.origin)
-            d_idx = manager.NodeToIndex(record.destination)
-
-            # might or might not be a break on the way to origin from prior
-            # if there is, it happens every 11 hours of driving
-            # if not, then that means drive to origin is less than 11 hours
-            #
-            # If this location is first pickup, then break should be aligned
-            # arrival_time % 11.  Proof:
-            #
-            #   14 hrs % 11 = 3 ..  meaning break at 11, then drive 3 more hrs
-            #    8 hrs % 11 = 8 ..  meaning drive 8 hrs, no break yet
-            #
-            # If this is second plus pickup, then that is still true, (ignoring service times)
-            # suppose pickup 1 at 18hr, this pickup at 34hr
-            # 34 % 11 = 1, meaning one hour of driving into the next 11 hr period
-            # computing the long way
-            # pickup 1: 18 hrs % 11 = 7.
-            # drive 4 hrs, break, drive 11 hrs, break,
-            #
-            #
-            # last break end is arrive time - (arrive time mod 11)
-            # so next break is that plus 11
-            # first break time of drive to destination
-            first_break = time_dimension.CumulVar(o_idx)-(time_dimension.CumulVar(o_idx)%11)
-            active_node = routing.ActiveVar(o_idx)
-            same_vehicle_condition = active_node * routing.VehicleVar(o_idx) == veh
-            # break_relevant_condition
-
-            first_10hr_break = solver.FixedDurationIntervalVar(
-                # time_start, # minimum start time
-                first_break,  # maximum start time (11 hours after start)
-                10 * 60,     # duration of break is 10 hours
-                same_vehicle_condition,
-                'first 10hr break for vehicle {} serving {}'.format(veh,record.origin))
-            print(first_10hr_break)
-            breaks.append(first_10hr_break)
-
-            # calculate additional breaks
-
-            # 11 hr drive rule
-            od_breaks = math.floor(od_tt/60/11)
-            od_total_time = od_tt + od_breaks*600
-
-            # to satisfy this trip, vehicle must execute all required
-            # breaks
-            for intvl in range(1,od_breaks):
-                min_start_time = intvl*(10+11)*60
-                next_10hr_break = solver.FixedDurationStartSyncedOnStartIntervalVar(
-                    first_10hr_break,  # keyed to first
-                    600,               # duration
-                    min_start_time     # offset
-                )
-                breaks.append(next_10hr_break)
-                # conditions on these seem to have no effect
-                # the breaks execute or do not based on first break
-            return breaks
-
-
-
-
-        feasible_idx = self.demand.feasible
-        for idx in self.demand.index[feasible_idx]:
-            record = self.demand.loc[idx]
-            breaks[record.origin] = trip_breaks(record)
-
-        return breaks
 
     def get_demand(self,demand_node):
         if demand_node in self.equivalence.index:
@@ -572,8 +540,8 @@ class Demand():
         return df
 
 
-
-    def make_break_nodes(self,travel_times,timelength=600):
+    """deprecated"""
+    def insert_nodes_for_slack(self,travel_times,timelength=600):
         """Use travel time matrix, pickup and dropoff pairs to create the
         necessary break opportunities between pairs of nodes.  Assumes
         that travel_times are in solver space, that is, the original
@@ -618,7 +586,7 @@ class Demand():
             do_tt = travel_times.loc[0,record.origin]
             do_breaks = (math.floor(do_tt/60/11)) * 60*10
             do_total = do_tt + do_breaks
-            origin_trip_cost = record['round_trip'] - do_total
+            # origin_trip_cost = record['round_trip'] - do_total
 
             od_tt = travel_times.loc[record.origin,record.destination]
             od_breaks = (math.floor(do_tt/60/11)) * 60*10
@@ -655,4 +623,217 @@ class Demand():
 
         return travel_times # which holds everything of interest
 
-    # def apply_breaks_rules(self,vehicles,time_matrix,routing):
+
+    # FIXME need to expand this likely for the 30 minutes in 8 hours rule
+    def insert_nodes_for_breaks(self,travel_times):
+        """Use travel time matrix, pickup and dropoff pairs to create the
+        necessary dummy nodes for modeling breaks between pairs of nodes.
+
+        """
+
+        # logic:
+        #
+        # for each pickup and dropoff pair in the demand records,
+        #
+        #   split it in half, insert a break
+        #
+        # ditto for each dropoff node and pickup node pairing
+        # and for each dropoff node and depot node pairing
+        new_node = len(travel_times.index)
+        # gb = breaks.split_break_node_generator(travel_times)
+        # apply to demand pairs
+        feasible_index = self.demand.feasible
+        # can't use apply here...it breaks
+        # new_times_nodes = self.demand.loc[feasible_index,:].apply(gb,axis=1,result_type='reduce')
+        self.break_nodes = {}
+        self.break_node_chains = {}
+        self.break_node_chains[0]={}
+        new_times = []
+        new_nodes = []
+        for idx in self.demand.index[feasible_index]:
+            record = self.demand.loc[idx]
+            pair = breaks.split_break_node(record,travel_times,new_node)
+            # travel_times = breaks.aggregate_split_nodes(travel_times,pair[0])
+            new_times.extend(pair[0])
+            new_node = pair[2]
+            for bn in  pair[1]:
+                self.break_nodes[bn.node]=bn
+                # from 0, origin, or destination
+                if bn.destination == record.origin:
+                    # this break from depot to origin
+                    if not record.origin in self.break_node_chains[0]:
+                        self.break_node_chains[0][record.origin]=[]
+                    self.break_node_chains[0][record.origin].append(bn.node)
+                if bn.destination == record.destination:
+                    # this break from origin to destination
+                    if not record.origin in self.break_node_chains:
+                        self.break_node_chains[record.origin]={}
+                    if not record.destination in self.break_node_chains[record.origin]:
+                        self.break_node_chains[record.origin][record.destination]=[]
+                    self.break_node_chains[record.origin][record.destination].append(bn.node)
+                if bn.destination == 0:
+                    # this break from destination to depot
+                    if not record.destination in self.break_node_chains:
+                        self.break_node_chains[record.destination]={}
+                    if not 0 in self.break_node_chains[record.destination]:
+                        self.break_node_chains[record.destination][0]=[]
+                    self.break_node_chains[record.destination][0].append(bn.node)
+
+                # print('checking',bn.origin,bn.node,bn.destination)
+                # assert int(travel_times.loc[bn.origin,bn.node]) == bn.tt_o
+                # assert int(travel_times.loc[bn.node,bn.destination]) == bn.tt_d
+            assert new_node > max(self.break_nodes.keys())
+
+        # print(self.break_node_chains)
+
+        print('Next deal with destinations crossed with all origins')
+
+        # now do that for all destinations to all origins plus depot
+        # (0). Yes, this can blow up quite large so only merge those that
+        # are possible inside horizon given the total travel time
+
+
+        # new_node = len(travel_times.index)
+        destination_details = []
+        origin_details = []
+        for idx in self.demand.index[feasible_index]:
+            record = self.demand.loc[idx]
+            destination_details.append((record.destination,
+                                        record.earliest_destination,
+                                        record.origin))
+            origin_details.append((record.origin,
+                                   record.late))
+        last_didx = destination_details[-1][0]
+        for dd in destination_details:
+            didx = dd[0]
+            # moretimes = []
+            for oo in origin_details:
+                oidx = oo[0]
+                if dd[2] == oidx:
+                    # that means traveling back to origin, which is impossible
+                    continue
+                # what is min time to destination, and from then, can
+                # we get to origin before horizon?
+                tt = travel_times.loc[didx,oidx]
+                assert not np.isnan(tt)
+                if dd[1] + tt > self.horizon:
+                    if self.debug:
+                        print("can't get from",didx,"to",oidx,"before horizon")
+                    continue
+                # check that can get to next origin before its time horizon ends
+                if dd[1] + tt > oo[1]:
+                    if self.debug:
+                        print("can't get from",didx,"to",oidx,"before origin pickup horizon",oo[1])
+                    continue
+                # trip chain is possible, so split destination to origin
+                pair = breaks.break_node_splitter(dd[0],oo[0],tt,new_node)
+                new_times.extend(pair[0])
+                #print(new_times[-2])
+                #print(new_times[-1])
+
+                for nn in pair[1]:
+                    if self.debug:
+                        print('add new node',nn.node,'bewteen',nn.origin,nn.destination)
+                    self.break_nodes[nn.node] = nn
+                    if not dd[0] in self.break_node_chains:
+                        self.break_node_chains[dd[0]]={}
+                    if not dd[1] in self.break_node_chains[dd[0]]:
+                        self.break_node_chains[dd[0]][oo[0]]=[]
+                    self.break_node_chains[dd[0]][oo[0]].append(bn.node)
+                new_node = pair[2]
+
+
+        # print(len(self.break_nodes.keys()), len(travel_times.index))
+
+        # now at end of loop, incorporate the new travel times all at once
+        travel_times = breaks.aggregate_split_nodes(travel_times,new_times)
+        return travel_times # which holds everything of interest except self.break_nodes
+
+
+    def get_break_node_chain(self,from_node,to_node):
+        if from_node in self.break_node_chains:
+            if to_node in self.break_node_chains[from_node]:
+                return self.break_node_chains[from_node][to_node]
+        return None
+
+    def get_break_node(self,node):
+        if node in self.break_nodes:
+            return self.break_nodes[node]
+        return None
+
+    def breaks_at_nodes_constraints(self,
+                                    num_veh,
+                                    time_matrix,
+                                    manager,
+                                    routing,
+                                    time_dimension,
+                                    count_dimension,
+                                    drive_dimension,
+                                    short_break_dimension,
+                                    drive_dimension_start_value):
+
+        solver = routing.solver()
+
+        feasible_index = self.demand.feasible
+        for idx in self.demand.index[feasible_index]:
+            record = self.demand.loc[idx,:]
+            o_idx = manager.NodeToIndex(record.origin)
+            d_idx = manager.NodeToIndex(record.destination)
+            origin_active =routing.ActiveVar(o_idx)
+            dest_active =routing.ActiveVar(d_idx)
+
+            origin_drive = origin_active*drive_dimension.CumulVar(o_idx)
+            dest_drive = dest_active*drive_dimension.CumulVar(d_idx)
+
+            origin_short = origin_active*short_break_dimension.CumulVar(o_idx)
+            dest_short = dest_active*short_break_dimension.CumulVar(d_idx)
+
+            # this one on
+            solver.AddConstraint(origin_drive >= origin_active*drive_dimension_start_value)
+
+            # try this one off ?  need on for demand_12
+            solver.AddConstraint(origin_drive < origin_active*(drive_dimension_start_value)+660)
+            # try this one off?  haven't seen it triggered if left off, but
+            # doesn't speed up the solution any either
+            solver.AddConstraint(dest_drive >= dest_active*drive_dimension_start_value)
+
+            # try this one on its own.
+            solver.AddConstraint(dest_drive < dest_active*(drive_dimension_start_value)+660)
+
+            # same type of constraints for short drive dimension, except 8 hrs not 11 hrs
+
+            # troubles with letting the solver do it.  Try setting soft bounds?
+            solver.AddConstraint(origin_short < origin_active*(drive_dimension_start_value)+(8*60))
+            # short_break_dimension.SetCumulVarSoftUpperBound(o_idx,
+            #                                                 drive_dimension_start_value+(8*60),
+            #                                                 100000)
+
+            solver.AddConstraint(origin_short >= origin_active*drive_dimension_start_value)
+            # short_break_dimension.SetCumulVarSoftLowerBound(o_idx,
+            #                                                 drive_dimension_start_value,
+            #                                                 100000)
+
+            solver.AddConstraint(dest_short < dest_active*(drive_dimension_start_value)+(8*60))
+            # short_break_dimension.SetCumulVarSoftUpperBound(d_idx,
+            #                                                 drive_dimension_start_value+(8*60),
+            #                                                 1000000)
+
+            solver.AddConstraint(dest_short >= dest_active*drive_dimension_start_value)
+            # short_break_dimension.SetCumulVarSoftLowerBound(d_idx,
+            #                                                 drive_dimension_start_value+(8*60),
+            #                                                 100000)
+
+
+        # constraints on return to depot, otherwise we just collect
+        # break nodes on the way back and go deeply negative
+        for veh in range(0,num_veh):
+            index = routing.End(veh)
+            end_drive = drive_dimension.CumulVar(index)
+            end_short = short_break_dimension.CumulVar(index)
+            solver.AddConstraint(
+                end_drive >= drive_dimension_start_value)
+            solver.AddConstraint(
+                end_short >= drive_dimension_start_value)
+            # short_break_dimension.SetCumulVarSoftLowerBound(index,
+            #                                                 drive_dimension_start_value,
+            #                                                 1000000)
