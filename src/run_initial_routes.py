@@ -16,22 +16,6 @@ import solution_output as SO
 
 import initial_routes as IR
 
-# def resume_routing(file):
-#     print('reading',file)
-#     try:
-#         with open(file, 'rb') as input:
-#             routing = pickle.load(input)
-
-#     except FileNotFoundError:
-#         print("Cache file not found")
-#         assert 0
-#         # have to fetch from service
-
-#     except EOFError:
-#         print("Ran out of input in cache...recomputing")
-#         assert 0
-
-
 
 def main():
     """Entry point of the program."""
@@ -42,8 +26,10 @@ def main():
                         help='CSV file for travel matrix (distances)')
     parser.add_argument('-d,--demandfile', type=str, dest='demand',
                         help='CSV file for demand pairs (origin, dest, time windows)')
-    parser.add_argument('-o,--output', type=str, dest='output', default='output.csv',
+    parser.add_argument('-o,--vehicleoutput', type=str, dest='vehicle_output', default='vehicle_output.csv',
                         help='CSV file for dumping output')
+    parser.add_argument('--demandoutput', type=str, dest='demand_output', default='demand_output.csv',
+                        help='CSV file for dumping output for demand details')
     parser.add_argument('--speed', type=float, dest='speed', default=55.0,
                         help='Average speed, miles per hour.  Default is 55 (miles per hour).  Distance unit should match that of the matrix of distances.  The time part should be per hours')
     parser.add_argument('--maxtime', type=int, dest='horizon', default=10080,
@@ -59,40 +45,17 @@ def main():
     parser.add_argument('-t, --timelimit', type=int, dest='timelimit', default=5,
                         help='Maximum run time for solver, in minutes.  Default is 5 minutes.')
 
-    parser.add_argument('--expand', type=bool, dest='expand', default=False,
-                        help="Expand the time matrix to break long links.  Can help solver find a solution.  Defaults to False, which means to just use the input matrix.")
-
-    parser.add_argument('--maxlinktime', type=int, dest='timelength', default=600,
-                        help='If expand is true, this sets the maximum time for segments in the network.  Default is 600 minutes, or 10 hours.')
-
     parser.add_argument('--narrow_destination_timewindows', type=bool,
                         dest='destination_time_windows',
                         default=True,
                         help="If true, limit destination node time windows based on travel time from corresponding origin.  If false, destination nodes time windows are 0 to args.horizon.  Default true (limit the time window).")
 
-    parser.add_argument('--breaks_logic',type=int,dest='breaks_logic',default=None,
-                        help="Set the breaks logic.  \n1 => simple logic, fixed at 0 start time, all optional, specified individually;\n2 => fixed at start, not optional, 1+ breaks synced to first break")
-
-    parser.add_argument('--breaks_at_nodes', type=bool, dest='breaks_at_nodes', default=False,
-                        help="Expand the time matrix and break all links to include a dummy node for a break.  Defaults to false, which means nothing.")
-
     parser.add_argument('--drive_dim_start_value',type=int,dest='drive_dimension_start_value',default=1000,
-                        help="If you are breaking at nodes, the drive dimension can't go below zero.  So to get around this, the starting point for the drive time dimension has to be greater than zero.  The default is 1000.  Change it with this variable")
+                        help="Due to internal solver mechanics, the drive dimension can't go below zero (it gets truncated at zero).  So to get around this, the starting point for the drive time dimension has to be greater than zero.  The default is 1000.  Change it with this variable")
 
     parser.add_argument('--debug', type=bool, dest='debug', default=False,
                         help="Turn on some print statements.")
-
-    parser.add_argument('--force',type=bool,dest='force',default=False,
-                        help="This program is deprecated.  Set this to true in order to force running this code.")
-
     args = parser.parse_args()
-
-    if not args.force:
-        print('This program is deprecated.  You should be using run_initial_routes.py.')
-        assert 0
-    else:
-        print('This program is deprecated. You should be using run_initial_routes.py.')
-        print('But apparently you know what you are doing??')
 
     print('read in distance matrix')
     matrix = reader.load_matrix_from_csv(args.matrixfile)
@@ -103,48 +66,16 @@ def main():
 
     # convert nodes to solver space from input map space
     mm = d.generate_solver_space_matrix(minutes_matrix,args.horizon)
-    # ditto for space
-    # m = reader.travel_time(60/args.speed,minutes_matrix)
 
-    # create dummy nodes every 20 hours
-    # expanded_mm = minutes_matrix
-    # might want to expand matrix, but I don't see any benefit from this
-    expanded_mm = mm
-    if args.expand:
-        expanded_mm = d.insert_nodes_for_slack(mm,args.timelength)
-    if args.breaks_at_nodes:
-        expanded_mm = d.insert_nodes_for_breaks(mm)
+    # create dummy nodes for breaks
+    expanded_mm = d.insert_nodes_for_breaks(mm)
 
-    # print(expanded_mm)
-
-    # copy to distance matrix
+    # copy new nodes to distance matrix
     expanded_m = reader.travel_time(60/args.speed,expanded_mm)
     # print('original matrix of',len(matrix.index),'expanded to ',len(expanded_m.index))
 
     # vehicles:
     vehicles = V.Vehicles(args.numvehicles,args.horizon)
-
-    # the following was trying to hunt down a bug.  not needed
-    # timing_needs = d.get_starting_times()
-    # # first column is count, second is travel time from depot
-    # needs = {pair[0]:{'count':pair[1],'start':tn[0]-tn[1]}
-    #          for (pair,tn) in zip (timing_needs[0],timing_needs[1])}
-    # needed_vehicles = 0
-    # for i in timing_needs[0]:
-    #     needed_vehicles += i[1]
-    # print(needed_vehicles)
-    # if needed_vehicles < args.numvehicles:
-    #     print('might need more vehicles to serve demands if trips cannot be combined')
-    #     print (needs)
-    # veh = 0
-    # for nv in needs.values():
-    #     print(nv)
-    #     for i in range(0,nv['count']):
-    #         vehicles.vehicles[veh].time_window[0]=int(nv['start']-120)
-    #         veh += 1
-    # for veh in vehicles.vehicles:
-    #     print( veh.time_window)
-
 
     # Create the routing index manager.
 
@@ -152,8 +83,22 @@ def main():
     # probably should refactor to put time under control of
     # demand class
     num_nodes = len(expanded_mm.index)
-    print('solving with ',num_nodes,'nodes')
-    print(d.demand.loc[d.demand.feasible,:])
+    print('After augmenting network with break nodes, solving with ',num_nodes,'nodes')
+    #print(d.demand.loc[d.demand.feasible,:])
+    print(d.demand.loc[:,['from_node',
+                          'to_node',
+                          'early',
+                          'late',
+                          'pickup_time',
+                          'dropoff_time',
+                          'round_trip',
+                          'depot_origin',
+                          'earliest_destination',
+                          'feasible',
+                          'origin',
+                          'destination']])
+
+
     # print(expanded_mm)
     # assuming here that all depots are in the same place
     # and that vehicles all return to the same depot
@@ -163,24 +108,17 @@ def main():
         vehicles.vehicles[0].depot_index)
 
 
-    # Set model parameters
-    # model_parameters = pywrapcp.DefaultRoutingModelParameters()
     # Create Routing Model.
-    # routing = pywrapcp.RoutingModel(manager,model_parameters)
     routing = pywrapcp.RoutingModel(manager)
     #solver = routing.solver()
+
     print('creating time callback for solver')
     # Define cost of each arc using travel time + service time
-    time_callback = None
 
-    if not args.breaks_at_nodes:
-        time_callback = partial(E.create_time_callback(expanded_mm, d),
-                                manager)
-    else:
-        # this version adds "service times" of 10 hours at breaks nodes.
-        # FIXME need to fix the callback to also handle 30 min breaks
-        time_callback = partial(E.create_time_callback2(expanded_mm, d),
-                                manager)
+    # this version adds "service times" of 10 hours at breaks nodes.
+    # FIXME need to fix the callback to also handle 30 min breaks
+    time_callback = partial(E.create_time_callback2(expanded_mm, d),
+                            manager)
 
     print('registering callbacks with routing solver')
     transit_callback_index = routing.RegisterTransitCallback(time_callback)
@@ -213,30 +151,56 @@ def main():
     # time_dimension.SetGlobalSpanCostCoefficient(100)
     # turned it on and nothing worked, so leave off
 
-    drive_dimension = None
+    print('create 11hr drive dimension')
     drive_dimension_name = 'Drive'
-    print('create drive dimension')
     # Add Drive dimension for breaks logic
-    if args.breaks_at_nodes:
+    print('creating drive callback for solver')
+    drive_callback = partial(E.create_drive_callback(expanded_mm,
+                                                     d,
+                                                     11*60,
+                                                     10*60),
+                             manager)
+    drive_callback_index = routing.RegisterTransitCallback(drive_callback)
+    routing.AddDimension(
+        drive_callback_index, # same "cost" evaluator as above
+        0,  # No slack for drive dimension? infinite slack?
+        args.horizon,  # max drive is end of drive horizon
+        False, # set to zero for each vehicle
+        drive_dimension_name)
+    drive_dimension = routing.GetDimensionOrDie(drive_dimension_name)
 
-        print('creating drive callback for solver')
-        drive_callback = partial(E.create_drive_callback(expanded_mm,
-                                                         d),
-                                 manager)
-        drive_callback_index = routing.RegisterTransitCallback(drive_callback)
-        routing.AddDimension(
-            drive_callback_index, # same "cost" evaluator as above
-            0,  # No slack for drive dimension? infinite slack?
-            args.horizon,  # max drive is end of drive horizon
-            False, # set to zero for each vehicle
-            drive_dimension_name)
-        drive_dimension = routing.GetDimensionOrDie(drive_dimension_name)
-
-    # constrain drive dimension to be drive_dimension_start_value at start, so avoid negative numbers
+    # constrain drive dimension to be drive_dimension_start_value at
+    # start, so avoid negative numbers
     for vehicle in vehicles.vehicles:
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
         routing.solver().Add(drive_dimension.CumulVar(index)==args.drive_dimension_start_value)
+
+    print('create 30 min break dimension')
+    short_break_dimension_name = 'Short Break'
+    # Add short_Break dimension for breaks logic
+    print('creating short_break callback for solver')
+    short_break_callback = partial(E.create_short_break_callback(expanded_mm,
+                                                                 d,
+                                                                 8*60,
+                                                                 30),
+                                   manager)
+
+    short_break_callback_index = routing.RegisterTransitCallback(short_break_callback)
+    routing.AddDimension(
+        short_break_callback_index, # modified "cost" evaluator as above
+        0,  # No slack
+        args.horizon,  # max horizon is horizon
+        False, # set to zero for each vehicle
+        short_break_dimension_name)
+    short_break_dimension = routing.GetDimensionOrDie(short_break_dimension_name)
+
+    # constrain short_break dimension to be drive_dimension_start_value at
+    # start, so avoid negative numbers
+    for vehicle in vehicles.vehicles:
+        vehicle_id = vehicle.index
+        index = routing.Start(vehicle_id)
+        routing.solver().Add(short_break_dimension.CumulVar(index)==args.drive_dimension_start_value)
 
 
     demand_evaluator_index = routing.RegisterUnaryTransitCallback(
@@ -337,7 +301,7 @@ def main():
     for vehicle in vehicles.vehicles:
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
-        print('vehicle time window:',vehicle_id,index,vehicle.time_window)
+        # print('vehicle time window:',vehicle_id,index,vehicle.time_window)
         # not really needed unless different from 0, horizon
         time_dimension.CumulVar(index).SetRange(vehicle.time_window[0],
                                                 vehicle.time_window[1])
@@ -346,52 +310,16 @@ def main():
 
     # [START breaks logic]
     print('apply break rules')
-    breaks = None
-    if args.breaks_logic==1:
-        breaks = d.get_simple_breaks(len(vehicles.vehicles),
-                                     expanded_mm,
-                                     manager,
-                                     routing,
-                                     time_dimension,
-                                     count_dimension)
-    if args.breaks_logic == 2:
-        breaks = d.get_breaks_synced_first(len(vehicles.vehicles),
-                                           expanded_mm,
-                                           manager,
-                                           routing,
-                                           time_dimension,
-                                           count_dimension)
-    if args.breaks_logic == 3:
-        breaks = d.get_breaks_synced_first_variable(len(vehicles.vehicles),
-                                                    expanded_mm,
-                                                    manager,
-                                                    routing,
-                                                    time_dimension,
-                                                    count_dimension)
-    if args.breaks_logic == 4:
-        breaks = d.get_breaks_unsynced_variable(len(vehicles.vehicles),
-                                                    expanded_mm,
-                                                    manager,
-                                                    routing,
-                                                    time_dimension,
-                                                    count_dimension)
-    if args.breaks_at_nodes:
-        d.breaks_at_nodes_constraints(len(vehicles.vehicles),
-                                      expanded_mm,
-                                      manager,
-                                      routing,
-                                      time_dimension,
-                                      count_dimension,
-                                      drive_dimension,
-                                      args.drive_dimension_start_value)
+    d.breaks_at_nodes_constraints(len(vehicles.vehicles),
+                                  expanded_mm,
+                                  manager,
+                                  routing,
+                                  time_dimension,
+                                  count_dimension,
+                                  drive_dimension,
+                                  short_break_dimension,
+                                  args.drive_dimension_start_value)
 
-        breaks = []
-    if breaks == None:
-        print('invalid breaks strategy')
-        assert 0
-
-
-    # did it work?
     print('breaks done')
 
     # # prevent impossible next nodes
@@ -462,46 +390,46 @@ def main():
     # print("Done Writing routing object to file routing.pkl")
 
 
-    if args.breaks_at_nodes:
-        # set up initial routes
-        trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
-                                        manager,
-                                        time_callback,
-                                        drive_callback,
-                                        debug = args.debug)
+    # set up initial routes
+    trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
+                                    manager,
+                                    time_callback,
+                                    drive_callback,
+                                    short_break_callback,
+                                    debug = args.debug)
 
-        initial_routes = [v for v in trip_chains.values()]
-        print(initial_routes)
+    initial_routes = [v for v in trip_chains.values()]
+    #print(initial_routes)
 
-        initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
-                                                            True)
+    routing.CloseModelWithParameters(parameters)
+    initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
+                                                        True)
 
-        # debug loop which is the bug?
-        if not initial_solution:
-            bug_route = []
-            for route in initial_routes:
-                single_solution = routing.ReadAssignmentFromRoutes([route],
-                                                                    True)
-                if not single_solution:
-                    bug_route.append(route)
-            for route in bug_route:
-                for node in route:
-                    print(d.get_map_node(node))
-
-        assert initial_solution
-        print('Initial solution:')
-        SO.print_initial_solution(d,expanded_m,expanded_mm,
-                              vehicles,manager,routing,initial_solution,args.horizon)
+    # debug loop which is the bug?
+    if not initial_solution:
+        bug_route = []
+        for route in initial_routes:
+            single_solution = routing.ReadAssignmentFromRoutes([route],
+                                                                True)
+            if not single_solution:
+                bug_route.append(route)
+        print(bug_route)
+    assert initial_solution
+    print('Initial solution:')
+    SO.print_initial_solution(d,expanded_m,expanded_mm,
+                          vehicles,manager,routing,initial_solution,args.horizon)
 
 
 
     print('Calling the solver')
     # [START solve]
-    if args.breaks_at_nodes:
-        assignment = routing.SolveFromAssignmentWithParameters(
-            initial_solution, parameters)
-    else:
-        assignment = routing.SolveWithParameters(parameters)
+
+    assignment = routing.SolveFromAssignmentWithParameters(
+        initial_solution, parameters)
+
+
+
+
     # [END solve]
 
     if assignment:
@@ -515,11 +443,15 @@ def main():
         print('The Objective Value is {0}'.format(assignment.ObjectiveValue()))
         print('details:')
         SO.print_solution(d,expanded_m,expanded_mm,
-                          vehicles,manager,routing,assignment,args.horizon)
+                          vehicles,manager,routing,assignment,args.horizon,
+                          args.drive_dimension_start_value)
 
         SO.csv_output(d,expanded_m,expanded_mm,
                       vehicles,manager,routing,assignment,args.horizon,
-                      args.output)
+                      args.vehicle_output)
+        SO.csv_demand_output(d,expanded_m,expanded_mm,
+                             vehicles,manager,routing,assignment,args.horizon,
+                             args.demand_output)
 
     else:
         print('assignment failed')

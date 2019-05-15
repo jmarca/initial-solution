@@ -33,4 +33,4 @@ def load_matrix_from_csv(filename):
 
 def travel_time(speed,matrix):
     """convert the distance matrix into a travel time matrix"""
-    return matrix.copy().div(speed)
+    return matrix.copy().floordiv(speed)
