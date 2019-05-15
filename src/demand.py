@@ -58,9 +58,24 @@ class Demand():
             cumul_break_time = total_breaks * 600
 
             do_breaks = math.floor(do_tt/(11*60))
-            depot_origin_tt = do_tt + do_breaks*600 + record.pickup_time
+            # for each long break, will also need at least one short break
+            # but *might* need another if drive time works out that way
+            # drive time is do_tt
+            # every 11 hr, 8 hr clock resets to zero
+            do_short_breaks = do_breaks
+            if do_tt - (do_breaks*11*60) > 8*60:
+                #print('need another break')
+                do_short_breaks += 1
+
+            depot_origin_tt = do_tt + do_breaks*600 + do_short_breaks*30 + record.pickup_time
 
             pickup_to_depot_breaks = total_breaks - do_breaks
+            # ditto the above logic
+            pickup_to_depot_short_breaks = pickup_to_depot_breaks
+            if (od_tt + dd_tt) - (pickup_to_depot_breaks*11*60) > 8*60:
+                # print('need another break for return to depot')
+                pickup_to_depot_short_breaks += 1
+
 
             od_breaks = math.floor((do_tt + od_tt)/(11*60)) - do_breaks
 
@@ -72,7 +87,9 @@ class Demand():
                                  record.pickup_time + # load up
                                  od_tt + dd_tt +      # link travel time
                                  record.dropoff_time +# unload
-                                 pickup_to_depot_breaks*600 ) # required 10hr breaks
+                                 pickup_to_depot_breaks*600 + # required 10hr breaks
+                                 pickup_to_depot_short_breaks*30) # required 30min breaks
+
 
             time_destination = (earliest_pickup + # arrive at orign
                                 record.pickup_time + # load up
@@ -636,8 +653,9 @@ class Demand():
         for idx in self.demand.index[feasible_index]:
             record = self.demand.loc[idx]
             pair = breaks.split_break_node(record,travel_times,new_node)
-            travel_times = breaks.aggregate_split_nodes(travel_times,pair[0])
-            # print(travel_times)
+            # travel_times = breaks.aggregate_split_nodes(travel_times,pair[0])
+            new_times.extend(pair[0])
+            new_node = pair[2]
             for bn in  pair[1]:
                 self.break_nodes[bn.node]=bn
                 # from 0, origin, or destination
@@ -662,10 +680,10 @@ class Demand():
                     self.break_node_chains[record.destination][0].append(bn.node)
 
                 # print('checking',bn.origin,bn.node,bn.destination)
-                assert int(travel_times.loc[bn.origin,bn.node]) == bn.tt_o
-                assert int(travel_times.loc[bn.node,bn.destination]) == bn.tt_d
-            new_node = len(travel_times.index)
+                # assert int(travel_times.loc[bn.origin,bn.node]) == bn.tt_o
+                # assert int(travel_times.loc[bn.node,bn.destination]) == bn.tt_d
             assert new_node > max(self.break_nodes.keys())
+
         # print(self.break_node_chains)
 
         print('Next deal with destinations crossed with all origins')
@@ -675,7 +693,7 @@ class Demand():
         # are possible inside horizon given the total travel time
 
 
-        new_node = len(travel_times.index)
+        # new_node = len(travel_times.index)
         destination_details = []
         origin_details = []
         for idx in self.demand.index[feasible_index]:
@@ -688,7 +706,7 @@ class Demand():
         last_didx = destination_details[-1][0]
         for dd in destination_details:
             didx = dd[0]
-            moretimes = []
+            # moretimes = []
             for oo in origin_details:
                 oidx = oo[0]
                 if dd[2] == oidx:
@@ -709,7 +727,10 @@ class Demand():
                     continue
                 # trip chain is possible, so split destination to origin
                 pair = breaks.break_node_splitter(dd[0],oo[0],tt,new_node)
-                moretimes.append(pair[0])
+                new_times.extend(pair[0])
+                #print(new_times[-2])
+                #print(new_times[-1])
+
                 for nn in pair[1]:
                     if self.debug:
                         print('add new node',nn.node,'bewteen',nn.origin,nn.destination)
@@ -721,9 +742,11 @@ class Demand():
                     self.break_node_chains[dd[0]][oo[0]].append(bn.node)
                 new_node = pair[2]
 
-            print(didx,'of',last_didx,'append',len(moretimes),'more')
-            travel_times = breaks.aggregate_split_nodes(travel_times,moretimes)
+
         # print(len(self.break_nodes.keys()), len(travel_times.index))
+
+        # now at end of loop, incorporate the new travel times all at once
+        travel_times = breaks.aggregate_split_nodes(travel_times,new_times)
         return travel_times # which holds everything of interest except self.break_nodes
 
 
@@ -746,6 +769,7 @@ class Demand():
                                     time_dimension,
                                     count_dimension,
                                     drive_dimension,
+                                    short_break_dimension,
                                     drive_dimension_start_value):
 
         solver = routing.solver()
@@ -761,6 +785,9 @@ class Demand():
             origin_drive = origin_active*drive_dimension.CumulVar(o_idx)
             dest_drive = dest_active*drive_dimension.CumulVar(d_idx)
 
+            origin_short = origin_active*short_break_dimension.CumulVar(o_idx)
+            dest_short = dest_active*short_break_dimension.CumulVar(d_idx)
+
             # this one on
             solver.AddConstraint(origin_drive >= origin_active*drive_dimension_start_value)
 
@@ -773,10 +800,40 @@ class Demand():
             # try this one on its own.
             solver.AddConstraint(dest_drive < dest_active*(drive_dimension_start_value)+660)
 
+            # same type of constraints for short drive dimension, except 8 hrs not 11 hrs
+
+            # troubles with letting the solver do it.  Try setting soft bounds?
+            solver.AddConstraint(origin_short < origin_active*(drive_dimension_start_value)+(8*60))
+            # short_break_dimension.SetCumulVarSoftUpperBound(o_idx,
+            #                                                 drive_dimension_start_value+(8*60),
+            #                                                 100000)
+
+            solver.AddConstraint(origin_short >= origin_active*drive_dimension_start_value)
+            # short_break_dimension.SetCumulVarSoftLowerBound(o_idx,
+            #                                                 drive_dimension_start_value,
+            #                                                 100000)
+
+            solver.AddConstraint(dest_short < dest_active*(drive_dimension_start_value)+(8*60))
+            # short_break_dimension.SetCumulVarSoftUpperBound(d_idx,
+            #                                                 drive_dimension_start_value+(8*60),
+            #                                                 1000000)
+
+            solver.AddConstraint(dest_short >= dest_active*drive_dimension_start_value)
+            # short_break_dimension.SetCumulVarSoftLowerBound(d_idx,
+            #                                                 drive_dimension_start_value+(8*60),
+            #                                                 100000)
+
+
         # constraints on return to depot, otherwise we just collect
-        # break nodes on the way back
+        # break nodes on the way back and go deeply negative
         for veh in range(0,num_veh):
             index = routing.End(veh)
             end_drive = drive_dimension.CumulVar(index)
+            end_short = short_break_dimension.CumulVar(index)
             solver.AddConstraint(
                 end_drive >= drive_dimension_start_value)
+            solver.AddConstraint(
+                end_short >= drive_dimension_start_value)
+            # short_break_dimension.SetCumulVarSoftLowerBound(index,
+            #                                                 drive_dimension_start_value,
+            #                                                 1000000)

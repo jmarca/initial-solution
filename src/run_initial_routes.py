@@ -151,13 +151,14 @@ def main():
     # time_dimension.SetGlobalSpanCostCoefficient(100)
     # turned it on and nothing worked, so leave off
 
-    drive_dimension = None
+    print('create 11hr drive dimension')
     drive_dimension_name = 'Drive'
-    print('create drive dimension')
     # Add Drive dimension for breaks logic
     print('creating drive callback for solver')
     drive_callback = partial(E.create_drive_callback(expanded_mm,
-                                                     d),
+                                                     d,
+                                                     11*60,
+                                                     10*60),
                              manager)
     drive_callback_index = routing.RegisterTransitCallback(drive_callback)
     routing.AddDimension(
@@ -174,6 +175,32 @@ def main():
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
         routing.solver().Add(drive_dimension.CumulVar(index)==args.drive_dimension_start_value)
+
+    print('create 30 min break dimension')
+    short_break_dimension_name = 'Short Break'
+    # Add short_Break dimension for breaks logic
+    print('creating short_break callback for solver')
+    short_break_callback = partial(E.create_short_break_callback(expanded_mm,
+                                                                 d,
+                                                                 8*60,
+                                                                 30),
+                                   manager)
+
+    short_break_callback_index = routing.RegisterTransitCallback(short_break_callback)
+    routing.AddDimension(
+        short_break_callback_index, # modified "cost" evaluator as above
+        0,  # No slack
+        args.horizon,  # max horizon is horizon
+        False, # set to zero for each vehicle
+        short_break_dimension_name)
+    short_break_dimension = routing.GetDimensionOrDie(short_break_dimension_name)
+
+    # constrain short_break dimension to be drive_dimension_start_value at
+    # start, so avoid negative numbers
+    for vehicle in vehicles.vehicles:
+        vehicle_id = vehicle.index
+        index = routing.Start(vehicle_id)
+        routing.solver().Add(short_break_dimension.CumulVar(index)==args.drive_dimension_start_value)
 
 
     demand_evaluator_index = routing.RegisterUnaryTransitCallback(
@@ -290,6 +317,7 @@ def main():
                                   time_dimension,
                                   count_dimension,
                                   drive_dimension,
+                                  short_break_dimension,
                                   args.drive_dimension_start_value)
 
     print('breaks done')
@@ -367,11 +395,13 @@ def main():
                                     manager,
                                     time_callback,
                                     drive_callback,
+                                    short_break_callback,
                                     debug = args.debug)
 
     initial_routes = [v for v in trip_chains.values()]
     #print(initial_routes)
 
+    routing.CloseModelWithParameters(parameters)
     initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
                                                         True)
 
@@ -383,10 +413,7 @@ def main():
                                                                 True)
             if not single_solution:
                 bug_route.append(route)
-        for route in bug_route:
-            for node in route:
-                print(d.get_map_node(node))
-
+        print(bug_route)
     assert initial_solution
     print('Initial solution:')
     SO.print_initial_solution(d,expanded_m,expanded_mm,
@@ -399,6 +426,9 @@ def main():
 
     assignment = routing.SolveFromAssignmentWithParameters(
         initial_solution, parameters)
+
+
+
 
     # [END solve]
 
@@ -413,7 +443,8 @@ def main():
         print('The Objective Value is {0}'.format(assignment.ObjectiveValue()))
         print('details:')
         SO.print_solution(d,expanded_m,expanded_mm,
-                          vehicles,manager,routing,assignment,args.horizon)
+                          vehicles,manager,routing,assignment,args.horizon,
+                          args.drive_dimension_start_value)
 
         SO.csv_output(d,expanded_m,expanded_mm,
                       vehicles,manager,routing,assignment,args.horizon,
