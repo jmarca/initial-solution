@@ -170,6 +170,8 @@ def print_solution(demand,
         if drive_dimension:
             drive_var = drive_dimension.CumulVar(index)
             drive_time = assignment.Value(drive_var)
+            short_var = short_dimension.CumulVar(index)
+            short_time = assignment.Value(short_var)
             plan_output += 'End:{0}, Load({1}), 10hr Break Time {7}, 30min Break Time {8},  Time({2},{3})  Elapsed time({4}) Link:(Time {9}, Dist {5} mi), visits {6}\n'.format(
                 manager.IndexToNode(index),
                 assignment.Value(load_var),
