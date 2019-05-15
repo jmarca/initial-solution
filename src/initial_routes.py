@@ -132,7 +132,10 @@ def initial_routes(demand,vehicles,time_matrix,
                             sbk = lbk
                             brk_idx += 1
                             lbk = breaks[brk_idx+1]
-                    print(brk_idx,sbk.break_time,30,lbk.break_time,600)
+                    if debug:
+                        print('break index',brk_idx,
+                              'short break',sbk.break_time,
+                              'long break',lbk.break_time)
                     assert lbk.break_time == 600
                     assert sbk.break_time == 30
 
@@ -141,23 +144,67 @@ def initial_routes(demand,vehicles,time_matrix,
                     tt_fr_sbk = time_matrix.loc[fr,sbk.node]
                     tt_sbk_lbk = time_matrix.loc[sbk.node,goal]
                     tt_lbk_goal = time_matrix.loc[lbk.node,goal]
-                    # in the zeroth case, must visit one of the break nodes
-                    # test short break first
+                    if debug:
+                        print('tt remaining to goal',tt_fr_goal,
+                              'tt to short break',tt_fr_sbk,
+                              'tt to long break',tt_fr_lbk)
+
+                    # test long break first
                     take_sbk = False
                     take_lbk = False
                     if (drive_time + tt_fr_goal) >= 660:
-                        print('lbk true',drive_time,tt_fr_goal,drive_time+tt_fr_goal)
+                        if debug:
+                            print('lbk true',lbk.node,
+                                  'drive time',drive_time,
+                                  'tt to goal',tt_fr_goal,
+                                  'sum',drive_time+tt_fr_goal,
+                                  'tt to long break',tt_fr_lbk,
+                                  'sum',drive_time+tt_fr_lbk)
                         # will need to take long break
                         take_lbk = True
                         # lbk can satisfy for short break, unless it will
                         # take > 8hr to get to lbk
-                        if short_time + tt_fr_lbk >= 480:
-                            print('sbk true dependent on lbk true?',
-                                  short_time, tt_fr_lbk,short_time + tt_fr_lbk)
+                        # but break opportunities are NOT lined up
+                        # with 660, 480, so account for that wrinkle
+
+                        actual_break = tt_fr_lbk
+                        if tt_fr_lbk < 660:
+                            actual_break = 660 - drive_time
+                        if (short_time + actual_break )>= 480:
+                            if debug:
+                                print('must take short break on way to long break',
+                                      'short time',short_time,
+                                      'tt to long break',tt_fr_lbk,
+                                      'sum',short_time + tt_fr_lbk,
+                                      'tt to short break',tt_fr_sbk,
+                                      'sum',short_time + tt_fr_sbk,
+                                )
                             # will need to take short break
                             take_sbk = True
+                        else:
+                            if debug:
+                                print('will not take short break on way to long break',
+                                      '\nfrom node',fr,
+                                      '\ngoal',goal,
+                                      '\nsbk',sbk.node,
+                                      '\nlbk',lbk.node,
+                                      '\nshort time',short_time,
+                                      '\ndrive time',drive_time,
+                                      '\ntt to long break',tt_fr_lbk,
+                                      '\nsum',short_time + tt_fr_lbk,
+                                      '\ntt to short break',tt_fr_sbk,
+                                      '\nsum',short_time + tt_fr_sbk,
+                                      '\nactual break hacky',actual_break,
+                                      '\ntt to goal',tt_fr_goal,
+                                      '\n',
+                                      trip_chain
+                                )
+                                #ttidx = [fr,sbk.node,lbk.node,goal]
+                                #print(time_matrix.loc[ttidx,ttidx])
+                                #assert 0
+
                     else:
-                        print('lbk false',drive_time,tt_fr_goal,drive_time+tt_fr_goal)
+                        # print('lbk false',drive_time,tt_fr_goal,drive_time+tt_fr_goal)
 
                         if debug:
                             print('do not need long break, drive time + remaining is', drive_time + tt_fr_goal, 660)
@@ -184,18 +231,17 @@ def initial_routes(demand,vehicles,time_matrix,
 
                     else:
                         if debug:
-                            print('did not take short break',
+                            print('did not take short break',sbk.node,
                                   'drive_time',drive_time,
                                   'fr_goal',tt_fr_goal,
-                                  drive_time+tt_fr_goal)
+                                  drive_time+tt_fr_goal,
+                                  'short_time',short_time,
+                                  short_time+tt_fr_goal)
                     if take_lbk:
                         trip_chain.append(lbk.node)
                         drive_time += tt_fr_lbk + lbk.drive_time_restore()
-                        if take_sbk:
-                            short_time += tt_fr_lbk - (660 - 480) # hack
-                        else:
-                            short_time += tt_fr_lbk - 480         # hack
-
+                        # never a case when long break not short break, so
+                        short_time += tt_fr_lbk - (660 - 480) # hack
                         fr = lbk.node
                         if debug:
                             print('take long brk',lbk.node,short_time,drive_time)
@@ -226,7 +272,31 @@ def initial_routes(demand,vehicles,time_matrix,
         # break---because I'm too lazy to do that above right now, so
         # let's see if this gives the solver a good enough start
         # expanded_chain = []
-        print(trip_chain) # before
+        if debug:
+            print(trip_chain) # before
+
+            # check callback values too
+            tt = 0
+            tt_chain = []
+            dt = 0
+            dt_chain = []
+            st = 0
+            st_chain = []
+            fr = 0
+            for tcidx in trip_chain:
+                tt += time_callback(manager.NodeToIndex(fr),
+                                    manager.NodeToIndex(tcidx))
+                dt += drive_callback(manager.NodeToIndex(fr),
+                                     manager.NodeToIndex(tcidx))
+                st += short_callback(manager.NodeToIndex(fr),
+                                     manager.NodeToIndex(tcidx))
+                tt_chain.append(tt)
+                dt_chain.append(dt)
+                st_chain.append(st)
+                fr = tcidx
+            print('travel time chain',tt_chain)
+            print('drive time chain',dt_chain)
+            print('short time chain',st_chain)
 
         # loop to next demand, next trip chain, next vehicle
         trip_chains[veh] = trip_chain

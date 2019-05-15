@@ -141,8 +141,6 @@ def e(pair):
     (a,b) = pair
     (from_node,from_demand,from_service) = a
     (to_node,to_demand,to_service) = b
-    if from_node in [0,3,4] and to_node in [0,3,4]:
-        print(a,b)
     value = from_service
     if value < -480:
         value = -480
@@ -226,18 +224,20 @@ def create_time_callback2(travel_minutes_matrix,
     # print(df_stacked_service_time)
     #df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')
     df_service_time = pd.DataFrame(service_time)
-    #print(df_service_time)
-    #print(travel_minutes_matrix)
-    #print(df_service_time + travel_minutes_matrix)
+    # check_chain = [0, 4, 3, 6, 5, 1, 13, 12, 15, 14, 17, 16, 2, 22, 21, 24, 23]
+    # print(df_service_time.loc[check_chain,check_chain])
+    # print(travel_minutes_matrix.loc[check_chain,check_chain])
+    # print((df_service_time + travel_minutes_matrix).loc[check_chain,check_chain])
     _total_time = (df_service_time + travel_minutes_matrix).fillna(penalty_time).values
     # print (pd.DataFrame.from_dict(_total_time,orient='index'))
-    #assert 0
+    # assert 0
+
     def time_callback(manager, from_index, to_index):
         """Returns the travel time between the two nodes."""
         # Convert from routing variable Index to distance matrix NodeIndex.
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        #print('time',from_node,to_node,_total_time[from_node,to_node])
+        # print('time',from_node,to_node,_total_time[from_node,to_node])
         return _total_time[from_node,to_node]
 
     # return the callback, which will need to be set up with partial
@@ -260,20 +260,39 @@ def create_drive_callback(travel_minutes_matrix,
     max_time = travel_minutes_matrix.max().max()
     penalty_time =  int(10000000 * max_time)
 
-    node_list = [(n,demand,period,break_time) for n in travel_minutes_matrix.index]
+    #node_list = [(n,demand,period,break_time) for n in travel_minutes_matrix.index]
     # print('len node list is ',len(node_list))
-    ncpus = len(os.sched_getaffinity(0))
-    p = Pool(ncpus)
-    node_demand_service_list = p.map(make_drive_data,node_list)
+    #ncpus = 3#len(os.sched_getaffinity(0))
+    #p = Pool(ncpus)
+    #node_demand_service_list = p.map(make_drive_data,node_list)
     # print(node_demand_service_list)
 
-    travel_times = p.map(f,iter.product(node_demand_service_list,repeat=2))
-    df_stacked_service_time = pd.DataFrame(travel_times,columns=['from','to','service_time'])
-    # print(df_stacked_service_time)
-    df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')
+    size = len(travel_minutes_matrix)
+    service_time = np.zeros((size,size))
+    notna = travel_minutes_matrix.notna()
+    tmm_index = travel_minutes_matrix.index
+    # service time is determined by from node
+    for o_idx in tmm_index:
+        o_sv = 0
+        o_bk = demand.get_break_node(o_idx)
+        if o_bk:
+            # drive callback only wants to know breaks of 600
+            if o_bk.break_time >= break_time:
+                o_sv = o_bk.drive_time_restore()
+        # again, from node is important
+        for d_idx in tmm_index[notna.loc[o_idx,:]]:
+            if o_idx != d_idx:
+                service_time[o_idx,d_idx] = o_sv
+
+    # travel_times = p.map(f,iter.product(node_demand_service_list,repeat=2))
+    # df_stacked_service_time = pd.DataFrame(travel_times,columns=['from','to','service_time'])
+    # # print(df_stacked_service_time)
+    # df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')
+    df_service_time = pd.DataFrame(service_time)
 
     _total_time = (df_service_time + travel_minutes_matrix).fillna(penalty_time).values
     #print(df_service_time + travel_minutes_matrix)
+    # assert 0
 
     def time_callback(manager, from_index, to_index):
         """Returns the travel time between the two nodes."""
@@ -297,35 +316,96 @@ def create_short_break_callback(travel_minutes_matrix,
        only visit break nodes if need to do so.
 
     """
+    if period < 0:
+        period = period * -1
     # preprocess travel and service time to speed up solver
     number = len(travel_minutes_matrix)
     max_time = travel_minutes_matrix.max().max()
     penalty_time =  int(10000000 * max_time)
 
-    node_list = [(n,demand,period,break_time) for n in travel_minutes_matrix.index]
-    # print('len node list is ',len(node_list))
-    ncpus = len(os.sched_getaffinity(0))
-    p = Pool(ncpus)
-    node_demand_service_list = p.map(make_drive_data,node_list)
-    # print(node_demand_service_list)
+    # node_list = [(n,demand,period,break_time) for n in travel_minutes_matrix.index]
+    # # print('len node list is ',len(node_list))
+    # ncpus = 3 #len(os.sched_getaffinity(0))
+    # p = Pool(ncpus)
+    # node_demand_service_list = p.map(make_drive_data,node_list)
+    # # print(node_demand_service_list)
 
-    travel_times = p.map(e,iter.product(node_demand_service_list,repeat=2))
-    df_stacked_service_time = pd.DataFrame(travel_times,columns=['from','to','service_time'])
-    # print(df_stacked_service_time)
-    df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')
+    size = len(travel_minutes_matrix)
+    service_time = np.zeros((size,size))
+    notna = travel_minutes_matrix.notna()
+    tmm_index = travel_minutes_matrix.index
+    check_chain = [0, 4, 3, 6, 5, 1, 13, 12, 15, 14, 17, 16, 2, 22, 21, 24, 23]
+    # service time is determined by from node
+    for o_idx in tmm_index:
+        o_sv = 0
+        value = 0
+        o_bk = demand.get_break_node(o_idx)
+        if o_bk:
+            # short break callback gets benefits from both short and long breaks
+            if o_bk.break_time >= break_time:
+                o_sv = o_bk.drive_time_restore()
+                value = o_sv
+                if o_sv < -period:
+                    # after trying a few things, it is never true that
+                    # a long break happens without a preceding short
+                    # break.  Therefore, if this is a long break, an
+                    # earlier short break already pushed the clock
+                    # back on the counter by 480, so here I only want
+                    # to push it back another 3 hours (to get it
+                    # aligned with the 11 hr long break timing
+                    value = -3*60 # same as o_sv - (-period)
+
+        # bail out if just going to assign 0
+        if o_sv != 0:
+            # again, from node is important, but here have to consider if
+            # moving from break to break
+            for d_idx in tmm_index[notna.loc[o_idx,:]]:
+                if o_idx != d_idx:
+                    service_time[o_idx,d_idx] = value
+                    # d_sv = 0
+                    # d_bk = demand.get_break_node(d_idx)
+                    # if d_bk:# and d_bk.break_time >= break_time:
+                    #     d_sv = d_bk.drive_time_restore()
+                    # # compare two service times
+                    # # if o_idx in check_chain and d_idx in check_chain:
+                    # #     print(o_idx,o_sv,d_idx,d_sv)
+                    # if d_sv >= 0:
+                    #     # moving from break to not break
+                    #     service_time[o_idx,d_idx] = value
+                    # else:
+                    #     # moving between breaks.
+                    #     if o_sv == -period and d_sv < -period:
+                    #         # moving from short to long
+                    #         # hardcoded hack
+                    #         service_time[o_idx,d_idx] = d_sv - value
+                    #     if o_sv < -period and d_sv == -period:
+                    #         # moving from long to short
+                    #         service_time[o_idx,d_idx] = value
+                    #     if d_sv < -period and o_sv < -period:
+                    #         # moving from long to long
+                    #         # shouldn't ever happen in practice, but whatever
+                    #         service_time[o_idx,d_idx] = value
+
+
+    # travel_times = p.map(e,iter.product(node_demand_service_list,repeat=2))
+    # df_stacked_service_time = pd.DataFrame(travel_times,columns=['from','to','service_time'])
+    # # print(df_stacked_service_time)
+    # df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')
+    df_service_time = pd.DataFrame(service_time)
 
     _total_time = (df_service_time + travel_minutes_matrix).fillna(penalty_time).values
-    checkroute = [0, 4, 3, 6, 1, 11, 10, 13, 12, 15, 14, 17, 16, 2]
-    print(travel_minutes_matrix.loc[checkroute,checkroute])
-    print(df_service_time.loc[checkroute,checkroute])
-    print((df_service_time + travel_minutes_matrix).loc[checkroute,checkroute])
+    # check_chain = [0, 4, 3, 6, 5, 1, 13, 12, 15, 14, 17, 16, 2, 22, 21, 24, 23]
+    # print(df_service_time.loc[check_chain,check_chain])
+    # print(travel_minutes_matrix.loc[check_chain,check_chain])
+    # print((df_service_time + travel_minutes_matrix).loc[check_chain,check_chain])
+
 
     def time_callback(manager, from_index, to_index):
         """Returns the travel time between the two nodes."""
         # Convert from routing variable Index to distance matrix NodeIndex.
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        # print('drive time',from_node,to_node,_total_time[from_node][to_node])
+        # print('short time',from_node,to_node,_total_time[from_node][to_node])
         return _total_time[from_node][to_node]
 
     # return the callback, which will need to be set up with partial
