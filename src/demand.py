@@ -58,7 +58,8 @@ class Demand():
             cumul_break_time = total_breaks * 600
 
             do_breaks = math.floor(do_tt/(11*60))
-            depot_origin_tt = do_tt + do_breaks*600 + record.pickup_time
+            # for each long break, will also need at least one short break
+            depot_origin_tt = do_tt + do_breaks*600 + do_breaks*30 + record.pickup_time
 
             pickup_to_depot_breaks = total_breaks - do_breaks
 
@@ -72,7 +73,9 @@ class Demand():
                                  record.pickup_time + # load up
                                  od_tt + dd_tt +      # link travel time
                                  record.dropoff_time +# unload
-                                 pickup_to_depot_breaks*600 ) # required 10hr breaks
+                                 pickup_to_depot_breaks*600 + # required 10hr breaks
+                                 pickup_to_depot_breaks*30) # required 30min breaks
+
 
             time_destination = (earliest_pickup + # arrive at orign
                                 record.pickup_time + # load up
@@ -712,7 +715,7 @@ class Demand():
                 pair = breaks.break_node_splitter(dd[0],oo[0],tt,new_node)
                 new_times.extend(pair[0])
                 #print(new_times[-2])
-                print(new_times[-1])
+                #print(new_times[-1])
 
                 for nn in pair[1]:
                     if self.debug:

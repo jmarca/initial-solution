@@ -164,7 +164,8 @@ def break_node_splitter(origin,destination,tt,min_start):
         node8=pair8[1]
         # need to insert ability to get from short break to destination too
         pair8[0][min_start][destination]=node8.tt_d+node11.tt_d
-
+        # need to correct the destination of the node8 too
+        node8.destination = destination
         min_start += 1
 
         pair8[1].break_time = 30
@@ -436,7 +437,7 @@ def aggregate_split_nodes(travel_time,newtimes):
     # brute force for now
     merged_nt = []
     for nt in newtimes:
-        print(nt)
+        # print(nt)
         for entry in nt.items():
             origin = entry[0]
             for end in entry[1].items():
