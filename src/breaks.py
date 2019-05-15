@@ -147,6 +147,8 @@ def break_node_splitter(origin,destination,tt,min_start):
                                          segment_tt,
                                          min_start)
         min_start += 1
+        # pandas preserves order, so need to push time first
+        new_times.append(pair11[0])
 
         node11 = pair11[1]
         node11.break_time = 10*60
@@ -159,16 +161,22 @@ def break_node_splitter(origin,destination,tt,min_start):
                                         node11.node,
                                         node11.tt_o,
                                         min_start)
+        node8=pair8[1]
+        # need to insert ability to get from short break to destination too
+        pair8[0][min_start][destination]=node8.tt_d+node11.tt_d
+
         min_start += 1
-        # pandas preserves order, so need to push time first
-        new_times.append(pair11[0])
 
         pair8[1].break_time = 30
         pair8[1].accumulator_reset = 8*60
         # possibly set up a dimension thing here too?
         # pair8[1].add_dimension_name('halfhrbreak') # or similar?
 
+        # need to insert getting from origin to 8 hr node, not just from
         new_times.append(pair8[0])
+
+
+        # but I want the 8hr break nodes coming before the 11 hr ones
         new_nodes.append(pair8[1])
 
         new_nodes.append(pair11[1])

@@ -340,7 +340,7 @@ def initial_routes(demand,vehicles,time_matrix,
             #     prior = trip_chain[-1]
 
 
-        # print(trip_chain)
+        print(trip_chain)
         # loop to next demand, next trip chain, next vehicle
         trip_chains[veh] = trip_chain
         travel_times[veh] = travel_time

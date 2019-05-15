@@ -159,9 +159,9 @@ def make_drive_data(pair):
     break_node = demand.get_break_node(node)
     if break_node != None:
         # duck typing of a sorts
-        if break_node.break_time >= break_time and break_node.drive_time_restore()>=period:
+        if break_node.break_time >= break_time and abs(break_node.drive_time_restore())>=period:
             # quacks like the duck we're looking for
-            service_time = -break_node.period
+            service_time = -period
     return (node,d,service_time)
 
 

@@ -176,8 +176,8 @@ def main():
         index = routing.Start(vehicle_id)
         routing.solver().Add(drive_dimension.CumulVar(index)==args.drive_dimension_start_value)
 
-    print('create 11hr 30min_break dimension')
-    short_break_dimension_name = '30 Min Break'
+    print('create 30 min break dimension')
+    short_break_dimension_name = 'Short Break'
     # Add short_Break dimension for breaks logic
     print('creating short_break callback for solver')
     short_break_callback = partial(E.create_drive_callback(expanded_mm,
@@ -185,21 +185,22 @@ def main():
                                                            8*60,
                                                            30),
                                    manager)
-    drive_callback_index = routing.RegisterTransitCallback(drive_callback)
-    routing.AddDimension(
-        drive_callback_index, # same "cost" evaluator as above
-        0,  # No slack for drive dimension? infinite slack?
-        args.horizon,  # max drive is end of drive horizon
-        False, # set to zero for each vehicle
-        drive_dimension_name)
-    drive_dimension = routing.GetDimensionOrDie(drive_dimension_name)
 
-    # constrain drive dimension to be drive_dimension_start_value at
+    short_break_callback_index = routing.RegisterTransitCallback(short_break_callback)
+    routing.AddDimension(
+        short_break_callback_index, # modified "cost" evaluator as above
+        0,  # No slack
+        args.horizon,  # max horizon is horizon
+        False, # set to zero for each vehicle
+        short_break_dimension_name)
+    short_break_dimension = routing.GetDimensionOrDie(short_break_dimension_name)
+
+    # constrain short_break dimension to be drive_dimension_start_value at
     # start, so avoid negative numbers
     for vehicle in vehicles.vehicles:
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
-        routing.solver().Add(drive_dimension.CumulVar(index)==args.drive_dimension_start_value)
+        routing.solver().Add(short_break_dimension.CumulVar(index)==args.drive_dimension_start_value)
 
 
     demand_evaluator_index = routing.RegisterUnaryTransitCallback(
@@ -316,6 +317,7 @@ def main():
                                   time_dimension,
                                   count_dimension,
                                   drive_dimension,
+                                  short_break_dimension,
                                   args.drive_dimension_start_value)
 
     print('breaks done')
@@ -412,7 +414,7 @@ def main():
         for route in bug_route:
             for node in route:
                 print(d.get_map_node(node))
-
+        print(bug_route)
     assert initial_solution
     print('Initial solution:')
     SO.print_initial_solution(d,expanded_m,expanded_mm,
@@ -439,7 +441,8 @@ def main():
         print('The Objective Value is {0}'.format(assignment.ObjectiveValue()))
         print('details:')
         SO.print_solution(d,expanded_m,expanded_mm,
-                          vehicles,manager,routing,assignment,args.horizon)
+                          vehicles,manager,routing,assignment,args.horizon,
+                          args.drive_dimension_start_value)
 
         SO.csv_output(d,expanded_m,expanded_mm,
                       vehicles,manager,routing,assignment,args.horizon,

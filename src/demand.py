@@ -752,6 +752,7 @@ class Demand():
                                     time_dimension,
                                     count_dimension,
                                     drive_dimension,
+                                    short_break_dimension,
                                     drive_dimension_start_value):
 
         solver = routing.solver()
@@ -767,6 +768,9 @@ class Demand():
             origin_drive = origin_active*drive_dimension.CumulVar(o_idx)
             dest_drive = dest_active*drive_dimension.CumulVar(d_idx)
 
+            origin_short = origin_active*short_break_dimension.CumulVar(o_idx)
+            dest_short = dest_active*short_break_dimension.CumulVar(d_idx)
+
             # this one on
             solver.AddConstraint(origin_drive >= origin_active*drive_dimension_start_value)
 
@@ -779,10 +783,36 @@ class Demand():
             # try this one on its own.
             solver.AddConstraint(dest_drive < dest_active*(drive_dimension_start_value)+660)
 
+            # same type of constraints for short drive dimension, except 8 hrs not 11 hrs
+            solver.AddConstraint(origin_short >= origin_active*drive_dimension_start_value)
+            # solver.AddConstraint(origin_short < origin_active*(drive_dimension_start_value)+(8*60))
+            solver.AddConstraint(dest_short >= dest_active*drive_dimension_start_value)
+            # solver.AddConstraint(dest_short < dest_active*(drive_dimension_start_value)+(8*60))
+
+            short_break_dimension.SetCumulVarSoftUpperBound(o_idx,
+                                                            drive_dimension_start_value+(8*60),
+                                                            1000)
+
+            # short_break_dimension.SetCumulVarSoftLowerBound(o_idx,
+            #                                                 drive_dimension_start_value,
+            #                                                 1000)
+
+            short_break_dimension.SetCumulVarSoftUpperBound(d_idx,
+                                                            drive_dimension_start_value+(8*60),
+                                                            1000)
+
+            # short_break_dimension.SetCumulVarSoftLowerBound(d_idx,
+            #                                                 drive_dimension_start_value+(8*60),
+            #                                                 1000)
+
+
         # constraints on return to depot, otherwise we just collect
-        # break nodes on the way back
+        # break nodes on the way back and go deeply negative
         for veh in range(0,num_veh):
             index = routing.End(veh)
             end_drive = drive_dimension.CumulVar(index)
+            end_short = drive_dimension.CumulVar(index)
             solver.AddConstraint(
                 end_drive >= drive_dimension_start_value)
+            solver.AddConstraint(
+                end_short >= drive_dimension_start_value)

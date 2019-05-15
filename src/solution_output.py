@@ -41,7 +41,8 @@ def print_solution(demand,
                    manager,
                    routing,
                    assignment,
-                   horizon):  # pylint:disable=too-many-locals
+                   horizon,
+                   break_dim_floor):  # pylint:disable=too-many-locals
     """Prints assignment on console"""
     print('Objective: {}'.format(assignment.ObjectiveValue()))
     print('Breaks:')
@@ -69,8 +70,10 @@ def print_solution(demand,
     time_dimension = routing.GetDimensionOrDie('Time')
     count_dimension = routing.GetDimensionOrDie('Count')
     drive_dimension = False
+    short_dimension = False
     if len(demand.break_nodes.keys()) > 0:
         drive_dimension = routing.GetDimensionOrDie('Drive')
+        short_dimension = routing.GetDimensionOrDie('Short Break')
 
     print('Routes:')
     for vehicle in vehicles.vehicles:
@@ -92,6 +95,16 @@ def print_solution(demand,
 
             node = manager.IndexToNode(index)
             mapnode = demand.get_map_node(node)
+            if mapnode < 0 and drive_dimension:
+                # fill in with info about break type
+                bn = demand.get_break_node(node)
+                if bn.break_time == 600:
+                    mapnode = '[10hr BRK]'
+                if bn.break_time == 30:
+                    mapnode = '[30min BRK]'
+            else:
+                mapnode = "mapnode {}".format(mapnode)
+
             load = assignment.Value(load_var)
             visits = assignment.Value(visits_var)
             min_time =  timedelta(minutes=assignment.Min(time_var))
@@ -107,11 +120,13 @@ def print_solution(demand,
             if drive_dimension:
                 drive_var = drive_dimension.CumulVar(index)
                 drive_time = assignment.Value(drive_var)
-                plan_output += 'node {0}, mapnode {1}, Load {2}, Drive Time {3},  Time({4},{5}) Slack({6},{7}) Time({8})  Link (Time {10}, distance {9} mi), visits: {11}\n ->'.format(
+                short_var = short_dimension.CumulVar(index)
+                short_time = assignment.Value(short_var)
+                plan_output += 'node {0}, {1}, Load {2}, 10hr Break Time {3}, 30min Break Time {12},  Arrive Time({4},{5}), Elapsed Time({8}),  Link: (Time {10}, Dist {9} mi), visits: {11}\n ->'.format(
                     node,
                     mapnode,
                     load,
-                    drive_time,
+                    timedelta(minutes=(drive_time-break_dim_floor)),
                     min_time,
                     max_time,
                     slack_var_min,
@@ -119,10 +134,11 @@ def print_solution(demand,
                     timedelta(minutes=this_time),
                     this_distance,
                     timedelta(minutes=link_time),
-                    visits
+                    visits,
+                    timedelta(minutes=(short_time-break_dim_floor))
                 )
             else:
-                plan_output += 'node {0}, mapnode {1}, Load {2},  Time({3},{4}) Slack({5},{6}) Time({7}) Link (Time {9}, distance {8} mi),visits: {10}\n ->'.format(
+                plan_output += 'node {0}, {1}, Load {2},  Time({3},{4}) Slack({5},{6}) Time({7}) Link (Time {9}, distance {8} mi),visits: {10}\n ->'.format(
                     node,
                     mapnode,
                     load,
@@ -154,7 +170,7 @@ def print_solution(demand,
         if drive_dimension:
             drive_var = drive_dimension.CumulVar(index)
             drive_time = assignment.Value(drive_var)
-            plan_output += 'End:{0}, Load({1}), Drive Time {7},  Time({2},{3})  Link time({4}) Link distance({5} mi), visits {6}\n'.format(
+            plan_output += 'End:{0}, Load({1}), 10hr Break Time {7}, 30min Break Time {8},  Time({2},{3})  Elapsed time({4}) Link:(Time {9}, Dist {5} mi), visits {6}\n'.format(
                 manager.IndexToNode(index),
                 assignment.Value(load_var),
                 timedelta(minutes=assignment.Min(time_var)),
@@ -162,7 +178,9 @@ def print_solution(demand,
                 timedelta(minutes=this_time),
                 this_distance,
                 visits,
-                drive_time
+                timedelta(minutes=(drive_time-break_dim_floor)),
+                timedelta(minutes=(short_time-break_dim_floor)),
+                timedelta(minutes=link_time)
             )
 
         else:
