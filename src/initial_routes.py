@@ -209,14 +209,15 @@ def initial_routes(demand,vehicles,time_matrix,
                         if debug:
                             print('do not need long break, drive time + remaining is', drive_time + tt_fr_goal, 660)
                         if (short_time + tt_fr_goal >= 480):
-                            print('lbk false, sbk true',
-                                  drive_time,tt_fr_goal,drive_time+tt_fr_goal,
-                                  short_time,tt_fr_goal,short_time+tt_fr_goal)
-                            print('will need short break, though',
-                                  'short_time',short_time,
-                                  'tt_fr_goal',tt_fr_goal,
-                                  short_time + tt_fr_goal
-                            )
+                            if debug:
+                                print('lbk false, sbk true',
+                                      drive_time,tt_fr_goal,drive_time+tt_fr_goal,
+                                      short_time,tt_fr_goal,short_time+tt_fr_goal)
+                                print('will need short break, though',
+                                      'short_time',short_time,
+                                      'tt_fr_goal',tt_fr_goal,
+                                      short_time + tt_fr_goal
+                                )
                             # will need to take short break
                             take_sbk = True
 
