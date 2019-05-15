@@ -105,3 +105,4 @@ venv.bak/
 *~
 /.bash_history
 /.python_history
+*output*.csv
