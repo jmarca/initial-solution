@@ -94,6 +94,130 @@ pip install ortools
 
 # Run solver
 
+## master branch
+
+The master branch now incorporates the below feature branches.
+
+The current run command is:
+
+```
+usage: run_initial_routes.py [-h] [-m,--matrixfile MATRIXFILE]
+                             [-d,--demandfile DEMAND]
+                             [-o,--vehicleoutput VEHICLE_OUTPUT]
+                             [--demandoutput DEMAND_OUTPUT]
+                             [--summaryoutput SUMMARY_OUTPUT] [--speed SPEED]
+                             [--maxtime HORIZON] [-v,--vehicles NUMVEHICLES]
+                             [--pickup_time PICKUP_TIME]
+                             [--dropoff_time DROPOFF_TIME]
+                             [-t, --timelimit TIMELIMIT]
+                             [--narrow_destination_timewindows DESTINATION_TIME_WINDOWS]
+                             [--drive_dim_start_value DRIVE_DIMENSION_START_VALUE]
+                             [--debug DEBUG]
+
+Solve assignment of truck load routing problem, give hours of service rules
+and a specified list of origins and destinations
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -m,--matrixfile MATRIXFILE
+                        CSV file for travel matrix (distances)
+  -d,--demandfile DEMAND
+                        CSV file for demand pairs (origin, dest, time windows)
+  -o,--vehicleoutput VEHICLE_OUTPUT
+                        CSV file for dumping output
+  --demandoutput DEMAND_OUTPUT
+                        CSV file for dumping output for demand details
+                        (including invalid demands, etc)
+  --summaryoutput SUMMARY_OUTPUT
+                        A file for dumping the human-readable summary output
+                        for the assignment
+  --speed SPEED         Average speed, miles per hour. Default is 55 (miles
+                        per hour). Distance unit should match that of the
+                        matrix of distances. The time part should be per hours
+  --maxtime HORIZON     Max time in minutes. Default is 10080 minutes, which
+                        is 7 days.
+  -v,--vehicles NUMVEHICLES
+                        Number of vehicles to create. Default is 100.
+  --pickup_time PICKUP_TIME
+                        Pick up time in minutes. Default is 15 minutes.
+  --dropoff_time DROPOFF_TIME
+                        Drop off time in minutes. Default is 15 minutes.
+  -t, --timelimit TIMELIMIT
+                        Maximum run time for solver, in minutes. Default is 5
+                        minutes.
+  --narrow_destination_timewindows DESTINATION_TIME_WINDOWS
+                        If true, limit destination node time windows based on
+                        travel time from corresponding origin. If false,
+                        destination nodes time windows are 0 to args.horizon.
+                        Default true (limit the time window).
+  --drive_dim_start_value DRIVE_DIMENSION_START_VALUE
+                        Due to internal solver mechanics, the drive dimension
+                        can't go below zero (it gets truncated at zero). So to
+                        get around this, the starting point for the drive time
+                        dimension has to be greater than zero. The default is
+                        1000. Change it with this variable
+  --debug DEBUG         Turn on some print statements.
+```
+
+Many of these options tweak things that influence the travel times,
+such as the speed and the pickup and drop off times.  Others are
+related to the internals of the solver
+(`--narrow_destination_timewindows` and `--drive_dim_start_value`) and
+probably should not be changed.
+
+A typical solver run allowing the solver 10 minutes to think is as follows:
+
+```
+ python src/run_initial_routes.py -m data/distance_matrix.csv --speed 65 -d data/demand.csv -t 10 -v 75  --maxtime 20000  --summaryoutput out.txt
+```
+
+In this case only 75 vehicles are used, because many of the trips are
+difficult to serve with a speed of 65mph, because the arrival time at
+the pickup node is *after* the closing of the pickup time window.
+
+The human-readable output in this case is also very long, and will
+probably scroll past the screen.  In that case, you can pass a file to
+"--summaryoutput", as was done here.
+
+The program will always dump two csv files.  The first is a per
+vehicle file that shows the vehicle usage.  For example:
+
+```
+demand,distance,location,order,time,veh
+0,0,0,0,2107,0
+0,357,-1,1,2437,0
+0,357,-1,2,2797,0
+0,357,-1,3,3727,0
+0,357,-1,4,4087,0
+1,187,29,5,4860,0
+0,357,-1,6,5205,0
+0,357,-1,7,5565,0
+0,357,-1,8,6495,0
+0,357,-1,9,6855,0
+0,164,-1,10,7607,0
+0,165,-1,11,7790,0
+-1,331,33,12,8696,0
+0,357,-1,13,9041,0
+0,357,-1,14,9401,0
+0,357,-1,15,10331,0
+0,357,-1,16,10691,0
+0,194,0,17,11471,0
+```
+
+The second is a file showing the output from the perspective of the
+demand items.  For example:
+
+```
+dropoff_distance,dropoff_node,dropoff_order,dropoff_time,pickup_distance,pickup_node,pickup_order,pickup_time,veh
+331,33,12,8696,187,29,5,4860,0
+```
+
+The names of these files default to `demand_output{_N}.csv` and
+`vehicle_output{_N}.csv`.  If there are collisions with previously
+written files, the N part will be incremented by one.
+
+
+
 
 ## feature/initial_routes branch
 
