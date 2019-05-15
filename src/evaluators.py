@@ -134,6 +134,19 @@ def f(pair):
         value = 0
     return [from_node,to_node,value]
 
+# this one is for short breaks.
+# short breaks cannot get two 8hr restores in a row
+def e(pair):
+    (a,b) = pair
+    (from_node,from_demand,from_service) = a
+    (to_node,to_demand,to_service) = b
+    value = from_service
+    if from_node == to_node:
+        value = 0
+    if value < 0 and from_service == to_service:
+        value = -3*60
+    return [from_node,to_node,value]
+
 # this function works to set up impact of any node on total time
 # breaks add break_time to cumulative time
 # pickup and delivery nodes add service time to cumulative time
@@ -236,6 +249,48 @@ def create_drive_callback(travel_minutes_matrix,
     # print(node_demand_service_list)
 
     travel_times = p.map(f,iter.product(node_demand_service_list,repeat=2))
+    df_stacked_service_time = pd.DataFrame(travel_times,columns=['from','to','service_time'])
+    # print(df_stacked_service_time)
+    df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')
+
+    _total_time = (df_service_time + travel_minutes_matrix).fillna(penalty_time).values
+    #print(df_service_time + travel_minutes_matrix)
+
+    def time_callback(manager, from_index, to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to distance matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        # print('drive time',from_node,to_node,_total_time[from_node][to_node])
+        return _total_time[from_node][to_node]
+
+    # return the callback, which will need to be set up with partial
+    return time_callback
+
+def create_short_break_callback(travel_minutes_matrix,
+                          demand,
+                          period,
+                          break_time):
+    """create a callback function for short_breaktime.  presumes that
+       travel_minutes_matrix is in solver space, not map space (has
+       been passed through demand.generate_solver_space_matrix.  Also,
+       create negative demands (unload short_break time) at break nodes, but
+       only visit break nodes if need to do so.
+
+    """
+    # preprocess travel and service time to speed up solver
+    number = len(travel_minutes_matrix)
+    max_time = travel_minutes_matrix.max().max()
+    penalty_time =  int(10000000 * max_time)
+
+    node_list = [(n,demand,period,break_time) for n in travel_minutes_matrix.index]
+    # print('len node list is ',len(node_list))
+    ncpus = len(os.sched_getaffinity(0))
+    p = Pool(ncpus)
+    node_demand_service_list = p.map(make_drive_data,node_list)
+    # print(node_demand_service_list)
+
+    travel_times = p.map(e,iter.product(node_demand_service_list,repeat=2))
     df_stacked_service_time = pd.DataFrame(travel_times,columns=['from','to','service_time'])
     # print(df_stacked_service_time)
     df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')

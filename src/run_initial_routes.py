@@ -180,10 +180,10 @@ def main():
     short_break_dimension_name = 'Short Break'
     # Add short_Break dimension for breaks logic
     print('creating short_break callback for solver')
-    short_break_callback = partial(E.create_drive_callback(expanded_mm,
-                                                           d,
-                                                           8*60,
-                                                           30),
+    short_break_callback = partial(E.create_short_break_callback(expanded_mm,
+                                                                 d,
+                                                                 8*60,
+                                                                 30),
                                    manager)
 
     short_break_callback_index = routing.RegisterTransitCallback(short_break_callback)
