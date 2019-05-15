@@ -42,26 +42,29 @@ def print_solution(demand,
                    routing,
                    assignment,
                    horizon,
-                   break_dim_floor):  # pylint:disable=too-many-locals
+                   break_dim_floor,
+                   summary_output=None):  # pylint:disable=too-many-locals
+
     """Prints assignment on console"""
-    print('Objective: {}'.format(assignment.ObjectiveValue()))
-    print('Breaks:')
-    breaks = assignment.IntervalVarContainer()
-    for i in range(0,breaks.Size()):
-        brk = breaks.Element(i)
-        # print(brk)
-        if (brk.StartMin()>=0 and brk.StartMin() < horizon * 10):
-            print('break',i,'start',timedelta(minutes=brk.StartMin()),# '--',
-                  # timedelta(minutes=brk.StartMax()),
-                  'duration',timedelta(minutes=brk.DurationMin()),
-                  'end',timedelta(minutes=brk.EndMin())# ,'--',
-                  # timedelta(minutes=brk.EndMax())
-            )
-        else:
-            print('break',i,'skipped--',
-                  'start',brk.StartMin(),
-                  'duration',brk.DurationMin(),
-                  'end',brk.EndMin())
+    # collect everything in a variable
+    output_string = 'Objective: {}'.format(assignment.ObjectiveValue())
+    # breaks are no longer break intervals
+    # breaks = assignment.IntervalVarContainer()
+    # for i in range(0,breaks.Size()):
+    #     brk = breaks.Element(i)
+    #     # print(brk)
+    #     if (brk.StartMin()>=0 and brk.StartMin() < horizon * 10):
+    #         print('break',i,'start',timedelta(minutes=brk.StartMin()),# '--',
+    #               # timedelta(minutes=brk.StartMax()),
+    #               'duration',timedelta(minutes=brk.DurationMin()),
+    #               'end',timedelta(minutes=brk.EndMin())# ,'--',
+    #               # timedelta(minutes=brk.EndMax())
+    #         )
+    #     else:
+    #         print('break',i,'skipped--',
+    #               'start',brk.StartMin(),
+    #               'duration',brk.DurationMin(),
+    #               'end',brk.EndMin())
 
     total_distance = 0
     total_load_served = 0
@@ -75,7 +78,7 @@ def print_solution(demand,
         drive_dimension = routing.GetDimensionOrDie('Drive')
         short_dimension = routing.GetDimensionOrDie('Short Break')
 
-    print('Routes:')
+    output_string += '\nRoutes:\n'
     for vehicle in vehicles.vehicles:
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
@@ -204,22 +207,37 @@ def print_solution(demand,
                 pickups)
             plan_output += 'Time of the route: {}\n'.format(
                 timedelta(minutes=assignment.Value(time_var)))
-        print(plan_output)
+        output_string += '\n'+plan_output+'\n'
         total_distance += distance
         total_load_served += pickups
         total_time += assignment.Value(time_var)
-    print('Total Distance of all routes: {0} miles'.format(total_distance))
-    print('Total Loads picked up by all routes: {}'.format(total_load_served))
-    print('Total Time of all routes: {0}'.format(timedelta(minutes=total_time)))
+    output_string +='\nTotal Distance of all routes: {0} miles'.format(total_distance)
+    output_string +='\nTotal Loads picked up by all routes: {}'.format(total_load_served)
+    output_string +='\nTotal Time of all routes: {0}'.format(timedelta(minutes=total_time))
 
     # print gimpy demands
 
     infeasible_index = ~demand.demand.feasible
     if len(infeasible_index[infeasible_index]) > 0:
-        print('\nDemands that are infeasible:')
+        output_string +='\n\nDemands that are infeasible:'
         for idx in demand.demand.index[infeasible_index]:
             d = demand.demand.loc[idx]
-            print(d.constraint)
+            output_string += '\n'+d.constraint
+    if summary_output:
+        # possible collision
+        idx = 1
+        checkname = summary_output
+        while os.path.exists(checkname):
+            checkname = re.sub(r"\.(.*)$",r"_{}.\1".format(idx),summary_output)
+            idx += 1
+
+        f = open(checkname, 'a+')
+        print(output_string,file=f,flush=True)
+        f.close()
+    else:
+
+        print(output_string)
+
 
 def csv_output(demand,
                dist_matrix,

@@ -29,7 +29,9 @@ def main():
     parser.add_argument('-o,--vehicleoutput', type=str, dest='vehicle_output', default='vehicle_output.csv',
                         help='CSV file for dumping output')
     parser.add_argument('--demandoutput', type=str, dest='demand_output', default='demand_output.csv',
-                        help='CSV file for dumping output for demand details')
+                        help='CSV file for dumping output for demand details (including invalid demands, etc)')
+    parser.add_argument('--summaryoutput', type=str, dest='summary_output',
+                        help='A file for dumping the human-readable summary output for the assignment')
     parser.add_argument('--speed', type=float, dest='speed', default=55.0,
                         help='Average speed, miles per hour.  Default is 55 (miles per hour).  Distance unit should match that of the matrix of distances.  The time part should be per hours')
     parser.add_argument('--maxtime', type=int, dest='horizon', default=10080,
@@ -442,9 +444,11 @@ def main():
         #print(expanded_mm)
         print('The Objective Value is {0}'.format(assignment.ObjectiveValue()))
         print('details:')
+
         SO.print_solution(d,expanded_m,expanded_mm,
                           vehicles,manager,routing,assignment,args.horizon,
-                          args.drive_dimension_start_value)
+                          args.drive_dimension_start_value,
+                          args.summary_output)
 
         SO.csv_output(d,expanded_m,expanded_mm,
                       vehicles,manager,routing,assignment,args.horizon,
