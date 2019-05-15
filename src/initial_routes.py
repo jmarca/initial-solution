@@ -145,19 +145,22 @@ def initial_routes(demand,vehicles,time_matrix,
                     take_sbk = False
                     take_lbk = False
                     if (drive_time + tt_fr_goal) >= 660:
+                        print('lbk true',drive_time,tt_fr_goal,drive_time+tt_fr_goal)
                         # will need to take long break
                         take_lbk = True
                         # lbk can satisfy for short break, unless it will
                         # take > 8hr to get to lbk
                         if short_time + tt_fr_lbk >= 480:
+                            print('sbk true dependent on lbk true?',
+                                  short_time, tt_fr_lbk,short_time + tt_fr_lbk)
                             # will need to take short break
                             take_sbk = True
                     else:
                         if debug:
                             print('do not need long break, drive time + remaining is', drive_time + tt_fr_goal, 660)
-                    if short_time + tt_fr_goal >= 480:
-                        # will need to take long break
-                        take_sbk = True
+                        if (short_time + tt_fr_goal >= 480):
+                            # will need to take long break
+                            take_sbk = True
 
                     if take_sbk:
                         trip_chain.append(sbk.node)

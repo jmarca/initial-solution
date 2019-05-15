@@ -140,11 +140,16 @@ def e(pair):
     (a,b) = pair
     (from_node,from_demand,from_service) = a
     (to_node,to_demand,to_service) = b
+    if from_node in [0,3,4] and to_node in [0,3,4]:
+        print(a,b)
     value = from_service
+    if value < -480:
+        value = -480
     if from_node == to_node:
         value = 0
-    if value < 0 and from_service == to_service:
-        value = -3*60
+    # FIXME this is a quick and dirty hack
+    if value < 0 and from_service == -480 and  to_service == -660:
+        value = -3*60 # 11 hrs minus 8 hrs.  Don't want to get greedy
     return [from_node,to_node,value]
 
 # this function works to set up impact of any node on total time
@@ -174,7 +179,7 @@ def make_drive_data(pair):
         # duck typing of a sorts
         if break_node.break_time >= break_time and abs(break_node.drive_time_restore())>=period:
             # quacks like the duck we're looking for
-            service_time = -period
+            service_time = break_node.drive_time_restore()
     return (node,d,service_time)
 
 
@@ -296,7 +301,10 @@ def create_short_break_callback(travel_minutes_matrix,
     df_service_time = df_stacked_service_time.pivot(index='from',columns='to',values='service_time')
 
     _total_time = (df_service_time + travel_minutes_matrix).fillna(penalty_time).values
-    #print(df_service_time + travel_minutes_matrix)
+    checkroute = [0, 4, 3, 6, 1, 11, 10, 13, 12, 15, 14, 17, 16, 2]
+    print(travel_minutes_matrix.loc[checkroute,checkroute])
+    print(df_service_time.loc[checkroute,checkroute])
+    print((df_service_time + travel_minutes_matrix).loc[checkroute,checkroute])
 
     def time_callback(manager, from_index, to_index):
         """Returns the travel time between the two nodes."""

@@ -59,9 +59,23 @@ class Demand():
 
             do_breaks = math.floor(do_tt/(11*60))
             # for each long break, will also need at least one short break
-            depot_origin_tt = do_tt + do_breaks*600 + do_breaks*30 + record.pickup_time
+            # but *might* need another if drive time works out that way
+            # drive time is do_tt
+            # every 11 hr, 8 hr clock resets to zero
+            do_short_breaks = do_breaks
+            if do_tt - (do_breaks*11*60) > 8*60:
+                #print('need another break')
+                do_short_breaks += 1
+
+            depot_origin_tt = do_tt + do_breaks*600 + do_short_breaks*30 + record.pickup_time
 
             pickup_to_depot_breaks = total_breaks - do_breaks
+            # ditto the above logic
+            pickup_to_depot_short_breaks = pickup_to_depot_breaks
+            if (od_tt + dd_tt) - (pickup_to_depot_breaks*11*60) > 8*60:
+                # print('need another break for return to depot')
+                pickup_to_depot_short_breaks += 1
+
 
             od_breaks = math.floor((do_tt + od_tt)/(11*60)) - do_breaks
 
@@ -74,7 +88,7 @@ class Demand():
                                  od_tt + dd_tt +      # link travel time
                                  record.dropoff_time +# unload
                                  pickup_to_depot_breaks*600 + # required 10hr breaks
-                                 pickup_to_depot_breaks*30) # required 30min breaks
+                                 pickup_to_depot_short_breaks*30) # required 30min breaks
 
 
             time_destination = (earliest_pickup + # arrive at orign
@@ -789,10 +803,10 @@ class Demand():
             # same type of constraints for short drive dimension, except 8 hrs not 11 hrs
 
             # troubles with letting the solver do it.  Try setting soft bounds?
-            # solver.AddConstraint(origin_short < origin_active*(drive_dimension_start_value)+(8*60))
-            short_break_dimension.SetCumulVarSoftUpperBound(o_idx,
-                                                            drive_dimension_start_value+(8*60),
-                                                            100000)
+            solver.AddConstraint(origin_short < origin_active*(drive_dimension_start_value)+(8*60))
+            # short_break_dimension.SetCumulVarSoftUpperBound(o_idx,
+            #                                                 drive_dimension_start_value+(8*60),
+            #                                                 100000)
 
             solver.AddConstraint(origin_short >= origin_active*drive_dimension_start_value)
             # short_break_dimension.SetCumulVarSoftLowerBound(o_idx,
@@ -802,7 +816,7 @@ class Demand():
             # solver.AddConstraint(dest_short < dest_active*(drive_dimension_start_value)+(8*60))
             short_break_dimension.SetCumulVarSoftUpperBound(d_idx,
                                                             drive_dimension_start_value+(8*60),
-                                                            100000)
+                                                            1000000)
 
             solver.AddConstraint(dest_short >= dest_active*drive_dimension_start_value)
             # short_break_dimension.SetCumulVarSoftLowerBound(d_idx,
