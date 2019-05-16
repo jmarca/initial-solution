@@ -57,6 +57,9 @@ def main():
 
     parser.add_argument('--debug', type=bool, dest='debug', default=False,
                         help="Turn on some print statements.")
+
+    parser.add_argument('--noroutes',type=bool,dest='noroutes',default=False,
+                        help="Disable generating initial routes.  Not recommended")
     args = parser.parse_args()
 
     print('read in distance matrix')
@@ -402,45 +405,48 @@ def main():
     #     # other stuff too?
     # print("Done Writing routing object to file routing.pkl")
 
-
-    # set up initial routes
-    trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
+    initial_routes = None
+    if not args.noroutes:
+        # set up initial routes
+        trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
                                     manager,
                                     time_callback,
                                     drive_callback,
                                     short_break_callback,
                                     debug = args.debug)
 
-    initial_routes = [v for v in trip_chains.values()]
-    #print(initial_routes)
+        initial_routes = [v for v in trip_chains.values()]
+        #print(initial_routes)
 
-    routing.CloseModelWithParameters(parameters)
-    initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
-                                                        True)
+        routing.CloseModelWithParameters(parameters)
+        initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
+                                                            True)
 
-    # debug loop which is the bug?
-    if not initial_solution:
-        bug_route = []
-        for route in initial_routes:
-            single_solution = routing.ReadAssignmentFromRoutes([route],
-                                                                True)
-            if not single_solution:
-                bug_route.append(route)
-        print(bug_route)
-    assert initial_solution
-    print('Initial solution:')
-    SO.print_initial_solution(d,expanded_m,expanded_mm,
-                          vehicles,manager,routing,initial_solution,args.horizon)
+        # debug loop which is the bug?
+        if not initial_solution:
+            bug_route = []
+            for route in initial_routes:
+                single_solution = routing.ReadAssignmentFromRoutes([route],
+                                                                   True)
+                if not single_solution:
+                    bug_route.append(route)
+            print(bug_route)
+        assert initial_solution
+        print('Initial solution:')
+        SO.print_initial_solution(d,expanded_m,expanded_mm,
+                                  vehicles,manager,routing,initial_solution,args.horizon)
 
 
 
     print('Calling the solver')
     # [START solve]
+    assignment = None
+    if not args.noroutes:
+        assignment = routing.SolveFromAssignmentWithParameters(
+            initial_solution, parameters)
 
-    assignment = routing.SolveFromAssignmentWithParameters(
-        initial_solution, parameters)
-
-
+    else:
+        assignment = routing.SolveWithParameters(parameters)
 
 
     # [END solve]
