@@ -57,6 +57,9 @@ def main():
 
     parser.add_argument('--debug', type=bool, dest='debug', default=False,
                         help="Turn on some print statements.")
+
+    parser.add_argument('--noroutes',type=bool,dest='noroutes',default=False,
+                        help="Disable generating initial routes.  Not recommended")
     args = parser.parse_args()
 
     print('read in distance matrix')
@@ -324,22 +327,33 @@ def main():
 
     print('breaks done')
 
-    # # prevent impossible next nodes
-    # print('remove impossible connections from solver')
-    # for onode in expanded_mm.index:
-    #     if onode % 100 == 0:
-    #         print(onode,' of ',len(expanded_mm))
-    #     o_idx = manager.NodeToIndex(onode)
-    #     for dnode in expanded_mm.index:
-    #         if onode == dnode:
-    #             continue
-    #         if np.isnan(expanded_mm.loc[onode,dnode]):
-    #             # cannot connect, to prevent this combo
-    #             d_idx = manager.NodeToIndex(dnode)
-    #             if routing.NextVar(o_idx).Contains(d_idx):
-    #                 # print('remove link from',onode,'to',dnode)
-    #                 routing.NextVar(o_idx).RemoveValue(d_idx)
-    # print('done with RemoveValue calls')
+    # prevent impossible next nodes
+    print('remove impossible connections from solver')
+    notna = expanded_mm.notna()
+    isna  = expanded_mm.isna()
+    time_index = expanded_mm.index
+    maxtime = expanded_mm.max().max()*100
+    for onode in time_index:
+        if onode % 100 == 0:
+            print(onode,' of ',len(expanded_mm))
+        o_idx = manager.NodeToIndex(onode)
+        na_indices = [manager.NodeToIndex(dnode) for dnode in time_index[isna.loc[onode,:]]]
+        # print('remove link from',onode,'to',dnode)
+        routing.NextVar(o_idx).RemoveValues(na_indices)
+        # the following isn't needed (no op)
+        # for dnode in time_index[notna.loc[onode,:]]:
+        #     if onode == dnode:
+        #         continue
+        #     # now checking with the callback for service times because
+        #     # I drop transitions that are imposible from destinations
+        #     # to origins
+        #     d_idx = manager.NodeToIndex(dnode)
+        #     if time_callback(o_idx,d_idx) > maxtime:
+        #         # this link has been given the penalty
+        #         if routing.NextVar(o_idx).Contains(d_idx):
+        #             print('remove link from',onode,'to',dnode,'based on time callback check')
+        #             routing.NextVar(o_idx).RemoveValue(d_idx)
+    print('done with RemoveValue calls')
 
 
     # Setting first solution heuristic.
@@ -369,7 +383,7 @@ def main():
 
     # add disjunctions to deliveries to make it not fail
     penalty = 1000000000  # The cost for dropping a demand node from the plan.
-    break_penalty = 1000000  # The cost for dropping a break node from the plan.
+    break_penalty = 1  # The cost for dropping a break node from the plan.
     # all nodes are droppable, so add disjunctions
 
     droppable_nodes = []
@@ -391,45 +405,48 @@ def main():
     #     # other stuff too?
     # print("Done Writing routing object to file routing.pkl")
 
-
-    # set up initial routes
-    trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
+    initial_routes = None
+    if not args.noroutes:
+        # set up initial routes
+        trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
                                     manager,
                                     time_callback,
                                     drive_callback,
                                     short_break_callback,
                                     debug = args.debug)
 
-    initial_routes = [v for v in trip_chains.values()]
-    #print(initial_routes)
+        initial_routes = [v for v in trip_chains.values()]
+        #print(initial_routes)
 
-    routing.CloseModelWithParameters(parameters)
-    initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
-                                                        True)
+        routing.CloseModelWithParameters(parameters)
+        initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
+                                                            True)
 
-    # debug loop which is the bug?
-    if not initial_solution:
-        bug_route = []
-        for route in initial_routes:
-            single_solution = routing.ReadAssignmentFromRoutes([route],
-                                                                True)
-            if not single_solution:
-                bug_route.append(route)
-        print(bug_route)
-    assert initial_solution
-    print('Initial solution:')
-    SO.print_initial_solution(d,expanded_m,expanded_mm,
-                          vehicles,manager,routing,initial_solution,args.horizon)
+        # debug loop which is the bug?
+        if not initial_solution:
+            bug_route = []
+            for route in initial_routes:
+                single_solution = routing.ReadAssignmentFromRoutes([route],
+                                                                   True)
+                if not single_solution:
+                    bug_route.append(route)
+            print(bug_route)
+        assert initial_solution
+        print('Initial solution:')
+        SO.print_initial_solution(d,expanded_m,expanded_mm,
+                                  vehicles,manager,routing,initial_solution,args.horizon)
 
 
 
     print('Calling the solver')
     # [START solve]
+    assignment = None
+    if not args.noroutes:
+        assignment = routing.SolveFromAssignmentWithParameters(
+            initial_solution, parameters)
 
-    assignment = routing.SolveFromAssignmentWithParameters(
-        initial_solution, parameters)
-
-
+    else:
+        assignment = routing.SolveWithParameters(parameters)
 
 
     # [END solve]

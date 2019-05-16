@@ -833,7 +833,19 @@ class Demand():
             solver.AddConstraint(
                 end_drive >= drive_dimension_start_value)
             solver.AddConstraint(
+                end_drive < drive_dimension_start_value+(11*60))
+            # drive_dimension.SetCumulVarSoftUpperBound(index,
+            #                                           drive_dimension_start_value+(11*60),
+            #                                           1000000)
+
+
+            solver.AddConstraint(
                 end_short >= drive_dimension_start_value)
             # short_break_dimension.SetCumulVarSoftLowerBound(index,
             #                                                 drive_dimension_start_value,
+            #                                                 1000000)
+            solver.AddConstraint(
+                end_short < drive_dimension_start_value+(8*60))
+            # short_break_dimension.SetCumulVarSoftUpperBound(index,
+            #                                                 drive_dimension_start_value+(8*60),
             #                                                 1000000)
