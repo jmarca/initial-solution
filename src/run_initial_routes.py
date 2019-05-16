@@ -329,7 +329,7 @@ def main():
     notna = expanded_mm.notna()
     isna  = expanded_mm.isna()
     time_index = expanded_mm.index
-    maxtime = expanded_mm.max().max()
+    maxtime = expanded_mm.max().max()*100
     for onode in time_index:
         if onode % 100 == 0:
             print(onode,' of ',len(expanded_mm))
