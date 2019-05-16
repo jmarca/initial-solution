@@ -373,7 +373,7 @@ def main():
 
     # add disjunctions to deliveries to make it not fail
     penalty = 1000000000  # The cost for dropping a demand node from the plan.
-    break_penalty = 1000000  # The cost for dropping a break node from the plan.
+    break_penalty = 1  # The cost for dropping a break node from the plan.
     # all nodes are droppable, so add disjunctions
 
     droppable_nodes = []
