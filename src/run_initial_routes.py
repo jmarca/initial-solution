@@ -337,18 +337,19 @@ def main():
         na_indices = [manager.NodeToIndex(dnode) for dnode in time_index[isna.loc[onode,:]]]
         # print('remove link from',onode,'to',dnode)
         routing.NextVar(o_idx).RemoveValues(na_indices)
-        for dnode in time_index[notna.loc[onode,:]]:
-            if onode == dnode:
-                continue
-            # now checking with the callback for service times because
-            # I drop transitions that are imposible from destinations
-            # to origins
-            d_idx = manager.NodeToIndex(dnode)
-            if time_callback(o_idx,d_idx) > maxtime:
-                # this link has been given the penalty
-                if routing.NextVar(o_idx).Contains(d_idx):
-                    print('remove link from',onode,'to',dnode,'based on time callback check')
-                    routing.NextVar(o_idx).RemoveValue(d_idx)
+        # the following isn't needed (no op)
+        # for dnode in time_index[notna.loc[onode,:]]:
+        #     if onode == dnode:
+        #         continue
+        #     # now checking with the callback for service times because
+        #     # I drop transitions that are imposible from destinations
+        #     # to origins
+        #     d_idx = manager.NodeToIndex(dnode)
+        #     if time_callback(o_idx,d_idx) > maxtime:
+        #         # this link has been given the penalty
+        #         if routing.NextVar(o_idx).Contains(d_idx):
+        #             print('remove link from',onode,'to',dnode,'based on time callback check')
+        #             routing.NextVar(o_idx).RemoveValue(d_idx)
     print('done with RemoveValue calls')
 
 
