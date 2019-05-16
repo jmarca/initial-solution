@@ -324,22 +324,26 @@ def main():
 
     print('breaks done')
 
-    # # prevent impossible next nodes
-    # print('remove impossible connections from solver')
-    # for onode in expanded_mm.index:
-    #     if onode % 100 == 0:
-    #         print(onode,' of ',len(expanded_mm))
-    #     o_idx = manager.NodeToIndex(onode)
-    #     for dnode in expanded_mm.index:
-    #         if onode == dnode:
-    #             continue
-    #         if np.isnan(expanded_mm.loc[onode,dnode]):
-    #             # cannot connect, to prevent this combo
-    #             d_idx = manager.NodeToIndex(dnode)
-    #             if routing.NextVar(o_idx).Contains(d_idx):
-    #                 # print('remove link from',onode,'to',dnode)
-    #                 routing.NextVar(o_idx).RemoveValue(d_idx)
-    # print('done with RemoveValue calls')
+    # prevent impossible next nodes
+    print('remove impossible connections from solver')
+    notna = expanded_mm.notna()
+    isna  = expanded_mm.isna()
+    time_index = expanded_mm.index
+    for onode in time_index:
+        if onode % 100 == 0:
+            print(onode,' of ',len(expanded_mm))
+        o_idx = manager.NodeToIndex(onode)
+        for dnode in time_index[isna.loc[onode,:]]:
+            if onode == dnode:
+                continue
+            # time for this pair is nan
+            # if np.isnan(expanded_mm.loc[onode,dnode]):
+            # cannot connect, to prevent this combo
+            d_idx = manager.NodeToIndex(dnode)
+            if routing.NextVar(o_idx).Contains(d_idx):
+                # print('remove link from',onode,'to',dnode)
+                routing.NextVar(o_idx).RemoveValue(d_idx)
+    print('done with RemoveValue calls')
 
 
     # Setting first solution heuristic.
