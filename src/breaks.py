@@ -88,7 +88,7 @@ def split_links(O,D,travel_time,starting_node):
     return new_times
 
 
-def split_links_break_nodes(O,D,travel_time,new_node):
+def split_links_break_nodes(O,D,travel_time,new_node,break_time,reset_time):
     """split the link from O to D in half
     arguments: O: origin node, integer
                D: destination node, integer
@@ -99,19 +99,19 @@ def split_links_break_nodes(O,D,travel_time,new_node):
              are numbered from starting_node + zero, sequentially,
              new_node
     """
-    bn = BN.BreakNode(O,D,travel_time,new_node)
-    new_times = {}
-    new_times[O] = {}
-    new_times[D] = {}
-    new_times[O][O] = 0
-    new_times[O][D] = travel_time
-    new_times[D][D] = 0
+    bn = BN.BreakNode(O,D,travel_time,new_node,break_time,reset_time)
+    new_times = np.zeros(3,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
 
-    new_times[new_node] = {}
+    # # copy existing.  this is redundant
+    # new_times[0] = [O,O,0]
+    # new_times[1] = [O,D,travel_time]
+    # new_times[2] = [D,D,0]
+
+
     # compute travel minutes
-    new_times[O][new_node] = bn.tt_o
-    new_times[new_node][new_node] = 0
-    new_times[new_node][D] = bn.tt_d
+    new_times[0] = (O,new_node,bn.tt_o)
+    new_times[1] = (new_node,new_node, 0)
+    new_times[2] = (new_node,D,bn.tt_d)
 
     # new nodes are stored in "new_times" as keys of second dimension
     # not symmetric, but rather, directional.  Opposite way is impossible
@@ -131,8 +131,12 @@ def break_node_splitter(origin,destination,tt,min_start):
     Going to make it work for 8hr drive, 0.5hr break.
 
     """
-    new_times = []
+    new_times = np.zeros(0,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
     new_nodes = []
+    long_break_time = 60*10
+    long_break_interval = 60*11
+    short_break_time = 30
+    short_break_interval = 60*8
 
     # for the 11 hour drive rule
     long_possible_breaks = math.ceil(tt/(11*60)) + 1
@@ -145,14 +149,15 @@ def break_node_splitter(origin,destination,tt,min_start):
         pair11 = split_links_break_nodes(origin,
                                          destination,
                                          segment_tt,
-                                         min_start)
+                                         min_start,
+                                         long_break_time,
+                                         long_break_interval
+        )
         min_start += 1
-        # pandas preserves order, so need to push time first
-        new_times.append(pair11[0])
+
 
         node11 = pair11[1]
-        node11.break_time = 10*60
-        node11.accumulator_reset = 11*60
+
         # possibly set up a dimension thing here?
         # node11.add_dimension_name('Drive') # or similar?
 
@@ -160,50 +165,63 @@ def break_node_splitter(origin,destination,tt,min_start):
         pair8 = split_links_break_nodes(origin,
                                         node11.node,
                                         node11.tt_o,
-                                        min_start)
+                                        min_start,
+                                        short_break_time,
+                                        short_break_interval)
         node8=pair8[1]
-        # need to insert ability to get from short break to destination too
-        pair8[0][min_start][destination]=node8.tt_d+node11.tt_d
-        # need to correct the destination of the node8 too
+        # need to correct the destination of the node8 because of the
+        # way the demand object stores and retrieves breaks between an
+        # OD pair
         node8.destination = destination
         min_start += 1
 
-        pair8[1].break_time = 30
-        pair8[1].accumulator_reset = 8*60
         # possibly set up a dimension thing here too?
         # pair8[1].add_dimension_name('halfhrbreak') # or similar?
 
-        # need to insert getting from origin to 8 hr node, not just from
-        new_times.append(pair8[0])
+        # if i==long_possible_breaks-1:
+        #     # closing in on destination, so include potential to get
+        #     # from short break to goal?
+        #     extra_link = np.array([node8.node,destination,node8.tt_d+node11.tt_d])
+        #     new_times = np.concatenate(new_times,
+        #                                 pair11[0],
+        #                                 pair8[0])
+        new_times = np.concatenate((new_times,
+                                    pair11[0],
+                                    pair8[0]),axis=0)
 
 
         # but I want the 8hr break nodes coming before the 11 hr ones
         new_nodes.append(pair8[1])
-
         new_nodes.append(pair11[1])
 
         # set for next loop
         segment_tt = node11.tt_d
         origin=node11.node
 
-    # finally, slot in an 8 hr break between last 11 hr and destination
-    node11 = new_nodes[-1]
     # only put in another 8 hr node if need to do so
-    if node11.break_time == 10*60 or tt >= 8*60:
-        # either the last break node is an 11 hr node, or the travel
-        # time requires at least two 8hr break nodes
+    if long_possible_breaks == 1 and tt < 8:
+        # will not need a short break after long break prior to
+        # arrival at destination, so make it so can just get to dest
+        # from short break
+        extra_connection = np.array([(node8.node,destination,node8.tt_d+node11.tt_d)],
+                                    dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+        new_times = np.concatenate((new_times,extra_connection),axis=0)
+    else:
+        # in this case, might need a short break before long break,
+        # then another short break prior to destination (worst case,
+        # pickup, 0 time, long break, 8hrs, need short break,
+        # dest). so make it here
+
+        node11 = new_nodes[-1]
         pair8 = split_links_break_nodes(node11.node,
                                         destination,
                                         node11.tt_d,
-                                        min_start)
+                                        min_start,
+                                        short_break_time,
+                                        short_break_interval)
         min_start += 1 # not necessary, but good habit
 
-        pair8[1].break_time = 30
-        pair8[1].accumulator_reset = 8*60
-        # possibly set up a dimension thing here too?
-        # pair8[1].add_dimension_name('halfhrbreak') # or similar?
-
-        new_times.append(pair8[0])
+        new_times = np.concatenate((new_times,pair8[0]),axis=0)
         new_nodes.append(pair8[1])
 
     return (new_times,new_nodes,min_start)
@@ -222,31 +240,31 @@ def split_break_node(record,travel_times,min_start=None):
 
     if min_start == None:
         min_start = len(travel_times.index)
-    new_times = []
+    new_times = np.zeros(0,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
     new_nodes = []
     tt = travel_times.loc[0,record.origin]
     if not np.isnan(tt):
         pair = break_node_splitter(0,record.origin,tt,min_start)
-        new_times.extend(pair[0])
+        new_times = np.concatenate((new_times,pair[0]),axis=0)
         new_nodes.extend(pair[1])
         min_start = pair[2]
-        # print(new_times)
 
     tt = travel_times.loc[record.origin,record.destination]
     if not np.isnan(tt):
         pair = break_node_splitter(record.origin,record.destination,tt,min_start)
-        new_times.extend(pair[0])
+        new_times = np.concatenate((new_times,pair[0]),axis=0)
+        new_times = np.concatenate((new_times,pair[0]),axis=0)
         new_nodes.extend(pair[1])
         min_start = pair[2]
-        # print(new_times)
 
     tt = travel_times.loc[record.destination,0]
     if not np.isnan(tt):
         pair = break_node_splitter(record.destination,0,tt,min_start)
-        new_times.extend(pair[0])
+        new_times = np.concatenate((new_times,pair[0]),axis=0)
         new_nodes.extend(pair[1])
         min_start = pair[2]
-    #print(new_times)
+    print(new_times)
+
     return (new_times,new_nodes,min_start)
 
 
@@ -432,24 +450,14 @@ def aggregate_split_nodes(travel_time,newtimes):
     # at this time, I keep careful track of new nodes, so there should
     # be no need for the adjustment code.
 
-    all_new_df=None
-    # merge new times?
-    # brute force for now
-    merged_nt = []
-    for nt in newtimes:
-        # print(nt)
-        for entry in nt.items():
-            origin = entry[0]
-            for end in entry[1].items():
-                merged_nt.append([origin,
-                                  end[0],
-                                  end[1]])
-
-    new_df = pd.DataFrame(data=merged_nt,columns=['from','to','time'])
+    new_df=pd.DataFrame(data=newtimes)
+    #new_df = pd.DataFrame(data=merged_nt,columns=['from','to','time'])
     new_df.drop_duplicates(inplace=True)
-    df_new_times = new_df.pivot(index='from',columns='to',values='time')
+    df_new_times = new_df.pivot(index='x',columns='y',values='t')
+    # print(df_new_times)
 
     df_new_times.update(travel_time)
+    # print(df_new_times)
     for idx in travel_time.index:
         if not idx in df_new_times.index:
             print('problems ahead.  missing',idx,'from',df_new_times.index,' Bailing out')

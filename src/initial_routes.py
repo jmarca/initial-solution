@@ -55,6 +55,11 @@ def initial_routes(demand,vehicles,time_matrix,
         # print('before',travel_time,drive_time)
         while not reached_depot:
 
+            if debug:
+                print('loop',
+                      'prior',prior,
+                      'goal',goal)
+
             # considering trip from prior to goal
             # either insert a break node, or insert goal
             # what is travel time from prior to goal?

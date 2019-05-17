@@ -17,8 +17,8 @@ class BreakNode():
         self.break_time=break_time
         self.accumulator_reset=accumulator_reset
         if tt_od > 0:
-            tt_o = 660
-            if tt_od <= 660:
+            tt_o = accumulator_reset
+            if tt_od <= accumulator_reset:
                 tt_o = math.floor(tt_od/2)
             self.tt_o = int(tt_o)
             self.tt_d = int(tt_od - self.tt_o)
