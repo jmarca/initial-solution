@@ -252,7 +252,10 @@ def initial_routes(demand,vehicles,time_matrix,
                         if debug:
                             print('take long brk',lbk.node,short_time,drive_time)
                     tt_fr_goal = time_matrix.loc[fr,goal]
-
+                    if np.isnan(tt_fr_goal):
+                        print(fr,goal)
+                        print(time_matrix.loc[:,[fr,goal]])
+                        assert 0
                     brk_idx += 1
 
                 # okay, done adding breaks, now what?

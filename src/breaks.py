@@ -139,7 +139,9 @@ def break_node_splitter(origin,destination,tt,min_start):
     short_break_interval = 60*8
 
     # for the 11 hour drive rule
-    long_possible_breaks = math.ceil(tt/(11*60)) + 1
+    long_possible_breaks = math.ceil(tt/(11*60))
+    if long_possible_breaks == 0:
+        long_possible_breaks = 1
 
     # no real need to count up 8 hr breaks...at a minimum, can slot
     # one in between each 11 hr break
@@ -198,21 +200,24 @@ def break_node_splitter(origin,destination,tt,min_start):
         segment_tt = node11.tt_d
         origin=node11.node
 
+    node8 = new_nodes[-2]
+    node11 = new_nodes[-1]
     # only put in another 8 hr node if need to do so
-    if long_possible_breaks == 1 and tt < 8:
+
         # will not need a short break after long break prior to
         # arrival at destination, so make it so can just get to dest
         # from short break
-        extra_connection = np.array([(node8.node,destination,node8.tt_d+node11.tt_d)],
-                                    dtype=[('x', np.int), ('y', np.int),('t',np.float)])
-        new_times = np.concatenate((new_times,extra_connection),axis=0)
-    else:
+    extra_connection = np.array([(node8.node,destination,node8.tt_d+node11.tt_d)],
+                                dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+    new_times = np.concatenate((new_times,extra_connection),axis=0)
+    print(tt,long_possible_breaks*long_break_interval,
+          tt - long_possible_breaks*long_break_interval)
+    if tt >= 8 + long_possible_breaks*long_break_interval :
         # in this case, might need a short break before long break,
         # then another short break prior to destination (worst case,
         # pickup, 0 time, long break, 8hrs, need short break,
         # dest). so make it here
 
-        node11 = new_nodes[-1]
         pair8 = split_links_break_nodes(node11.node,
                                         destination,
                                         node11.tt_d,
