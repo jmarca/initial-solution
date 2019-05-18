@@ -135,21 +135,23 @@ class Demand():
 
         # slice up to create a lookup object
         origins = self.demand.loc[feasible_index,['from_node','origin','pickup_time']]
+        origins['demand_index'] = origins.index
         origins = origins.rename(index=str,columns={'from_node':'mapnode',
                                                     'origin':'modelnode',
                                                     'pickup_time':'service_time'})
         origins.set_index('modelnode',inplace=True)
         origins['demand'] = 1
+
         self.origins = origins # for queries---is this origin or not
 
         destinations = self.demand.loc[feasible_index,['to_node','destination','dropoff_time']]
+        destinations['demand_index'] = destinations.index
         destinations = destinations.rename(index=str,columns={'to_node':'mapnode',
                                                               'destination':'modelnode',
                                                               'dropoff_time':'service_time'})
         destinations.set_index('modelnode',inplace=True)
         destinations['demand'] = -1
         self.destinations = destinations # ditto
-
         # can look up a map node given a model node
         self.equivalence = origins.append(destinations)
 
@@ -163,6 +165,11 @@ class Demand():
             return (self.equivalence.loc[demand_node].mapnode)
         # handles case of depot, and all augmenting nodes for
         # breaks, etc
+        return -1
+
+    def get_demand_number(self,demand_node):
+        if demand_node in self.equivalence.index:
+            return (self.equivalence.loc[demand_node].demand_index)
         return -1
 
     def get_service_time(self,demand_node):
@@ -230,6 +237,7 @@ class Demand():
         new_matrix[0] = {} # depot node
         new_matrix[0][0] = 0
         # list of all origins
+        self.demand['load_number'] = self.demand.index
         feasible_idx = self.demand.feasible
         for idx in self.demand.index[feasible_idx]:
             record = self.demand.loc[idx]

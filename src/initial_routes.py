@@ -274,9 +274,15 @@ def initial_routes(demand,vehicles,time_matrix,
 
                 # check if you need one more short break before goal
                 if short_time + tt_fr_goal >= 480 :
+                    sbk = breaks[brk_idx]
+                    trip_chain.append(sbk.node)
+                    tt_fr_sbk = time_matrix.loc[fr,sbk.node]
+                    short_time += tt_fr_sbk + sbk.drive_time_restore()
+                    drive_time += tt_fr_sbk
+                    fr = sbk.node
+                    tt_fr_goal = time_matrix.loc[fr,goal]
                     if debug:
-                        print('slotting in one more short break')
-                    trip_chain.append(breaks[brk_idx].node)
+                        print('slotting in one last short brk',sbk.node,short_time,drive_time)
 
                 # at the goal, so add that and account for it
                 short_time += tt_fr_goal

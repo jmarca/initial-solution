@@ -43,10 +43,11 @@ def print_solution(demand,
                    assignment,
                    horizon,
                    break_dim_floor,
-                   summary_output=None):  # pylint:disable=too-many-locals
+                   args):  # pylint:disable=too-many-locals
 
     """Prints assignment on console"""
     # collect everything in a variable
+    route_summary={}
     output_string = 'Objective: {}'.format(assignment.ObjectiveValue())
     # breaks are no longer break intervals
     # breaks = assignment.IntervalVarContainer()
@@ -66,6 +67,7 @@ def print_solution(demand,
     #               'duration',brk.DurationMin(),
     #               'end',brk.EndMin())
 
+    demand_served = {i:False for i in demand.demand.index}
     total_distance = 0
     total_load_served = 0
     total_time = 0
@@ -80,6 +82,7 @@ def print_solution(demand,
 
     output_string += '\nRoutes:\n'
     for vehicle in vehicles.vehicles:
+        service_details = {}
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
         plan_output  ='Route for vehicle {}:\n'.format(vehicle_id)
@@ -95,16 +98,20 @@ def print_solution(demand,
             load_var  = capacity_dimension.CumulVar(index)
             slack_var = time_dimension.SlackVar(index)
             visits_var  = count_dimension.CumulVar(index)
-
+            lb_count = 0
+            sb_count = 0
             node = manager.IndexToNode(index)
+            node_demand = demand.get_demand(node)
             mapnode = demand.get_map_node(node)
             if mapnode < 0 and drive_dimension:
                 # fill in with info about break type
                 bn = demand.get_break_node(node)
                 if bn.break_time == 600:
                     mapnode = '[10hr BRK]'
+                    lb_count += 1
                 if bn.break_time == 30:
                     mapnode = '[30min BRK]'
+                    sb_count += 1
             else:
                 mapnode = "mapnode {}".format(mapnode)
 
@@ -114,9 +121,16 @@ def print_solution(demand,
             max_time =  timedelta(minutes=assignment.Max(time_var))
             slack_var_min = 0
             slack_var_max = 0
-            node_demand = demand.get_demand(node)
             if node_demand > 0:
                 pickups += 1
+                demand_index = demand.get_demand_number(node)
+                demand_served[demand_index]=True
+                # verify
+                assert demand.demand.loc[demand_index]['origin']==node
+
+                service_details[node-1]={'from':demand.demand.loc[node-1]['from_node'],
+                                         'to':demand.demand.loc[node-1]['to_node']}
+
             # at this point, everything should have slack var
             slack_var_min = timedelta(minutes=assignment.Min(slack_var))
             slack_var_max = timedelta(minutes=assignment.Max(slack_var))
@@ -207,6 +221,15 @@ def print_solution(demand,
                 pickups)
             plan_output += 'Time of the route: {}\n'.format(
                 timedelta(minutes=assignment.Value(time_var)))
+            route_summary[vehicle_id] = {'vehicle_id':vehicle_id,
+                                         'total_time':assignment.Value(time_var),
+                                         'short_breaks':sb_count,
+                                         'long_breaks':lb_count,
+                                         'loads_served':service_details,
+                                         'driving_distance':distance,
+                                         'driving_time':distance/(args.speed/60)}
+
+
         output_string += '\n'+plan_output+'\n'
         total_distance += distance
         total_load_served += pickups
@@ -215,20 +238,63 @@ def print_solution(demand,
     output_string +='\nTotal Loads picked up by all routes: {}'.format(total_load_served)
     output_string +='\nTotal Time of all routes: {0}'.format(timedelta(minutes=total_time))
 
-    # print gimpy demands
 
-    infeasible_index = ~demand.demand.feasible
-    if len(infeasible_index[infeasible_index]) > 0:
+    # output summary
+    output_string += '\n\nRoute summaries'
+    for entry in route_summary.items():
+        (k,v) = entry
+        load_numbers = [kkk  for kkk in v['loads_served'].keys()]
+        load_numbers.sort()
+
+        service_details = ["load {0}: {1} — {2}".format(kk+1,
+                                                       v['loads_served'][kk]['from'],
+                                                       v['loads_served'][kk]['to'])
+                           for kk in load_numbers]
+
+        service_summary = '; '.join(service_details)
+
+        output_string += """
+\nRoute: {0},
+Driving time: {1} min,
+30 min breaks: {2},
+10 hr breaks: {3},
+Total route time: {4} min
+Total distance driven: {5} mi
+Loads: {6}
+""".format(v['vehicle_id'],
+           int(v['driving_time']),
+           v['short_breaks'],
+           v['long_breaks'],
+           int(v['total_time']),
+           int(v['driving_distance']),
+           service_summary)
+
+    # print unserved but feasible demands
+    skipped_demands = ''
+    infeasible_demands = ''
+    for entry in demand_served.items():
+        (k,v) = entry
+        if not v:
+            d = demand.demand.loc[entry[0]]
+            if d.feasible:
+                skipped_demands += "\n{}: from {} to {}".format(entry[0]+1,d.from_node,d.to_node)
+            else:
+                infeasible_demands += "\n{}: from {} to {}, {}".format(entry[0]+1,d.from_node,d.to_node,d.constraint)
+    if skipped_demands != '':
+        output_string += '\n\nDemands that are not served:'
+        output_string += skipped_demands
+
+    # print gimpy demands
+    if infeasible_demands != '':
         output_string +='\n\nDemands that are infeasible:'
-        for idx in demand.demand.index[infeasible_index]:
-            d = demand.demand.loc[idx]
-            output_string += '\n'+d.constraint
-    if summary_output:
+        output_string += infeasible_demands
+
+    if args.summary_output:
         # possible collision
         idx = 1
-        checkname = summary_output
+        checkname = args.summary_output
         while os.path.exists(checkname):
-            checkname = re.sub(r"\.(.*)$",r"_{}.\1".format(idx),summary_output)
+            checkname = re.sub(r"\.(.*)$",r"_{}.\1".format(idx),args.summary_output)
             idx += 1
 
         f = open(checkname, 'a+')
