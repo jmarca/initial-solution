@@ -55,6 +55,11 @@ def initial_routes(demand,vehicles,time_matrix,
         # print('before',travel_time,drive_time)
         while not reached_depot:
 
+            if debug:
+                print('loop',
+                      'prior',prior,
+                      'goal',goal)
+
             # considering trip from prior to goal
             # either insert a break node, or insert goal
             # what is travel time from prior to goal?
@@ -122,16 +127,16 @@ def initial_routes(demand,vehicles,time_matrix,
                 lbrk_idx = 0
                 brk_idx = 0
                 tt_fr_goal = time_matrix.loc[fr,goal]
-                while (brk_idx < len(break_list) and
-                       (drive_time + tt_fr_goal >= 660 ) or
-                       (short_time + tt_fr_goal >= 480 )):
+                while (brk_idx + 1 < len(breaks)) and (
+                        (drive_time + tt_fr_goal >= 660 ) or
+                        (short_time + tt_fr_goal >= 480 )):
                     sbk = breaks[brk_idx]
                     lbk = breaks[brk_idx+1]
-                    if sbk.break_time != 30:
-                        if lbk.break_time == 30:
-                            sbk = lbk
-                            brk_idx += 1
-                            lbk = breaks[brk_idx+1]
+                    # if sbk.break_time != 30:
+                    #     if lbk.break_time == 30:
+                    #         sbk = lbk
+                    #         brk_idx += 1
+                    #         lbk = breaks[brk_idx+1]
                     if debug:
                         print('break index',brk_idx,
                               'short break',sbk.break_time,
@@ -247,10 +252,38 @@ def initial_routes(demand,vehicles,time_matrix,
                         if debug:
                             print('take long brk',lbk.node,short_time,drive_time)
                     tt_fr_goal = time_matrix.loc[fr,goal]
-
-                    brk_idx += 1
+                    if np.isnan(tt_fr_goal):
+                        print(fr,goal)
+                        print(time_matrix.loc[:,[fr,goal]])
+                        assert 0
+                    brk_idx += 2
 
                 # okay, done adding breaks, now what?
+                if debug:
+                    print('break_list',break_list,
+                          'drive_time',drive_time,
+                          'short_time',short_time,
+                          'total_time',tt,
+                          'brk_idx',brk_idx,
+                          'tt remaining to goal',tt_fr_goal,
+                          (drive_time + tt_fr_goal),
+                          (short_time + tt_fr_goal),
+                          '\n',
+                          time_matrix.loc[trip_chain,trip_chain])
+
+
+                # check if you need one more short break before goal
+                if short_time + tt_fr_goal >= 480 :
+                    sbk = breaks[brk_idx]
+                    trip_chain.append(sbk.node)
+                    tt_fr_sbk = time_matrix.loc[fr,sbk.node]
+                    short_time += tt_fr_sbk + sbk.drive_time_restore()
+                    drive_time += tt_fr_sbk
+                    fr = sbk.node
+                    tt_fr_goal = time_matrix.loc[fr,goal]
+                    if debug:
+                        print('slotting in one last short brk',sbk.node,short_time,drive_time)
+
                 # at the goal, so add that and account for it
                 short_time += tt_fr_goal
                 drive_time += tt_fr_goal

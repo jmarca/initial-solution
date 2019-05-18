@@ -465,7 +465,7 @@ def main():
         SO.print_solution(d,expanded_m,expanded_mm,
                           vehicles,manager,routing,assignment,args.horizon,
                           args.drive_dimension_start_value,
-                          args.summary_output)
+                          args)
 
         SO.csv_output(d,expanded_m,expanded_mm,
                       vehicles,manager,routing,assignment,args.horizon,
