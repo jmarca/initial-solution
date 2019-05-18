@@ -91,6 +91,8 @@ def print_solution(demand,
         this_time = 0
         link_time = 0
         pickups = 0
+        lb_count = 0
+        sb_count = 0
         while not routing.IsEnd(index):
             # load_var = capacity_dimension.CumulVar(index)
 
@@ -98,8 +100,6 @@ def print_solution(demand,
             load_var  = capacity_dimension.CumulVar(index)
             slack_var = time_dimension.SlackVar(index)
             visits_var  = count_dimension.CumulVar(index)
-            lb_count = 0
-            sb_count = 0
             node = manager.IndexToNode(index)
             node_demand = demand.get_demand(node)
             mapnode = demand.get_map_node(node)
