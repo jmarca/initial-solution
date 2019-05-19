@@ -153,7 +153,7 @@ def main():
         time_dimension_name)
     time_dimension = routing.GetDimensionOrDie(time_dimension_name)
     # this is new in v7.0, not sure what it does yet
-    # time_dimension.SetGlobalSpanCostCoefficient(100)
+    time_dimension.SetGlobalSpanCostCoefficient(100)
     # turned it on and nothing worked, so leave off
 
     print('create 11hr drive dimension')
