@@ -10,7 +10,7 @@ import argparse
 
 import read_csv as reader
 import vehicles as V
-import demand as D
+import demand_no_breaks as D
 import evaluators as E
 import solution_output as SO
 
@@ -19,7 +19,7 @@ import initial_routes as IR
 
 def main():
     """Entry point of the program."""
-    parser = argparse.ArgumentParser(description='Solve assignment of truck load routing problem, give hours of service rules and a specified list of origins and destinations')
+    parser = argparse.ArgumentParser(description='Solve assignment of truck load routing problem, with specified list of origins and destinations, ignoring hours of service rules')
     # parser.add_argument('--resume_file',type=str,dest='resumefile',
     #                     help="resume a failed solver run from this file")
     parser.add_argument('-m,--matrixfile', type=str, dest='matrixfile',
@@ -58,8 +58,8 @@ def main():
     parser.add_argument('--debug', type=bool, dest='debug', default=False,
                         help="Turn on some print statements.")
 
-    parser.add_argument('--noroutes',type=bool,dest='noroutes',default=False,
-                        help="Disable generating initial routes.  Not recommended")
+    # parser.add_argument('--noroutes',type=bool,dest='noroutes',default=False,
+    #                     help="Disable generating initial routes.")
     args = parser.parse_args()
 
     print('read in distance matrix')
@@ -70,12 +70,9 @@ def main():
     d = D.Demand(args.demand,minutes_matrix,args.horizon)
 
     # convert nodes to solver space from input map space
-    mm = d.generate_solver_space_matrix(minutes_matrix,args.horizon)
+    expanded_mm = d.generate_solver_space_matrix(minutes_matrix,args.horizon)
 
-    # create dummy nodes for breaks
-    expanded_mm = d.insert_nodes_for_breaks(mm)
-
-    # copy new nodes to distance matrix
+    # echo nodes to distance matrix
     expanded_m = reader.travel_time(60/args.speed,expanded_mm)
     # print('original matrix of',len(matrix.index),'expanded to ',len(expanded_m.index))
 
@@ -88,7 +85,7 @@ def main():
     # probably should refactor to put time under control of
     # demand class
     num_nodes = len(expanded_mm.index)
-    print('After augmenting network with break nodes, solving with ',num_nodes,'nodes')
+    print('Solving with ',num_nodes,'nodes')
     #print(d.demand.loc[d.demand.feasible,:])
     print(d.demand.loc[:,['from_node',
                           'to_node',
@@ -102,7 +99,6 @@ def main():
                           'feasible',
                           'origin',
                           'destination']])
-
 
     # print(expanded_mm)
     # assuming here that all depots are in the same place
@@ -156,57 +152,6 @@ def main():
     time_dimension.SetGlobalSpanCostCoefficient(100)
     # turned it on and nothing worked, so leave off
 
-    print('create 11hr drive dimension')
-    drive_dimension_name = 'Drive'
-    # Add Drive dimension for breaks logic
-    print('creating drive callback for solver')
-    drive_callback = partial(E.create_drive_callback(expanded_mm,
-                                                     d,
-                                                     11*60,
-                                                     10*60),
-                             manager)
-    drive_callback_index = routing.RegisterTransitCallback(drive_callback)
-    routing.AddDimension(
-        drive_callback_index, # same "cost" evaluator as above
-        0,  # No slack for drive dimension? infinite slack?
-        args.horizon,  # max drive is end of drive horizon
-        False, # set to zero for each vehicle
-        drive_dimension_name)
-    drive_dimension = routing.GetDimensionOrDie(drive_dimension_name)
-
-    # constrain drive dimension to be drive_dimension_start_value at
-    # start, so avoid negative numbers
-    for vehicle in vehicles.vehicles:
-        vehicle_id = vehicle.index
-        index = routing.Start(vehicle_id)
-        routing.solver().Add(drive_dimension.CumulVar(index)==args.drive_dimension_start_value)
-
-    print('create 30 min break dimension')
-    short_break_dimension_name = 'Short Break'
-    # Add short_Break dimension for breaks logic
-    print('creating short_break callback for solver')
-    short_break_callback = partial(E.create_short_break_callback(expanded_mm,
-                                                                 d,
-                                                                 8*60,
-                                                                 30),
-                                   manager)
-
-    short_break_callback_index = routing.RegisterTransitCallback(short_break_callback)
-    routing.AddDimension(
-        short_break_callback_index, # modified "cost" evaluator as above
-        0,  # No slack
-        args.horizon,  # max horizon is horizon
-        False, # set to zero for each vehicle
-        short_break_dimension_name)
-    short_break_dimension = routing.GetDimensionOrDie(short_break_dimension_name)
-
-    # constrain short_break dimension to be drive_dimension_start_value at
-    # start, so avoid negative numbers
-    for vehicle in vehicles.vehicles:
-        vehicle_id = vehicle.index
-        index = routing.Start(vehicle_id)
-        routing.solver().Add(short_break_dimension.CumulVar(index)==args.drive_dimension_start_value)
-
 
     demand_evaluator_index = routing.RegisterUnaryTransitCallback(
         partial(E.create_demand_callback(expanded_m.index,d), manager))
@@ -255,12 +200,9 @@ def main():
         dropoff_index = manager.NodeToIndex(record.destination)
         tt = expanded_mm.loc[record.origin,record.destination]
         if args.destination_time_windows:
-            # early time windows is minimal breaks: start fresh, drive straight
-            breaks = math.floor(tt/60/11) * 600
-            early = int(record.early + tt + breaks)
-            # late time window  maybe another break will have to be inserted
-            breaks += 600
-            late = int(record.late + tt + breaks)
+            # early time windows: start fresh, drive straight
+            early = int(record.early + tt)
+            late = int(record.late + tt )
             time_dimension.CumulVar(dropoff_index).SetRange(early, late)
         else:
             # just set dropoff time window same as 0, horizon
@@ -268,38 +210,6 @@ def main():
             late = args.horizon
             time_dimension.CumulVar(dropoff_index).SetRange(early, late)
         routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
-
-    # now for all dummy nodes, set time windows
-    # dummy nodes are identified by demand of zero
-    for node in expanded_mm.index:
-        # skip depot nodes---handled in vehicle time windows below
-        if node == 0:
-            continue
-        # default is to give dummy nodes infinite time windows but
-        # nodes leading to pickup nodes max out at pickup node time
-        # window
-        # optionally, don't do that for dummy nodes heading to pickups
-        if d.get_demand(node) == 0:
-            # this is a dummy node, not a pickup (1) not a dropoff (-1)
-
-            index = manager.NodeToIndex(node)
-            # set maximal time window
-            tw = [0,args.horizon]
-            #print(index,tw)
-            # # dummy nodes can only get to one node
-            # tt = expanded_mm.loc[node,:]
-            # bool_idx = tt > 0
-            # # next node is either origin, destination, or depot
-            # next_node = expanded_mm.index[bool_idx].max()
-            # # get next node time window to determine this node time window
-            # tw = d.get_time_window(next_node)
-            # if tw[0]>0 :
-            #     # next node is a pickup, with early time > 0
-            #     # but might be n breaks prior, so just zero it out
-            #     tw = (0,tw[1])
-            # # print('dummy node time window',node,index)
-            time_dimension.CumulVar(index).SetRange(int(tw[0]),int(tw[1]))
-            routing.AddToAssignment(time_dimension.SlackVar(index))
 
     # Add time window constraints for each vehicle start node
     # and 'copy' the slack var in the solution object (aka Assignment) to print it
@@ -313,23 +223,8 @@ def main():
         routing.AddToAssignment(time_dimension.SlackVar(index))
 
 
-    # [START breaks logic]
-    print('apply break rules')
-    d.breaks_at_nodes_constraints(len(vehicles.vehicles),
-                                  expanded_mm,
-                                  manager,
-                                  routing,
-                                  time_dimension,
-                                  count_dimension,
-                                  drive_dimension,
-                                  short_break_dimension,
-                                  args.drive_dimension_start_value)
-
-    print('breaks done')
-
     # prevent impossible next nodes
     print('remove impossible connections from solver')
-    notna = expanded_mm.notna()
     isna  = expanded_mm.isna()
     time_index = expanded_mm.index
     maxtime = expanded_mm.max().max()*100
@@ -340,19 +235,6 @@ def main():
         na_indices = [manager.NodeToIndex(dnode) for dnode in time_index[isna.loc[onode,:]]]
         # print('remove link from',onode,'to',dnode)
         routing.NextVar(o_idx).RemoveValues(na_indices)
-        # the following isn't needed (no op)
-        # for dnode in time_index[notna.loc[onode,:]]:
-        #     if onode == dnode:
-        #         continue
-        #     # now checking with the callback for service times because
-        #     # I drop transitions that are imposible from destinations
-        #     # to origins
-        #     d_idx = manager.NodeToIndex(dnode)
-        #     if time_callback(o_idx,d_idx) > maxtime:
-        #         # this link has been given the penalty
-        #         if routing.NextVar(o_idx).Contains(d_idx):
-        #             print('remove link from',onode,'to',dnode,'based on time callback check')
-        #             routing.NextVar(o_idx).RemoveValue(d_idx)
     print('done with RemoveValue calls')
 
 
@@ -406,47 +288,45 @@ def main():
     # print("Done Writing routing object to file routing.pkl")
 
     initial_routes = None
-    if not args.noroutes:
-        # set up initial routes
-        trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
-                                    manager,
-                                    time_callback,
-                                    drive_callback,
-                                    short_break_callback,
-                                    debug = args.debug)
 
-        initial_routes = [v for v in trip_chains.values()]
-        #print(initial_routes)
+    # set up initial routes
+    trip_chains = IR.initial_routes_no_breaks(d,vehicles.vehicles,expanded_mm,
+                                             manager,
+                                             time_callback,
+                                             debug = args.debug)
 
-        routing.CloseModelWithParameters(parameters)
-        initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
+    initial_routes = [v for v in trip_chains.values()]
+    #print(initial_routes)
+
+    routing.CloseModelWithParameters(parameters)
+    initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
                                                             True)
 
-        # debug loop which is the bug?
-        if not initial_solution:
-            bug_route = []
-            for route in initial_routes:
-                single_solution = routing.ReadAssignmentFromRoutes([route],
-                                                                   True)
-                if not single_solution:
-                    bug_route.append(route)
+    # debug loop which is the bug?
+    if not initial_solution:
+        bug_route = []
+        for route in initial_routes:
+            single_solution = routing.ReadAssignmentFromRoutes([route],
+                                                               True)
+            if not single_solution:
+                bug_route.append(route)
             print(bug_route)
-        assert initial_solution
-        print('Initial solution:')
-        SO.print_initial_solution(d,expanded_m,expanded_mm,
-                                  vehicles,manager,routing,initial_solution,args.horizon)
+    assert initial_solution
+    #     print('Initial solution:')
+    #     SO.print_initial_solution(d,expanded_m,expanded_mm,
+    #                               vehicles,manager,routing,initial_solution,args.horizon)
 
 
 
     print('Calling the solver')
     # [START solve]
     assignment = None
-    if not args.noroutes:
-        assignment = routing.SolveFromAssignmentWithParameters(
-            initial_solution, parameters)
+    # if not args.noroutes:
+    #     assignment = routing.SolveFromAssignmentWithParameters(
+    #         initial_solution, parameters)
 
-    else:
-        assignment = routing.SolveWithParameters(parameters)
+    # else:
+    assignment = routing.SolveWithParameters(parameters)
 
 
     # [END solve]
@@ -466,7 +346,6 @@ def main():
                           vehicles,manager,routing,assignment,args.horizon,
                           args.drive_dimension_start_value,
                           args)
-
         SO.csv_output(d,expanded_m,expanded_mm,
                       vehicles,manager,routing,assignment,args.horizon,
                       args.vehicle_output)

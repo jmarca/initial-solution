@@ -154,6 +154,7 @@ class Demand():
         self.destinations = destinations # ditto
         # can look up a map node given a model node
         self.equivalence = origins.append(destinations)
+        self.break_nodes = None
 
     def get_node_list(self):
         return self.equivalence.index.view(int)
@@ -406,7 +407,7 @@ class Demand():
         return None
 
     def get_break_node(self,node):
-        if node in self.break_nodes:
+        if self.break_nodes and node in self.break_nodes:
             return self.break_nodes[node]
         return None
 

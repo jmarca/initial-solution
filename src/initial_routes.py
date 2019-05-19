@@ -348,3 +348,96 @@ def initial_routes(demand,vehicles,time_matrix,
     # print(short_times)
 
     return trip_chains
+
+def initial_routes_no_breaks(demand,vehicles,time_matrix,
+                   manager,time_callback,
+                   debug=False):
+    # initial routes should be a list of nodes to visit, in node space
+    # (not solver index space, not map space)
+
+    # assign one route per vehicle
+    veh = 0
+    prior = 0
+    feasible_idx = demand.demand.feasible
+    trip_chains = {}
+    travel_times = {}
+
+    for idx in demand.demand.index[feasible_idx]:
+        if veh >= len(vehicles):
+            break
+        reached_depot = False
+        trip_chain = []
+        record = demand.demand.loc[idx,:]
+        if debug:
+            print (record)
+        prior = 0 # depot node
+
+        cycler = cycle_goal(record.origin,record.destination)
+        goal = record.origin
+        travel_time = 0
+        tt = 0
+        while not reached_depot:
+
+            if debug:
+                print('loop',
+                      'prior',prior,
+                      'goal',goal)
+
+            # considering trip from prior to goal
+            # either insert a break node, or insert goal
+            # what is travel time from prior to goal?
+            tt_prior_goal = time_matrix.loc[prior,goal]
+            if debug:
+                print('go straight to goal',
+                      'tt_prior_goal',tt_prior_goal,
+                      'prior',prior,
+                      'goal',goal,
+                      'travel_time',travel_time)
+
+            # just go straight to goal
+            tt += time_callback(manager.NodeToIndex(prior),
+                                manager.NodeToIndex(goal))
+            travel_time += tt_prior_goal + demand.get_service_time(prior)
+
+            next_goal = cycler(goal)
+            reached_depot = next_goal == -1
+            if not reached_depot:
+                trip_chain.append(goal)
+                prior = goal
+            # assertion checks about conditions
+            if goal == record.origin:
+                # check that time window requirements are satisfied
+                # print(record.from_node,record.origin,record.early,tt,record.late)
+                if debug:
+                    print(record,'\n',
+                          'tt',tt,
+                          'travel_time',travel_time)
+                assert tt+record.pickup_time  -1 <= record.depot_origin
+                assert record.depot_origin <= tt+1 + record.pickup_time
+            goal = next_goal
+
+        if debug:
+            print(trip_chain) # before
+
+            # check callback values too
+            tt = 0
+            tt_chain = []
+            fr = 0
+            for tcidx in trip_chain:
+                tt += time_callback(manager.NodeToIndex(fr),
+                                    manager.NodeToIndex(tcidx))
+                tt_chain.append(tt)
+                fr = tcidx
+            print('travel time chain',tt_chain)
+
+        # loop to next demand, next trip chain, next vehicle
+        trip_chains[veh] = trip_chain
+        travel_times[veh] = travel_time
+        veh += 1
+        prior = 0
+        travel_time = 0
+    # print(time_matrix)
+    print(trip_chains)
+    print(travel_times)
+
+    return trip_chains

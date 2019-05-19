@@ -76,10 +76,9 @@ def print_solution(demand,
     count_dimension = routing.GetDimensionOrDie('Count')
     drive_dimension = False
     short_dimension = False
-    if len(demand.break_nodes.keys()) > 0:
+    if demand.break_nodes:
         drive_dimension = routing.GetDimensionOrDie('Drive')
         short_dimension = routing.GetDimensionOrDie('Short Break')
-
     output_string += '\nRoutes:\n'
     for vehicle in vehicles.vehicles:
         service_details = {}
@@ -325,7 +324,6 @@ def csv_output(demand,
     capacity_dimension = routing.GetDimensionOrDie('Capacity')
     time_dimension = routing.GetDimensionOrDie('Time')
     count_dimension = routing.GetDimensionOrDie('Count')
-    drive_dimension = routing.GetDimensionOrDie('Drive')
     for vehicle in vehicles.vehicles:
         this_vehicle_rows=[]
         vehicle_id = vehicle.index
@@ -350,8 +348,6 @@ def csv_output(demand,
             slack_var_min = 0
             slack_var_max = 0
             node_demand = demand.get_demand(node)
-            drive_var = drive_dimension.CumulVar(index)
-            drive_time = assignment.Value(drive_var)
             row = {'location':mapnode,
                    'demand':node_demand,
                    'order':visits,
@@ -376,8 +372,6 @@ def csv_output(demand,
         time_var = time_dimension.CumulVar(index)
         slack_var = time_dimension.SlackVar(index)
         visits = assignment.Value(visits_var)
-        drive_var = drive_dimension.CumulVar(index)
-        drive_time = assignment.Value(drive_var)
         node = manager.IndexToNode(index)
         mapnode = demand.get_map_node(node)
 
@@ -434,7 +428,6 @@ def csv_demand_output(demand,
     capacity_dimension = routing.GetDimensionOrDie('Capacity')
     time_dimension = routing.GetDimensionOrDie('Time')
     count_dimension = routing.GetDimensionOrDie('Count')
-    drive_dimension = routing.GetDimensionOrDie('Drive')
     for vehicle in vehicles.vehicles:
         this_vehicle_rows=[]
         vehicle_id = vehicle.index
@@ -459,8 +452,6 @@ def csv_demand_output(demand,
             slack_var_min = 0
             slack_var_max = 0
             node_demand = demand.get_demand(node)
-            drive_var = drive_dimension.CumulVar(index)
-            drive_time = assignment.Value(drive_var)
 
             if node_demand != 0:
                 if node_demand > 0:
@@ -496,8 +487,6 @@ def csv_demand_output(demand,
         time_var = time_dimension.CumulVar(index)
         slack_var = time_dimension.SlackVar(index)
         visits = assignment.Value(visits_var)
-        drive_var = drive_dimension.CumulVar(index)
-        drive_time = assignment.Value(drive_var)
         node = manager.IndexToNode(index)
         mapnode = demand.get_map_node(node)
 
