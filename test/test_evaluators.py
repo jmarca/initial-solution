@@ -174,7 +174,3 @@ def test_time_callback():
     assert short_callback(3,1) ==  (m.loc[0,d.get_map_node(1)] - 660) + (bn11.drive_time_restore() - bn8.drive_time_restore())
     # can't go
     assert short_callback(3,4) > max_time
-
-
-
-    assert 0
