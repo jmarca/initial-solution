@@ -135,12 +135,6 @@ def create_time_callback2(travel_minutes_matrix,
 
     _total_time = penalty_time * np.ones((number,number))
 
-    node_list = [(n,demand) for n in travel_minutes_matrix.index]
-    # print('len node list is ',len(node_list))
-    # ncpus = 3# len(os.sched_getaffinity(0))
-    # p = Pool(ncpus)
-    # node_demand_service_list = p.map(make_location_data,node_list)
-    # print(node_demand_service_list)
     size = len(travel_minutes_matrix)
     service_time = np.zeros((size,size))
     notna = travel_minutes_matrix.notna()
