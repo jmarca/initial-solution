@@ -1,4 +1,5 @@
 import read_csv as reader
+import math
 
 def test_load_demand():
     d = reader.load_demand_from_csv('test/data/demand.csv')
@@ -25,7 +26,7 @@ def test_create_time_matrix():
     matrix = reader.load_matrix_from_csv('test/data/matrix.csv')
     hours_matrix = reader.travel_time(60,matrix)
     assert (hours_matrix.loc[0,0] == 0)
-    assert (hours_matrix.loc[0,1] == 21.15)
+    assert (hours_matrix.loc[0,1] == math.floor(21.15))
     minutes_matrix = reader.travel_time(1,matrix)
     assert (minutes_matrix.loc[0,0] == 0)
     assert (minutes_matrix.loc[0,1] == 1269.0) # a mile a minute

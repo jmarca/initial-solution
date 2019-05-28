@@ -12,6 +12,18 @@ import read_csv as reader
 # hack to capture stdout to a string, to test it
 import io, sys
 from contextlib import contextmanager
+import os
+import filecmp
+
+output_file = 'test_output.txt'
+second_output_file = 'test_output_1.txt'
+expected_file = 'test/data/expected_test_output.txt'
+
+class MockArgs():
+
+    def __init__(self):
+        self.speed = 60
+        self.summary_output = output_file
 
 @contextmanager
 def redirected(out=sys.stdout, err=sys.stderr):
@@ -25,20 +37,20 @@ def redirected(out=sys.stdout, err=sys.stderr):
 def test_output():
 
     horizon = 20000
-    d = D.Demand('test/data/demand.csv',horizon)
     m = reader.load_matrix_from_csv('test/data/matrix.csv')
+    d = D.Demand('test/data/demand.csv',m,horizon)
     m = d.generate_solver_space_matrix(m)
-    m_m = reader.travel_time(1,m)
+    # just go with 60 mph for test, m is mm
 
-    v = V.Vehicles(5)
-    demand_callback = E.create_demand_callback(m_m.index,d)
-    time_callback = E.create_time_callback(m_m,d)
-    dist_callback = E.create_dist_callback(m,d)
-
+    v = V.Vehicles(5,horizon)
     manager = pywrapcp.RoutingIndexManager(
-        d.get_number_nodes() + 1, # add 1 for 1 depot.
+        len(m.index),
         len(v.vehicles),
         v.vehicles[0].depot_index)
+    demand_callback = E.create_demand_callback(m.index,d)
+    time_callback = E.create_time_callback2(m,d)
+    dist_callback = E.create_dist_callback(m,d)
+
     routing = pywrapcp.RoutingModel(manager)
 
     transit_callback_index = routing.RegisterTransitCallback(
@@ -46,12 +58,20 @@ def test_output():
     )
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
+    count_dimension_name = 'Count'
+    routing.AddConstantDimension(
+        1, # increment by one every time
+        len(m.index),  # max count is visit all the nodes
+        True,  # set count to zero
+        count_dimension_name)
+    count_dimension = routing.GetDimensionOrDie(count_dimension_name)
+
     time_dimension_name = 'Time'
     routing.AddDimension(
         transit_callback_index, # same "cost" evaluator as above
-        horizon,  # slack for full range
+        0,  # no slack
         horizon,  # max time is end of time horizon
-        True,  # start cumul to zero
+        False,  # start cumul to zero
         time_dimension_name)
     time_dimension = routing.GetDimensionOrDie(time_dimension_name)
 
@@ -109,62 +129,42 @@ def test_output():
 
     out = io.StringIO()
     err = io.StringIO()
+    args = MockArgs()
     with redirected(out=out, err=err):
         out.flush()
         err.flush()
-        SO.print_solution(d,partial(dist_callback,manager),v,manager,routing,assignment)
+        SO.print_solution(d,m,m,
+                          v,manager,routing,assignment,horizon,
+                          0,args
+        )
         output = out.getvalue()
 
-        expected_output = """Objective: 19246
-Breaks:
-Routes:
-Route for vehicle 0:
-node 0, mapnode 0, Load 0,  Time(0:00:00,0:00:00) Slack(1050,1770) Link time(0:00:00) Link distance(0 mi)
- ->node 4, mapnode 5, Load 0,  Time(1 day, 9:00:00,1 day, 21:00:00) Slack(0,16417) Link time(15:30:00) Link distance(930 mi)
- ->node 9, mapnode 2, Load 1,  Time(2 days, 5:49:00,13 days, 15:26:00) Slack(0,0) Link time(20:49:00) Link distance(1234 mi)
- -> 0 Load(0)  Time(2 days, 11:43:00,13 days, 21:20:00)  Link time(5:54:00) Link distance(339 mi)
-Distance of the route: 2503 miles
-Loads served by route: 1
-Time of the route: 2 days, 11:43:00
-
-Route for vehicle 1:
-node 0, mapnode 0, Load 0,  Time(0:00:00,0:00:00) Slack(1050,1770) Link time(0:00:00) Link distance(0 mi)
- ->node 2, mapnode 5, Load 0,  Time(1 day, 9:00:00,1 day, 21:00:00) Slack(0,2558) Link time(15:30:00) Link distance(930 mi)
- ->node 7, mapnode 4, Load 1,  Time(3 days, 4:51:00,4 days, 23:29:00) Slack(0,0) Link time(1 day, 19:51:00) Link distance(2616 mi)
- ->node 1, mapnode 7, Load 0,  Time(4 days, 9:00:00,5 days, 21:00:00) Slack(0,11265) Link time(21:31:00) Link distance(1276 mi)
- ->node 6, mapnode 9, Load 1,  Time(4 days, 22:45:00,12 days, 18:30:00) Slack(0,0) Link time(13:45:00) Link distance(810 mi)
- -> 0 Load(0)  Time(6 days, 1:35:00,13 days, 21:20:00)  Link time(1 day, 2:50:00) Link distance(1595 mi)
-Distance of the route: 7227 miles
-Loads served by route: 2
-Time of the route: 6 days, 1:35:00
-
-Route for vehicle 2:
-node 0, mapnode 0, Load 0,  Time(0:00:00,0:00:00) Slack(3018,3415) Link time(0:00:00) Link distance(0 mi)
- ->node 5, mapnode 8, Load 0,  Time(3 days, 9:00:00,3 days, 15:37:00) Slack(0,0) Link time(1 day, 6:42:00) Link distance(1842 mi)
- ->node 10, mapnode 3, Load 1,  Time(5 days, 13:04:00,5 days, 19:41:00) Slack(0,0) Link time(2 days, 4:04:00) Link distance(3109 mi)
- ->node 3, mapnode 1, Load 0,  Time(5 days, 14:23:00,5 days, 21:00:00) Slack(0,7556) Link time(1:19:00) Link distance(64 mi)
- ->node 8, mapnode 6, Load 1,  Time(7 days, 13:46:00,12 days, 19:42:00) Slack(0,0) Link time(1 day, 23:23:00) Link distance(2828 mi)
- -> 0 Load(0)  Time(8 days, 15:24:00,13 days, 21:20:00)  Link time(1 day, 1:38:00) Link distance(1523 mi)
-Distance of the route: 9366 miles
-Loads served by route: 1
-Time of the route: 8 days, 15:24:00
-
-Route for vehicle 3:
-node 0, mapnode 0, Load 0,  Time(0:00:00,0:00:00) Slack(0,20000) Link time(0:00:00) Link distance(0 mi)
- -> 0 Load(0)  Time(0:00:00,13 days, 21:20:00)  Link time(0:00:00) Link distance(0 mi)
-Distance of the route: 0 miles
-Loads served by route: 0
-Time of the route: 0:00:00
-
-Route for vehicle 4:
-node 0, mapnode 0, Load 0,  Time(0:00:00,0:00:00) Slack(0,20000) Link time(0:00:00) Link distance(0 mi)
- -> 0 Load(0)  Time(0:00:00,13 days, 21:20:00)  Link time(0:00:00) Link distance(0 mi)
-Distance of the route: 0 miles
-Loads served by route: 0
-Time of the route: 0:00:00
-
-Total Distance of all routes: 19096 miles
-Total Loads picked up by all routes: 4
-Total Time of all routes: 17 days, 4:42:00
-"""
+        expected_output = ""
         assert output == expected_output
+        assert filecmp.cmp(output_file,expected_file)
+
+    # make sure output file was created as directed
+    assert os.path.exists(args.summary_output)
+    assert os.path.exists(output_file)
+
+    # do it again, and this time there should be a _1 version of args.summary_output
+    assert not os.path.exists(second_output_file)
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirected(out=out, err=err):
+        out.flush()
+        err.flush()
+        SO.print_solution(d,m,m,
+                          v,manager,routing,assignment,horizon,
+                          0,args
+        )
+        output = out.getvalue()
+
+        expected_output = ""
+        assert output == expected_output
+    # created alternate named file
+    assert os.path.exists(second_output_file)
+    assert filecmp.cmp(output_file,second_output_file)
+
+    os.unlink(output_file)
+    os.unlink(second_output_file)
