@@ -403,29 +403,29 @@ class Demand():
         origin_short = origin_active*short_break_dimension.CumulVar(o_idx)
         dest_short = dest_active*short_break_dimension.CumulVar(d_idx)
 
-        print(origin_drive,'>=',origin_active,'*',drive_dimension_start_value)
+        # print(origin_drive,'>=',origin_active,'*',drive_dimension_start_value)
         solver.AddConstraint(origin_drive >= origin_active*drive_dimension_start_value)
 
-        print(origin_drive,'<=',origin_active,'*',drive_dimension_start_value+660)
+        # print(origin_drive,'<=',origin_active,'*',drive_dimension_start_value+660)
         solver.AddConstraint(origin_drive < origin_active*(drive_dimension_start_value)+660)
 
-        print(dest_drive,'>=',dest_active,'*',drive_dimension_start_value)
+        # print(dest_drive,'>=',dest_active,'*',drive_dimension_start_value)
         solver.AddConstraint(dest_drive >= dest_active*drive_dimension_start_value)
 
-        print(dest_drive,'<=',dest_active,'*',drive_dimension_start_value+660)
+        # print(dest_drive,'<=',dest_active,'*',drive_dimension_start_value+660)
         solver.AddConstraint(dest_drive < dest_active*(drive_dimension_start_value)+660)
 
         # same type of constraints for short drive dimension, except 8 hrs not 11 hrs
 
-        print(origin_short,'<',origin_active,'*',drive_dimension_start_value+8*60)
+        # print(origin_short,'<',origin_active,'*',drive_dimension_start_value+8*60)
         solver.AddConstraint(origin_short < origin_active*(drive_dimension_start_value)+(8*60))
-        print(origin_short,'>=',origin_active,'*',drive_dimension_start_value)
+        # print(origin_short,'>=',origin_active,'*',drive_dimension_start_value)
         solver.AddConstraint(origin_short >= origin_active*drive_dimension_start_value)
 
-        print(dest_short,'<',dest_active,'*',drive_dimension_start_value+8*60)
+        # print(dest_short,'<',dest_active,'*',drive_dimension_start_value+8*60)
         solver.AddConstraint(dest_short < dest_active*(drive_dimension_start_value)+(8*60))
 
-        print(dest_short,'>=',dest_active,'*',drive_dimension_start_value)
+        # print(dest_short,'>=',dest_active,'*',drive_dimension_start_value)
         solver.AddConstraint(dest_short >= dest_active*drive_dimension_start_value)
 
 
@@ -446,6 +446,9 @@ class Demand():
         feasible_index = self.demand.feasible
         for idx in self.demand.index[feasible_index]:
             record = self.demand.loc[idx,:]
+            # double check that is possible (in case just solving a limited set
+            if np.isnan(time_matrix.loc[record.origin,record.destination]):
+                continue
             self.break_constraint(record.origin,record.destination,
                                   manager,routing,
                                   drive_dimension,
