@@ -71,14 +71,14 @@ def print_solution(demand,
     total_distance = 0
     total_load_served = 0
     total_time = 0
-    capacity_dimension = routing.GetDimensionOrDie('Capacity')
-    time_dimension = routing.GetDimensionOrDie('Time')
-    count_dimension = routing.GetDimensionOrDie('Count')
+    capacity_dimension = routing.GetDimensionOrDie('cap')
+    time_dimension = routing.GetDimensionOrDie('time')
+    count_dimension = routing.GetDimensionOrDie('count')
     drive_dimension = False
     short_dimension = False
     if demand.break_nodes:
-        drive_dimension = routing.GetDimensionOrDie('Drive')
-        short_dimension = routing.GetDimensionOrDie('Short Break')
+        drive_dimension = routing.GetDimensionOrDie('drive')
+        short_dimension = routing.GetDimensionOrDie('break')
     output_string += '\nRoutes:\n'
     for vehicle in vehicles.vehicles:
         service_details = {}
