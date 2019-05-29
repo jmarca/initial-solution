@@ -38,7 +38,8 @@ def test_output():
 
     horizon = 20000
     m = reader.load_matrix_from_csv('test/data/matrix.csv')
-    d = D.Demand('test/data/demand.csv',m,horizon)
+    odpairs = reader.load_demand_from_csv('test/data/demand.csv')
+    d     = D.Demand(odpairs,m,horizon)
     m = d.generate_solver_space_matrix(m)
     # just go with 60 mph for test, m is mm
 
