@@ -15,7 +15,7 @@ import evaluators as E
 import solution_output as SO
 
 import initial_routes as IR
-from model_run import small_run
+import model_run as MR
 
 def main():
     """Entry point of the program."""
@@ -105,365 +105,36 @@ def main():
                           'destination']])
 
 
-    # print(expanded_mm)
-    # assuming here that all depots are in the same place
-    # and that vehicles all return to the same depot
-    manager = pywrapcp.RoutingIndexManager(
-        num_nodes,
-        len(vehicles.vehicles),
-        vehicles.vehicles[0].depot_index)
 
-
-    # Create Routing Model.
-    routing = pywrapcp.RoutingModel(manager)
-    #solver = routing.solver()
-
-    print('creating time callback for solver')
-    # Define cost of each arc using travel time + service time
-
-    # this version adds "service times" of 10 hours at breaks nodes.
-    # FIXME need to fix the callback to also handle 30 min breaks
-    time_callback = partial(E.create_time_callback2(expanded_mm, d),
-                            manager)
-
-    print('registering callbacks with routing solver')
-    transit_callback_index = routing.RegisterTransitCallback(time_callback)
-    routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
-    # might want to remove service time from the above
-
-    print('create count dimension')
-    # Add Count dimension for count windows, precedence constraints
-    count_dimension_name = 'Count'
-    routing.AddConstantDimension(
-        1, # increment by one every time
-        len(expanded_mm.index),  # max count is visit all the nodes
-        True,  # set count to zero
-        count_dimension_name)
-    count_dimension = routing.GetDimensionOrDie(count_dimension_name)
-
-    print('create time dimension')
-    # Add Time dimension for time windows, precedence constraints
-    time_dimension_name = 'Time'
-    routing.AddDimension(
-        transit_callback_index, # same "cost" evaluator as above
-        # args.horizon,  # slack for full range
-        0, # try no slack
-        args.horizon,  # max time is end of time horizon
-        # True, # set to zero for each vehicle
-        False,  # don't set time to zero...vehicles can wait at depot if necessary
-        time_dimension_name)
-    time_dimension = routing.GetDimensionOrDie(time_dimension_name)
-    # this is new in v7.0, not sure what it does yet
-    time_dimension.SetGlobalSpanCostCoefficient(100)
-    # turned it on and nothing worked, so leave off
-
-    print('create 11hr drive dimension')
-    drive_dimension_name = 'Drive'
-    # Add Drive dimension for breaks logic
-    print('creating drive callback for solver')
-    drive_callback = partial(E.create_drive_callback(expanded_mm,
-                                                     d,
-                                                     11*60,
-                                                     10*60),
-                             manager)
-    drive_callback_index = routing.RegisterTransitCallback(drive_callback)
-    routing.AddDimension(
-        drive_callback_index, # same "cost" evaluator as above
-        0,  # No slack for drive dimension? infinite slack?
-        args.horizon,  # max drive is end of drive horizon
-        False, # set to zero for each vehicle
-        drive_dimension_name)
-    drive_dimension = routing.GetDimensionOrDie(drive_dimension_name)
-
-    # constrain drive dimension to be drive_dimension_start_value at
-    # start, so avoid negative numbers
-    for vehicle in vehicles.vehicles:
-        vehicle_id = vehicle.index
-        index = routing.Start(vehicle_id)
-        routing.solver().Add(drive_dimension.CumulVar(index)==args.drive_dimension_start_value)
-
-    print('create 30 min break dimension')
-    short_break_dimension_name = 'Short Break'
-    # Add short_Break dimension for breaks logic
-    print('creating short_break callback for solver')
-    short_break_callback = partial(E.create_short_break_callback(expanded_mm,
-                                                                 d,
-                                                                 8*60,
-                                                                 30),
-                                   manager)
-
-    short_break_callback_index = routing.RegisterTransitCallback(short_break_callback)
-    routing.AddDimension(
-        short_break_callback_index, # modified "cost" evaluator as above
-        0,  # No slack
-        args.horizon,  # max horizon is horizon
-        False, # set to zero for each vehicle
-        short_break_dimension_name)
-    short_break_dimension = routing.GetDimensionOrDie(short_break_dimension_name)
-
-    # constrain short_break dimension to be drive_dimension_start_value at
-    # start, so avoid negative numbers
-    for vehicle in vehicles.vehicles:
-        vehicle_id = vehicle.index
-        index = routing.Start(vehicle_id)
-        routing.solver().Add(short_break_dimension.CumulVar(index)==args.drive_dimension_start_value)
-
-
-    demand_evaluator_index = routing.RegisterUnaryTransitCallback(
-        partial(E.create_demand_callback(expanded_m.index,d), manager))
-
-    print('create capacity dimension')
-    # Add capacity dimension.  One load per vehicle
-    cap_dimension_name = 'Capacity'
-    vehicle_capacities = [veh.capacity for veh in vehicles.vehicles]
-    routing.AddDimensionWithVehicleCapacity(
-        demand_evaluator_index,
-        0,  # null capacity slack
-        vehicle_capacities,
-        True,  # start cumul to zero
-        cap_dimension_name)
-
-
-    # [START pickup_delivery_constraint]
-    print('apply pickup and delivery constraints')
-    for idx in d.demand.index:
-        record = d.demand.loc[idx]
-        if not record.feasible:
-            continue
-        pickup_index = manager.NodeToIndex(record.origin)
-        delivery_index = manager.NodeToIndex(record.destination)
-        routing.AddPickupAndDelivery(pickup_index, delivery_index)
-        routing.solver().Add(
-            routing.VehicleVar(pickup_index) ==
-            routing.VehicleVar(delivery_index))
-        routing.solver().Add(
-            time_dimension.CumulVar(pickup_index) <=
-            time_dimension.CumulVar(delivery_index))
-
-
-    # [START time_window_constraint]
-    print('apply time window  constraints')
-    for idx in d.demand.index:
-        record = d.demand.loc[idx]
-        if not record.feasible:
-            continue
-        pickup_index = manager.NodeToIndex(record.origin)
-        early = int(record.early)# 0
-        late = int(record.late)  #  + args.horizon
-        time_dimension.CumulVar(pickup_index).SetRange(early, late)
-        routing.AddToAssignment(time_dimension.SlackVar(pickup_index))
-        # and  add simulation-wide time windows (slack) for delivery nodes,
-        dropoff_index = manager.NodeToIndex(record.destination)
-        tt = expanded_mm.loc[record.origin,record.destination]
-        if args.destination_time_windows:
-            # early time windows is minimal breaks: start fresh, drive straight
-            breaks = math.floor(tt/60/11) * 600
-            early = int(record.early + tt + breaks)
-            # late time window  maybe another break will have to be inserted
-            breaks += 600
-            late = int(record.late + tt + breaks)
-            time_dimension.CumulVar(dropoff_index).SetRange(early, late)
-        else:
-            # just set dropoff time window same as 0, horizon
-            early = 0
-            late = args.horizon
-            time_dimension.CumulVar(dropoff_index).SetRange(early, late)
-        routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
-
-    # now for all dummy nodes, set time windows
-    # dummy nodes are identified by demand of zero
-    for node in expanded_mm.index:
-        # skip depot nodes---handled in vehicle time windows below
-        if node == 0:
-            continue
-        # default is to give dummy nodes infinite time windows but
-        # nodes leading to pickup nodes max out at pickup node time
-        # window
-        # optionally, don't do that for dummy nodes heading to pickups
-        if d.get_demand(node) == 0:
-            # this is a dummy node, not a pickup (1) not a dropoff (-1)
-
-            index = manager.NodeToIndex(node)
-            # set maximal time window
-            tw = [0,args.horizon]
-            #print(index,tw)
-            # # dummy nodes can only get to one node
-            # tt = expanded_mm.loc[node,:]
-            # bool_idx = tt > 0
-            # # next node is either origin, destination, or depot
-            # next_node = expanded_mm.index[bool_idx].max()
-            # # get next node time window to determine this node time window
-            # tw = d.get_time_window(next_node)
-            # if tw[0]>0 :
-            #     # next node is a pickup, with early time > 0
-            #     # but might be n breaks prior, so just zero it out
-            #     tw = (0,tw[1])
-            # # print('dummy node time window',node,index)
-            time_dimension.CumulVar(index).SetRange(int(tw[0]),int(tw[1]))
-            routing.AddToAssignment(time_dimension.SlackVar(index))
-
-    # Add time window constraints for each vehicle start node
-    # and 'copy' the slack var in the solution object (aka Assignment) to print it
-    for vehicle in vehicles.vehicles:
-        vehicle_id = vehicle.index
-        index = routing.Start(vehicle_id)
-        # print('vehicle time window:',vehicle_id,index,vehicle.time_window)
-        # not really needed unless different from 0, horizon
-        time_dimension.CumulVar(index).SetRange(vehicle.time_window[0],
-                                                vehicle.time_window[1])
-        routing.AddToAssignment(time_dimension.SlackVar(index))
-
-
-    # [START breaks logic]
-    print('apply break rules')
-    d.breaks_at_nodes_constraints(len(vehicles.vehicles),
-                                  expanded_mm,
-                                  manager,
-                                  routing,
-                                  time_dimension,
-                                  count_dimension,
-                                  drive_dimension,
-                                  short_break_dimension,
-                                  args.drive_dimension_start_value)
-
-    print('breaks done')
-
-    # prevent impossible next nodes
-    print('remove impossible connections from solver')
-    notna = expanded_mm.notna()
-    isna  = expanded_mm.isna()
-    time_index = expanded_mm.index
-    maxtime = expanded_mm.max().max()*100
-    for onode in time_index:
-        if onode % 100 == 0:
-            print(onode,' of ',len(expanded_mm))
-        o_idx = manager.NodeToIndex(onode)
-        na_indices = [manager.NodeToIndex(dnode) for dnode in time_index[isna.loc[onode,:]]]
-        # print('remove link from',onode,'to',dnode)
-        routing.NextVar(o_idx).RemoveValues(na_indices)
-        # the following isn't needed (no op)
-        # for dnode in time_index[notna.loc[onode,:]]:
-        #     if onode == dnode:
-        #         continue
-        #     # now checking with the callback for service times because
-        #     # I drop transitions that are imposible from destinations
-        #     # to origins
-        #     d_idx = manager.NodeToIndex(dnode)
-        #     if time_callback(o_idx,d_idx) > maxtime:
-        #         # this link has been given the penalty
-        #         if routing.NextVar(o_idx).Contains(d_idx):
-        #             print('remove link from',onode,'to',dnode,'based on time callback check')
-        #             routing.NextVar(o_idx).RemoveValue(d_idx)
-    print('done with RemoveValue calls')
-
-
-    # Setting first solution heuristic.
-    # [START parameters]
-    print('set up model parameters')
-    # [START parameters]
-    parameters = pywrapcp.DefaultRoutingSearchParameters()
-    parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
-        # routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
-        # routing_enums_pb2.FirstSolutionStrategy.ALL_UNPERFORMED)
-        # routing_enums_pb2.FirstSolutionStrategy.LOCAL_CHEAPEST_INSERTION)
-
-    # Disabling path Large Neighborhood Search is the default behaviour.  enable
-    parameters.local_search_operators.use_path_lns = pywrapcp.BOOL_TRUE
-    parameters.local_search_operators.use_inactive_lns = pywrapcp.BOOL_TRUE
-    # Routing: forbids use of TSPOpt neighborhood,
-    # parameters.local_search_operators.use_tsp_opt = pywrapcp.BOOL_FALSE
-    # set a time limit
-    parameters.time_limit.seconds = args.timelimit * 60   # timelimit minutes
-    # sometimes helps with difficult solutions
-    parameters.lns_time_limit.seconds = 10000  # 10000 milliseconds
-    # i think this is the default
-    # parameters.use_light_propagation = False
-    # set to true to see the dump of search iterations
-    parameters.log_search = pywrapcp.BOOL_TRUE
-
-    # add disjunctions to deliveries to make it not fail
-    penalty = 1000000000  # The cost for dropping a demand node from the plan.
-    break_penalty = 1  # The cost for dropping a break node from the plan.
-    # all nodes are droppable, so add disjunctions
-
-    droppable_nodes = []
-    for c in expanded_mm.index:
-        if c == 0:
-            # no disjunction on depot node
-            continue
-        p = penalty
-        if d.get_demand(c) == 0:
-            # no demand means break node
-            p = break_penalty
-        droppable_nodes.append(routing.AddDisjunction([manager.NodeToIndex(c)],
-                                                      p))
-
-    # can't pickle SwigPyObject... workaround?
-    # print("Writing routing object out")
-    # with open('routing.pkl', 'wb') as output:
-    #     pickle.dump(routing,output,pickle.HIGHEST_PROTOCOL)
-    #     # other stuff too?
-    # print("Done Writing routing object to file routing.pkl")
 
     initial_routes = None
     trip_chains = {}
-    if not args.noroutes:
-        # set up initial routes by creating a lot of little problems
-        for d_idx in d.demand.index:
-            # depot to pickup
-            record = d.demand.loc[d_idx]
-            if not record.feasible:
-                continue
-            trip_chains[record.origin] = small_run(record,expanded_mm,d,args.horizon,args.drive_dimension_start_value)
-            print(trip_chains[record.origin])
-            assert 0
-        print(trip_chains)
-        assert 0
-        trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
-                                    manager,
-                                    time_callback,
-                                    drive_callback,
-                                    short_break_callback,
+
+    trip_chainsb = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
+                                    None,
+                                     None,
+                                     None,
+                                     None,
                                     debug = args.debug)
+    initial_routesb = [v for v in trip_chainsb.values()]
+    (assB,routing,manager) = MR.model_run(d,expanded_mm,vehicles.vehicles,args.horizon,args.drive_dimension_start_value,None,initial_routesb)
+    # 1201918
 
-        initial_routes = [v for v in trip_chains.values()]
-        #print(initial_routes)
+    # # set up initial routes by creating a lot of little problems
+    # for d_idx in d.demand.index:
+    #     # depot to pickup
+    #     record = d.demand.loc[d_idx]
+    #     if not record.feasible:
+    #         continue
+    #     nodes = MR.use_nodes(record,d)
+    #     (subassignment,minirouting,minimanager) = MR.model_run(d,expanded_mm,[vehicles.vehicles[0]],args.horizon,args.drive_dimension_start_value,nodes)
+    #     trip_chains[record.origin] = MR.get_route(0,subassignment,minirouting,minimanager)
+    # initial_routes = [v for v in trip_chains.values()]
+    # (assA,routingA,managerA) = MR.model_run(d,expanded_mm,vehicles.vehicles,args.horizon,args.drive_dimension_start_value,None,initial_routes)
+    # 1201918 ---  same, but slower, so don't do it
 
-        routing.CloseModelWithParameters(parameters)
-        initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
-                                                            True)
-
-        # debug loop which is the bug?
-        if not initial_solution:
-            bug_route = []
-            for route in initial_routes:
-                single_solution = routing.ReadAssignmentFromRoutes([route],
-                                                                   True)
-                if not single_solution:
-                    bug_route.append(route)
-            print(bug_route)
-        assert initial_solution
-        print('Initial solution:')
-        SO.print_initial_solution(d,expanded_m,expanded_mm,
-                                  vehicles,manager,routing,initial_solution,args.horizon)
-
-
-
-    print('Calling the solver')
-    # [START solve]
-    assignment = None
-    if not args.noroutes:
-        assignment = routing.SolveFromAssignmentWithParameters(
-            initial_solution, parameters)
-
-    else:
-        assignment = routing.SolveWithParameters(parameters)
-
-
-    # [END solve]
-
-    if assignment:
+    if assB:
+        assignment = assB
         ## save the assignment, (Google Protobuf format)
         #save_file_base = os.path.realpath(__file__).split('.')[0]
         #if routing.WriteAssignment(save_file_base + '_assignment.ass'):
