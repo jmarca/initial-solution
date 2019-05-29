@@ -321,9 +321,9 @@ def csv_output(demand,
     total_distance = 0
     total_load_served = 0
     total_time = 0
-    capacity_dimension = routing.GetDimensionOrDie('Capacity')
-    time_dimension = routing.GetDimensionOrDie('Time')
-    count_dimension = routing.GetDimensionOrDie('Count')
+    capacity_dimension = routing.GetDimensionOrDie('cap')
+    time_dimension = routing.GetDimensionOrDie('time')
+    count_dimension = routing.GetDimensionOrDie('count')
     for vehicle in vehicles.vehicles:
         this_vehicle_rows=[]
         vehicle_id = vehicle.index
@@ -425,9 +425,9 @@ def csv_demand_output(demand,
     total_distance = 0
     total_load_served = 0
     total_time = 0
-    capacity_dimension = routing.GetDimensionOrDie('Capacity')
-    time_dimension = routing.GetDimensionOrDie('Time')
-    count_dimension = routing.GetDimensionOrDie('Count')
+    capacity_dimension = routing.GetDimensionOrDie('cap')
+    time_dimension = routing.GetDimensionOrDie('time')
+    count_dimension = routing.GetDimensionOrDie('count')
     for vehicle in vehicles.vehicles:
         this_vehicle_rows=[]
         vehicle_id = vehicle.index
