@@ -117,70 +117,6 @@ def create_dist_callback(dist_matrix,
     # return the callback, which will need to be set up with partial
     return dist_callback
 
-def g(pair):
-    (a,b) = pair
-    (from_node,from_demand,from_service) = a
-    (to_node,to_demand,to_service) = b
-    value = to_service
-    if from_node == to_node:
-        value = 0
-    return [from_node,to_node,value]
-
-def f(pair):
-    (a,b) = pair
-    (from_node,from_demand,from_service) = a
-    (to_node,to_demand,to_service) = b
-    value = from_service
-    if from_node == to_node:
-        value = 0
-    return [from_node,to_node,value]
-
-# this one is for short breaks.
-# short breaks cannot get two 8hr restores in a row
-def e(pair):
-    (a,b) = pair
-    (from_node,from_demand,from_service) = a
-    (to_node,to_demand,to_service) = b
-    value = from_service
-    if value < -480:
-        value = -480
-    if from_node == to_node:
-        value = 0
-    # FIXME this is a quick and dirty hack
-    if value < 0 and from_service == -480 and  to_service == -660:
-        value = -3*60 # 11 hrs minus 8 hrs.  Don't want to get greedy
-    return [from_node,to_node,value]
-
-# this function works to set up impact of any node on total time
-# breaks add break_time to cumulative time
-# pickup and delivery nodes add service time to cumulative time
-# depot nodes add nothing
-def make_location_data(pair):
-    (node,demand) = pair
-    service_time = demand.get_service_time(node)
-    d = demand.get_demand(node)
-    break_node = demand.get_break_node(node)
-    if break_node != None:
-        service_time = break_node.break_time
-    return (node,d,service_time)
-
-# this function works to set up impact of a break node on the drive time dimensions
-# The 11 hr rule resets both the 30 minute break and the 10 hr break
-# The 8hr rule resets just the 30 minute break
-# so the if statement filters out any impact the 30 min break might have on the
-# 11 hr rule counter
-def make_drive_data(pair):
-    (node,demand,period,break_time) = pair
-    service_time = 0
-    d = demand.get_demand(node)
-    break_node = demand.get_break_node(node)
-    if break_node != None:
-        # duck typing of a sorts
-        if break_node.break_time >= break_time and abs(break_node.drive_time_restore())>=period:
-            # quacks like the duck we're looking for
-            service_time = break_node.drive_time_restore()
-    return (node,d,service_time)
-
 
 def create_time_callback2(travel_minutes_matrix,
                           demand):
@@ -199,12 +135,6 @@ def create_time_callback2(travel_minutes_matrix,
 
     _total_time = penalty_time * np.ones((number,number))
 
-    node_list = [(n,demand) for n in travel_minutes_matrix.index]
-    # print('len node list is ',len(node_list))
-    # ncpus = 3# len(os.sched_getaffinity(0))
-    # p = Pool(ncpus)
-    # node_demand_service_list = p.map(make_location_data,node_list)
-    # print(node_demand_service_list)
     size = len(travel_minutes_matrix)
     service_time = np.zeros((size,size))
     notna = travel_minutes_matrix.notna()
@@ -242,7 +172,6 @@ def create_time_callback2(travel_minutes_matrix,
 
     # return the callback, which will need to be set up with partial
     return time_callback
-
 
 def create_drive_callback(travel_minutes_matrix,
                           demand,
@@ -334,7 +263,7 @@ def create_short_break_callback(travel_minutes_matrix,
     service_time = np.zeros((size,size))
     notna = travel_minutes_matrix.notna()
     tmm_index = travel_minutes_matrix.index
-    check_chain = [0, 4, 3, 6, 5, 1, 13, 12, 15, 14, 17, 16, 2, 22, 21, 24, 23]
+    # check_chain = [0, 4, 3, 6, 5, 1, 13, 12, 15, 14, 17, 16, 2, 22, 21, 24, 23]
     # service time is determined by from node
     for o_idx in tmm_index:
         o_sv = 0
@@ -410,3 +339,74 @@ def create_short_break_callback(travel_minutes_matrix,
 
     # return the callback, which will need to be set up with partial
     return time_callback
+
+
+### deprecated
+###
+### the following functions were used for older version that used
+### parallel processing (and that created a massive memory leak)
+
+# def g(pair):
+#     (a,b) = pair
+#     (from_node,from_demand,from_service) = a
+#     (to_node,to_demand,to_service) = b
+#     value = to_service
+#     if from_node == to_node:
+#         value = 0
+#     return [from_node,to_node,value]
+
+# def f(pair):
+#     (a,b) = pair
+#     (from_node,from_demand,from_service) = a
+#     (to_node,to_demand,to_service) = b
+#     value = from_service
+#     if from_node == to_node:
+#         value = 0
+#     return [from_node,to_node,value]
+
+# # this one is for short breaks.
+# # short breaks cannot get two 8hr restores in a row
+# def e(pair):
+#     (a,b) = pair
+#     (from_node,from_demand,from_service) = a
+#     (to_node,to_demand,to_service) = b
+#     value = from_service
+#     if value < -480:
+#         value = -480
+#     if from_node == to_node:
+#         value = 0
+#     # FIXME this is a quick and dirty hack
+#     if value < 0 and from_service == -480 and  to_service == -660:
+#         value = -3*60 # 11 hrs minus 8 hrs.  Don't want to get greedy
+#     return [from_node,to_node,value]
+
+
+# # this function works to set up impact of any node on total time
+# # breaks add break_time to cumulative time
+# # pickup and delivery nodes add service time to cumulative time
+# # depot nodes add nothing
+# def make_location_data(pair):
+#     (node,demand) = pair
+#     service_time = demand.get_service_time(node)
+#     d = demand.get_demand(node)
+#     break_node = demand.get_break_node(node)
+#     if break_node != None:
+#         service_time = break_node.break_time
+#     return (node,d,service_time)
+
+# # this function works to set up impact of a break node on the drive time dimensions
+# # The 11 hr rule resets both the 30 minute break and the 10 hr break
+# # The 8hr rule resets just the 30 minute break
+# # so the if statement filters out any impact the 30 min break might have on the
+# # 11 hr rule counter
+# def make_drive_data(pair):
+#     (node,demand,period,break_time) = pair
+#     service_time = 0
+#     d = demand.get_demand(node)
+#     break_node = demand.get_break_node(node)
+#     if break_node != None:
+#         # duck typing of a sorts
+#         if break_node.break_time >= break_time and abs(break_node.drive_time_restore())>=period:
+#             # quacks like the duck we're looking for
+#             service_time = break_node.drive_time_restore()
+#     return (node,d,service_time)

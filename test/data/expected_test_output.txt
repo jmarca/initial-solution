@@ -1,0 +1,73 @@
+Objective: 19246
+Routes:
+
+Route for vehicle 0:
+node 0, mapnode 0, Load 0,  Time(17:30:00,1 day, 5:30:00) Slack(0:00:00,0:00:00) Time(0:00:00) Link (Time 0:00:00, distance 0 mi),visits: 0
+ ->node 4, mapnode 5, Load 0,  Time(1 day, 9:00:00,1 day, 21:00:00) Slack(0:00:00,0:00:00) Time(15:30:00) Link (Time 15:30:00, distance 930 mi),visits: 1
+ ->node 9, mapnode 2, Load 1,  Time(2 days, 5:49:00,2 days, 17:49:00) Slack(0:00:00,0:00:00) Time(20:49:00) Link (Time 20:34:00, distance 1234 mi),visits: 2
+ -> 0 Load(0)  Time(2 days, 11:43:00,2 days, 23:43:00)  Link time(5:54:00) Link distance(339 mi), visits 3
+Distance of the route: 2503 miles
+Loads served by route: 1
+Time of the route: 2 days, 11:43:00
+
+
+Route for vehicle 1:
+node 0, mapnode 0, Load 0,  Time(1 day, 0:08:00,1 day, 5:30:00) Slack(0:00:00,0:00:00) Time(0:00:00) Link (Time 0:00:00, distance 0 mi),visits: 0
+ ->node 2, mapnode 5, Load 0,  Time(1 day, 15:38:00,1 day, 21:00:00) Slack(0:00:00,0:00:00) Time(15:30:00) Link (Time 15:30:00, distance 930 mi),visits: 1
+ ->node 7, mapnode 4, Load 1,  Time(3 days, 11:29:00,3 days, 16:51:00) Slack(0:00:00,0:00:00) Time(1 day, 19:51:00) Link (Time 1 day, 19:36:00, distance 2616 mi),visits: 2
+ ->node 1, mapnode 7, Load 0,  Time(4 days, 9:00:00,4 days, 14:22:00) Slack(0:00:00,0:00:00) Time(21:31:00) Link (Time 21:16:00, distance 1276 mi),visits: 3
+ ->node 6, mapnode 9, Load 1,  Time(4 days, 22:45:00,5 days, 4:07:00) Slack(0:00:00,0:00:00) Time(13:45:00) Link (Time 13:30:00, distance 810 mi),visits: 4
+ -> 0 Load(0)  Time(6 days, 1:35:00,6 days, 6:57:00)  Link time(1 day, 2:50:00) Link distance(1595 mi), visits 5
+Distance of the route: 7227 miles
+Loads served by route: 2
+Time of the route: 6 days, 1:35:00
+
+
+Route for vehicle 2:
+node 0, mapnode 0, Load 0,  Time(2 days, 2:18:00,2 days, 8:55:00) Slack(0:00:00,0:00:00) Time(0:00:00) Link (Time 0:00:00, distance 0 mi),visits: 0
+ ->node 5, mapnode 8, Load 0,  Time(3 days, 9:00:00,3 days, 15:37:00) Slack(0:00:00,0:00:00) Time(1 day, 6:42:00) Link (Time 1 day, 6:42:00, distance 1842 mi),visits: 1
+ ->node 10, mapnode 3, Load 1,  Time(5 days, 13:04:00,5 days, 19:41:00) Slack(0:00:00,0:00:00) Time(2 days, 4:04:00) Link (Time 2 days, 3:49:00, distance 3109 mi),visits: 2
+ ->node 3, mapnode 1, Load 0,  Time(5 days, 14:23:00,5 days, 21:00:00) Slack(0:00:00,0:00:00) Time(1:19:00) Link (Time 1:04:00, distance 64 mi),visits: 3
+ ->node 8, mapnode 6, Load 1,  Time(7 days, 13:46:00,7 days, 20:23:00) Slack(0:00:00,0:00:00) Time(1 day, 23:23:00) Link (Time 1 day, 23:08:00, distance 2828 mi),visits: 4
+ -> 0 Load(0)  Time(8 days, 15:24:00,8 days, 22:01:00)  Link time(1 day, 1:38:00) Link distance(1523 mi), visits 5
+Distance of the route: 9366 miles
+Loads served by route: 2
+Time of the route: 8 days, 15:24:00
+
+
+Route for vehicle 3: unused
+
+Route for vehicle 4: unused
+
+Total Distance of all routes: 19096 miles
+Total Loads picked up by all routes: 5
+Total Time of all routes: 17 days, 4:42:00
+
+Route summaries
+
+Route: 0,
+Driving time: 2503 min,
+30 min breaks: 0,
+10 hr breaks: 0,
+Total route time: 3583 min
+Total distance driven: 2503 mi
+Loads: load 4: 5 — 2
+
+
+Route: 1,
+Driving time: 7227 min,
+30 min breaks: 0,
+10 hr breaks: 0,
+Total route time: 8735 min
+Total distance driven: 7227 mi
+Loads: load 1: 7 — 9; load 2: 5 — 4
+
+
+Route: 2,
+Driving time: 9366 min,
+30 min breaks: 0,
+10 hr breaks: 0,
+Total route time: 12444 min
+Total distance driven: 9366 mi
+Loads: load 3: 1 — 6; load 5: 8 — 3
+
