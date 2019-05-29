@@ -37,6 +37,7 @@ def initial_routes(demand,vehicles,time_matrix,
     for idx in demand.demand.index[feasible_idx]:
         if veh >= len(vehicles):
             break
+        print('demand record',idx,'vehicle',veh)
         reached_depot = False
         trip_chain = []
         record = demand.demand.loc[idx,:]
@@ -79,10 +80,10 @@ def initial_routes(demand,vehicles,time_matrix,
                           'travel_time',travel_time,'\n',record)
 
                 # just go straight to goal
-                tt += time_callback(manager.NodeToIndex(prior),
-                                    manager.NodeToIndex(goal))
-                dt += drive_callback(manager.NodeToIndex(prior),
-                                     manager.NodeToIndex(goal))
+                # tt += time_callback(manager.NodeToIndex(prior),
+                #                     manager.NodeToIndex(goal))
+                # dt += drive_callback(manager.NodeToIndex(prior),
+                #                      manager.NodeToIndex(goal))
                 travel_time += tt_prior_goal + demand.get_service_time(prior)
                 drive_time += tt_prior_goal
                 short_time += tt_prior_goal
@@ -104,8 +105,8 @@ def initial_routes(demand,vehicles,time_matrix,
                               'dt',dt,
                               'drive_time',drive_time,
                               'short time',short_time)
-                    assert tt+record.pickup_time  -1 <= record.depot_origin
-                    assert record.depot_origin <= tt+1 + record.pickup_time
+                    assert travel_time+record.pickup_time  -1 <= record.depot_origin
+                    assert record.depot_origin <= travel_time+1 + record.pickup_time
                 goal = next_goal
                 continue
             else:
@@ -306,31 +307,31 @@ def initial_routes(demand,vehicles,time_matrix,
         # break---because I'm too lazy to do that above right now, so
         # let's see if this gives the solver a good enough start
         # expanded_chain = []
-        if debug:
-            print(trip_chain) # before
+        # if debug:
+        #     print(trip_chain) # before
 
-            # check callback values too
-            tt = 0
-            tt_chain = []
-            dt = 0
-            dt_chain = []
-            st = 0
-            st_chain = []
-            fr = 0
-            for tcidx in trip_chain:
-                tt += time_callback(manager.NodeToIndex(fr),
-                                    manager.NodeToIndex(tcidx))
-                dt += drive_callback(manager.NodeToIndex(fr),
-                                     manager.NodeToIndex(tcidx))
-                st += short_callback(manager.NodeToIndex(fr),
-                                     manager.NodeToIndex(tcidx))
-                tt_chain.append(tt)
-                dt_chain.append(dt)
-                st_chain.append(st)
-                fr = tcidx
-            print('travel time chain',tt_chain)
-            print('drive time chain',dt_chain)
-            print('short time chain',st_chain)
+        #     # check callback values too
+        #     tt = 0
+        #     tt_chain = []
+        #     dt = 0
+        #     dt_chain = []
+        #     st = 0
+        #     st_chain = []
+        #     fr = 0
+        #     for tcidx in trip_chain:
+        #         tt += time_callback(manager.NodeToIndex(fr),
+        #                             manager.NodeToIndex(tcidx))
+        #         dt += drive_callback(manager.NodeToIndex(fr),
+        #                              manager.NodeToIndex(tcidx))
+        #         st += short_callback(manager.NodeToIndex(fr),
+        #                              manager.NodeToIndex(tcidx))
+        #         tt_chain.append(tt)
+        #         dt_chain.append(dt)
+        #         st_chain.append(st)
+        #         fr = tcidx
+        #     print('travel time chain',tt_chain)
+        #     print('drive time chain',dt_chain)
+        #     print('short time chain',st_chain)
 
         # loop to next demand, next trip chain, next vehicle
         trip_chains[veh] = trip_chain
