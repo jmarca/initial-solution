@@ -18,7 +18,7 @@ class Demand():
     """
 
     def __init__(self,
-                 filename,
+                 odpairs,
                  time_matrix,
                  horizon,
                  pickup_time=15,
@@ -26,7 +26,7 @@ class Demand():
                  debug = False):
 
         self.debug = debug
-        demand = reader.load_demand_from_csv(filename)
+        demand = odpairs.copy()
         # for now, just use identical pickup and dropoff times
         demand['pickup_time']=pickup_time
         demand['dropoff_time']=dropoff_time

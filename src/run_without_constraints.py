@@ -67,7 +67,8 @@ def main():
     minutes_matrix = reader.travel_time(args.speed/60,matrix)
 
     print('read in demand data')
-    d = D.Demand(args.demand,minutes_matrix,args.horizon)
+    odpairs = reader.load_demand_from_csv(args.demand)
+    d = D.Demand(odpairs,minutes_matrix,args.horizon)
 
     # convert nodes to solver space from input map space
     expanded_mm = d.generate_solver_space_matrix(minutes_matrix,args.horizon)
