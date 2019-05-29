@@ -382,6 +382,54 @@ class Demand():
             return self.break_nodes[node]
         return None
 
+    def break_constraint(self,
+                         origin,destination,
+                         manager,
+                         routing,
+                         drive_dimension,
+                         short_break_dimension,
+                         drive_dimension_start_value
+    ):
+        solver = routing.solver()
+        o_idx = manager.NodeToIndex(origin)
+        d_idx = manager.NodeToIndex(destination)
+        print(origin,o_idx,destination,d_idx)
+        origin_active =routing.ActiveVar(o_idx)
+        dest_active =routing.ActiveVar(d_idx)
+
+        origin_drive = origin_active*drive_dimension.CumulVar(o_idx)
+        dest_drive = dest_active*drive_dimension.CumulVar(d_idx)
+
+        origin_short = origin_active*short_break_dimension.CumulVar(o_idx)
+        dest_short = dest_active*short_break_dimension.CumulVar(d_idx)
+
+        print(origin_drive,'>=',origin_active,'*',drive_dimension_start_value)
+        solver.AddConstraint(origin_drive >= origin_active*drive_dimension_start_value)
+
+        print(origin_drive,'<=',origin_active,'*',drive_dimension_start_value+660)
+        solver.AddConstraint(origin_drive < origin_active*(drive_dimension_start_value)+660)
+
+        print(dest_drive,'>=',dest_active,'*',drive_dimension_start_value)
+        solver.AddConstraint(dest_drive >= dest_active*drive_dimension_start_value)
+
+        print(dest_drive,'<=',dest_active,'*',drive_dimension_start_value+660)
+        solver.AddConstraint(dest_drive < dest_active*(drive_dimension_start_value)+660)
+
+        # same type of constraints for short drive dimension, except 8 hrs not 11 hrs
+
+        print(origin_short,'<',origin_active,'*',drive_dimension_start_value+8*60)
+        solver.AddConstraint(origin_short < origin_active*(drive_dimension_start_value)+(8*60))
+        print(origin_short,'>=',origin_active,'*',drive_dimension_start_value)
+        solver.AddConstraint(origin_short >= origin_active*drive_dimension_start_value)
+
+        print(dest_short,'<',dest_active,'*',drive_dimension_start_value+8*60)
+        solver.AddConstraint(dest_short < dest_active*(drive_dimension_start_value)+(8*60))
+
+        print(dest_short,'>=',dest_active,'*',drive_dimension_start_value)
+        solver.AddConstraint(dest_short >= dest_active*drive_dimension_start_value)
+
+
+
     def breaks_at_nodes_constraints(self,
                                     num_veh,
                                     time_matrix,
@@ -398,52 +446,12 @@ class Demand():
         feasible_index = self.demand.feasible
         for idx in self.demand.index[feasible_index]:
             record = self.demand.loc[idx,:]
-            o_idx = manager.NodeToIndex(record.origin)
-            d_idx = manager.NodeToIndex(record.destination)
-            origin_active =routing.ActiveVar(o_idx)
-            dest_active =routing.ActiveVar(d_idx)
-
-            origin_drive = origin_active*drive_dimension.CumulVar(o_idx)
-            dest_drive = dest_active*drive_dimension.CumulVar(d_idx)
-
-            origin_short = origin_active*short_break_dimension.CumulVar(o_idx)
-            dest_short = dest_active*short_break_dimension.CumulVar(d_idx)
-
-            # this one on
-            solver.AddConstraint(origin_drive >= origin_active*drive_dimension_start_value)
-
-            # try this one off ?  need on for demand_12
-            solver.AddConstraint(origin_drive < origin_active*(drive_dimension_start_value)+660)
-            # try this one off?  haven't seen it triggered if left off, but
-            # doesn't speed up the solution any either
-            solver.AddConstraint(dest_drive >= dest_active*drive_dimension_start_value)
-
-            # try this one on its own.
-            solver.AddConstraint(dest_drive < dest_active*(drive_dimension_start_value)+660)
-
-            # same type of constraints for short drive dimension, except 8 hrs not 11 hrs
-
-            # troubles with letting the solver do it.  Try setting soft bounds?
-            solver.AddConstraint(origin_short < origin_active*(drive_dimension_start_value)+(8*60))
-            # short_break_dimension.SetCumulVarSoftUpperBound(o_idx,
-            #                                                 drive_dimension_start_value+(8*60),
-            #                                                 100000)
-
-            solver.AddConstraint(origin_short >= origin_active*drive_dimension_start_value)
-            # short_break_dimension.SetCumulVarSoftLowerBound(o_idx,
-            #                                                 drive_dimension_start_value,
-            #                                                 100000)
-
-            solver.AddConstraint(dest_short < dest_active*(drive_dimension_start_value)+(8*60))
-            # short_break_dimension.SetCumulVarSoftUpperBound(d_idx,
-            #                                                 drive_dimension_start_value+(8*60),
-            #                                                 1000000)
-
-            solver.AddConstraint(dest_short >= dest_active*drive_dimension_start_value)
-            # short_break_dimension.SetCumulVarSoftLowerBound(d_idx,
-            #                                                 drive_dimension_start_value+(8*60),
-            #                                                 100000)
-
+            self.break_constraint(record.origin,record.destination,
+                                  manager,routing,
+                                  drive_dimension,
+                                  short_break_dimension,
+                                  drive_dimension_start_value
+            )
 
         # constraints on return to depot, otherwise we just collect
         # break nodes on the way back and go deeply negative

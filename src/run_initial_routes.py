@@ -15,7 +15,7 @@ import evaluators as E
 import solution_output as SO
 
 import initial_routes as IR
-
+from model_run import small_run
 
 def main():
     """Entry point of the program."""
@@ -406,8 +406,19 @@ def main():
     # print("Done Writing routing object to file routing.pkl")
 
     initial_routes = None
+    trip_chains = {}
     if not args.noroutes:
-        # set up initial routes
+        # set up initial routes by creating a lot of little problems
+        for d_idx in d.demand.index:
+            # depot to pickup
+            record = d.demand.loc[d_idx]
+            if not record.feasible:
+                continue
+            trip_chains[record.origin] = small_run(record,expanded_mm,d,args.horizon,args.drive_dimension_start_value)
+            print(trip_chains[record.origin])
+            assert 0
+        print(trip_chains)
+        assert 0
         trip_chains = IR.initial_routes(d,vehicles.vehicles,expanded_mm,
                                     manager,
                                     time_callback,
