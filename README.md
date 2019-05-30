@@ -238,36 +238,38 @@ won't even run properly.
 Tests are run with pytest.
 
 ```
-~$ pytest --cov=src
-========================= test session starts ========================
-platform linux -- Python 3.7.3, pytest-4.4.1, py-1.8.0, pluggy-0.9.0
+pytest --cov=src
+==================== test session starts ============================
+platform linux -- Python 3.7.3, pytest-4.5.0, py-1.8.0, pluggy-0.11.0
 rootdir: /work, inifile: setup.cfg
-plugins: cov-2.6.1
-collected 7 items
+plugins: cov-2.7.1
+collected 13 items
 
-test/test_demand.py .                                           [ 14%]
-test/test_evaluators.py .                                       [ 28%]
-test/test_output.py .                                           [ 42%]
-test/test_read_csv.py ...                                       [ 85%]
-test/test_vehicles.py .                                         [100%]
+test/test_breaks.py ......                                     [ 46%]
+test/test_demand.py .                                          [ 53%]
+test/test_evaluators.py .                                      [ 61%]
+test/test_output.py .                                          [ 69%]
+test/test_read_csv.py ...                                      [ 92%]
+test/test_vehicles.py .                                        [100%]
 
 ----------- coverage: platform linux, python 3.7.3-final-0 -----------
-Name                     Stmts   Miss  Cover
---------------------------------------------
-src/demand.py               28      0   100%
-src/evaluators.py           57      0   100%
-src/read_csv.py             11      0   100%
-src/read_test.py            77     66    14%
-src/solution_output.py      62      4    94%
-src/vehicles.py             11      0   100%
---------------------------------------------
-TOTAL                      246     70    72%
+Name                             Stmts   Miss  Cover
+----------------------------------------------------
+src/break_node.py                   18      2    89%
+src/breaks.py                      120      5    96%
+src/demand.py                      260     35    87%
+src/evaluators.py                  192     79    59%
+src/initial_routes.py              205     90    56%
+src/model_run.py                   191     34    82%
+src/read_csv.py                     11      0   100%
+src/run_initial_routes.py           60     44    27%
+src/run_without_constraints.py      62     46    26%
+src/solution_output.py             303    165    46%
+src/vehicles.py                     11      0   100%
+----------------------------------------------------
+TOTAL                             1433    500    65%
 
-
-======================== 7 passed in 0.87 seconds ====================
+=================== 13 passed in 22.88 seconds =======================
 ```
 
-The coverage of `solution_output.py` is missing the bits on break output,
-because the code doesn't yet have breaks implemented.  The coverage of
-`read_test.py` is low because it isn't being tested yet.  (Actually, I
-mostly copied its guts into the test for solution output.)
+The coverage isn't great, but at least they're passing.
