@@ -5,7 +5,7 @@ python:
 
 # command to install dependencies
 before-install:
-  - sudo apt-get install libcurl3-gnutls libcurl4-gnutls-dev libgnutls-dev
+  - sudo apt-get install libcurl3-gnutls libcurl4-gnutls-dev  libgnutls28-dev
 
 install:
   - pip install -r requirements.txt
