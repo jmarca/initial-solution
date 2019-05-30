@@ -186,7 +186,7 @@ def get_route(v,assignment,routing,manager):
         index = assignment.Value(routing.NextVar(index))
     return initial_route
 
-def model_run(d,t,v,horizon,base_value,demand_subset=None,initial_routes=None):
+def model_run(d,t,v,horizon,base_value,demand_subset=None,initial_routes=None,timelimit=1):
 
     # use demand_subset to pick out a subset of nodes
     if demand_subset != None:
@@ -360,7 +360,7 @@ def model_run(d,t,v,horizon,base_value,demand_subset=None,initial_routes=None):
     # Routing: forbids use of TSPOpt neighborhood,
     # parameters.local_search_operators.use_tsp_opt = pywrapcp.BOOL_FALSE
     # set a time limit
-    parameters.time_limit.seconds =  60 # timelimit * 60  # timelimit minutes
+    parameters.time_limit.seconds =  timelimit * 60  # timelimit minutes
     # sometimes helps with difficult solutions
     parameters.lns_time_limit.seconds = 10000  # 10000 milliseconds
     # i think this is the default
@@ -397,7 +397,7 @@ def model_run(d,t,v,horizon,base_value,demand_subset=None,initial_routes=None):
     assert assignment
     return (assignment,routing,manager)
 
-def model_run_nobreaks(d,t,v,horizon,demand_subset=None,initial_routes=None):
+def model_run_nobreaks(d,t,v,horizon,demand_subset=None,initial_routes=None,timelimit=1):
 
     # use demand_subset to pick out a subset of nodes
     if demand_subset != None:
@@ -516,13 +516,13 @@ def model_run_nobreaks(d,t,v,horizon,demand_subset=None,initial_routes=None):
     # Routing: forbids use of TSPOpt neighborhood,
     # parameters.local_search_operators.use_tsp_opt = pywrapcp.BOOL_FALSE
     # set a time limit
-    parameters.time_limit.seconds =  60 # timelimit * 60  # timelimit minutes
+    parameters.time_limit.seconds =  timelimit * 60  # timelimit minutes
     # sometimes helps with difficult solutions
     # parameters.lns_time_limit.seconds = 10000  # 10000 milliseconds
     # i think this is the default
     # parameters.use_light_propagation = False
     # set to true to see the dump of search iterations
-    # parameters.log_search = pywrapcp.BOOL_TRUE
+    parameters.log_search = pywrapcp.BOOL_TRUE
 
     # add disjunctions to deliveries to make it not fail
     penalty = 10000000  # The cost for dropping a demand node from the plan.
