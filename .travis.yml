@@ -2,6 +2,9 @@ dist: xenial   # required for Python >= 3.7
 language: python
 python:
   - "3.7"
+env:
+  global:
+    - CC_TEST_REPORTER_ID=74a0fe10dc3d3d64c1fdb9ecd84036df2c78e00d649645ee90f8c360cfddad5c
 
 # command to install dependencies
 before_install:
@@ -10,5 +13,13 @@ before_install:
 install:
   - pip install -r requirements.txt
 
+before_script:
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
+
 # command to run tests
-script: pytest
+script: pytest --cov=src
+
+after_script:
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
