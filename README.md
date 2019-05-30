@@ -1,5 +1,8 @@
 # Open Solver Initial Solution
 
+[![Build
+Status](https://travis-ci.org/jmarca/initial-solution.svg?branch=master)](https://travis-ci.org/jmarca/initial-solution)
+
 This solver generates an initial solution to the problem of routing
 freight vehicles between cities while still respecting Hours
 of Service (HOS) regulations.   The vehicles are fully loaded, meaning
