@@ -1,0 +1,170 @@
+Objective: 43516
+Routes:
+
+Route for vehicle 0:
+node 0, mapnode 0, Load 0, 10hr Break Time 0:00:00, 30min Break Time 0:00:00,  Arrive Time(3 days, 2:50:00,4 days, 14:50:00), Elapsed Time(0:00:00),  Link: (Time 0:00:00, Dist 0 mi), visits: 0
+ ->node 12, [30min BRK], Load 0, 10hr Break Time 8:00:00, 30min Break Time 8:00:00,  Arrive Time(3 days, 10:50:00,4 days, 22:50:00), Elapsed Time(8:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 1
+ ->node 11, [10hr BRK], Load 0, 10hr Break Time 11:00:00, 30min Break Time 3:00:00,  Arrive Time(3 days, 14:20:00,5 days, 2:20:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 2
+ ->node 14, [30min BRK], Load 0, 10hr Break Time 2:02:00, 30min Break Time 2:02:00,  Arrive Time(4 days, 2:22:00,5 days, 14:22:00), Elapsed Time(12:02:00),  Link: (Time 2:02:00, Dist 122 mi), visits: 3
+ ->node 1, mapnode 7, Load 0, 10hr Break Time 8:10:00, 30min Break Time 0:10:00,  Arrive Time(4 days, 9:00:00,5 days, 21:00:00), Elapsed Time(6:38:00),  Link: (Time 6:08:00, Dist 368 mi), visits: 4
+ ->node 17, [30min BRK], Load 1, 10hr Break Time 16:10:00, 30min Break Time 8:10:00,  Arrive Time(4 days, 17:15:00,6 days, 5:15:00), Elapsed Time(8:15:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 5
+ ->node 16, [10hr BRK], Load 1, 10hr Break Time 19:10:00, 30min Break Time 3:10:00,  Arrive Time(4 days, 20:45:00,6 days, 8:45:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 6
+ ->node 6, mapnode 9, Load 1, 10hr Break Time 10:40:00, 30min Break Time 2:40:00,  Arrive Time(5 days, 9:15:00,6 days, 21:15:00), Elapsed Time(12:30:00),  Link: (Time 2:30:00, Dist 150 mi), visits: 7
+ ->node 21, [30min BRK], Load 0, 10hr Break Time 18:40:00, 30min Break Time 10:40:00,  Arrive Time(5 days, 17:30:00,7 days, 5:30:00), Elapsed Time(8:15:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 8
+ ->node 20, [10hr BRK], Load 0, 10hr Break Time 21:40:00, 30min Break Time 5:40:00,  Arrive Time(5 days, 21:00:00,7 days, 9:00:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 9
+ ->node 23, [30min BRK], Load 0, 10hr Break Time 18:40:00, 30min Break Time 10:40:00,  Arrive Time(6 days, 15:00:00,8 days, 3:00:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 10
+ ->node 22, [10hr BRK], Load 0, 10hr Break Time 21:40:00, 30min Break Time 5:40:00,  Arrive Time(6 days, 18:30:00,8 days, 6:30:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 11
+ ->node 24, [10hr BRK], Load 0, 10hr Break Time 12:57:00, 30min Break Time 4:57:00,  Arrive Time(7 days, 6:47:00,8 days, 18:47:00), Elapsed Time(12:17:00),  Link: (Time 2:17:00, Dist 137 mi), visits: 12
+ ->End:0, Load(0), 10hr Break Time 4:15:00, 30min Break Time 4:15:00,  Time(7 days, 19:05:00,9 days, 7:05:00)  Elapsed time(12:18:00) Link:(Time 2:18:00, Dist 138 mi), visits 13
+Distance of the route: 3555 miles
+Loads served by route: 1
+Time of the route: 7 days, 19:05:00
+
+
+Route for vehicle 1:
+node 0, mapnode 0, Load 0, 10hr Break Time 0:00:00, 30min Break Time 0:00:00,  Arrive Time(7:00:00,19:00:00), Elapsed Time(0:00:00),  Link: (Time 0:00:00, Dist 0 mi), visits: 0
+ ->node 27, [30min BRK], Load 0, 10hr Break Time 8:00:00, 30min Break Time 8:00:00,  Arrive Time(15:00:00,1 day, 3:00:00), Elapsed Time(8:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 1
+ ->node 26, [10hr BRK], Load 0, 10hr Break Time 11:00:00, 30min Break Time 3:00:00,  Arrive Time(18:30:00,1 day, 6:30:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 2
+ ->node 2, mapnode 5, Load 0, 10hr Break Time 4:30:00, 30min Break Time 4:30:00,  Arrive Time(1 day, 9:00:00,1 day, 21:00:00), Elapsed Time(14:30:00),  Link: (Time 4:30:00, Dist 270 mi), visits: 3
+ ->node 31, [30min BRK], Load 1, 10hr Break Time 12:30:00, 30min Break Time 12:30:00,  Arrive Time(1 day, 17:15:00,2 days, 5:15:00), Elapsed Time(8:15:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 4
+ ->node 30, [10hr BRK], Load 1, 10hr Break Time 15:30:00, 30min Break Time 7:30:00,  Arrive Time(1 day, 20:45:00,2 days, 8:45:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 5
+ ->node 33, [30min BRK], Load 1, 10hr Break Time 12:30:00, 30min Break Time 12:30:00,  Arrive Time(2 days, 14:45:00,3 days, 2:45:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 6
+ ->node 32, [10hr BRK], Load 1, 10hr Break Time 15:30:00, 30min Break Time 7:30:00,  Arrive Time(2 days, 18:15:00,3 days, 6:15:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 7
+ ->node 35, [30min BRK], Load 1, 10hr Break Time 12:30:00, 30min Break Time 12:30:00,  Arrive Time(3 days, 12:15:00,4 days, 0:15:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 8
+ ->node 34, [10hr BRK], Load 1, 10hr Break Time 15:30:00, 30min Break Time 7:30:00,  Arrive Time(3 days, 15:45:00,4 days, 3:45:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 9
+ ->node 37, [30min BRK], Load 1, 10hr Break Time 7:09:00, 30min Break Time 7:09:00,  Arrive Time(4 days, 4:24:00,4 days, 16:24:00), Elapsed Time(12:39:00),  Link: (Time 2:39:00, Dist 159 mi), visits: 10
+ ->node 36, [10hr BRK], Load 1, 10hr Break Time 9:48:00, 30min Break Time 1:48:00,  Arrive Time(4 days, 7:33:00,4 days, 19:33:00), Elapsed Time(3:09:00),  Link: (Time 2:39:00, Dist 159 mi), visits: 11
+ ->node 7, mapnode 4, Load 1, 10hr Break Time 4:06:00, 30min Break Time 4:06:00,  Arrive Time(4 days, 22:51:00,5 days, 10:51:00), Elapsed Time(15:18:00),  Link: (Time 5:18:00, Dist 318 mi), visits: 12
+ ->node 40, [30min BRK], Load 0, 10hr Break Time 12:06:00, 30min Break Time 12:06:00,  Arrive Time(5 days, 7:06:00,5 days, 19:06:00), Elapsed Time(8:15:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 13
+ ->node 39, [10hr BRK], Load 0, 10hr Break Time 15:06:00, 30min Break Time 7:06:00,  Arrive Time(5 days, 10:36:00,5 days, 22:36:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 14
+ ->node 42, [30min BRK], Load 0, 10hr Break Time 12:06:00, 30min Break Time 12:06:00,  Arrive Time(6 days, 4:36:00,6 days, 16:36:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 15
+ ->node 41, [10hr BRK], Load 0, 10hr Break Time 15:06:00, 30min Break Time 7:06:00,  Arrive Time(6 days, 8:06:00,6 days, 20:06:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 16
+ ->node 44, [30min BRK], Load 0, 10hr Break Time 5:46:00, 30min Break Time 5:46:00,  Arrive Time(6 days, 19:46:00,7 days, 7:46:00), Elapsed Time(11:40:00),  Link: (Time 1:40:00, Dist 100 mi), visits: 17
+ ->End:0, Load(0), 10hr Break Time 10:46:00, 30min Break Time 2:46:00,  Time(7 days, 1:16:00,7 days, 13:16:00)  Elapsed time(5:30:00) Link:(Time 5:00:00, Dist 300 mi), visits 18
+Distance of the route: 5266 miles
+Loads served by route: 1
+Time of the route: 7 days, 1:16:00
+
+
+Route for vehicle 2:
+node 0, mapnode 0, Load 0, 10hr Break Time 0:00:00, 30min Break Time 0:00:00,  Arrive Time(3 days, 0:51:00,4 days, 12:51:00), Elapsed Time(0:00:00),  Link: (Time 0:00:00, Dist 0 mi), visits: 0
+ ->node 46, [30min BRK], Load 0, 10hr Break Time 8:00:00, 30min Break Time 8:00:00,  Arrive Time(3 days, 8:51:00,4 days, 20:51:00), Elapsed Time(8:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 1
+ ->node 45, [10hr BRK], Load 0, 10hr Break Time 11:00:00, 30min Break Time 3:00:00,  Arrive Time(3 days, 12:21:00,5 days, 0:21:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 2
+ ->node 48, [30min BRK], Load 0, 10hr Break Time 2:32:00, 30min Break Time 2:32:00,  Arrive Time(4 days, 0:53:00,5 days, 12:53:00), Elapsed Time(12:32:00),  Link: (Time 2:32:00, Dist 152 mi), visits: 3
+ ->node 3, mapnode 1, Load 0, 10hr Break Time 10:09:00, 30min Break Time 2:09:00,  Arrive Time(4 days, 9:00:00,5 days, 21:00:00), Elapsed Time(8:07:00),  Link: (Time 7:37:00, Dist 457 mi), visits: 4
+ ->node 51, [30min BRK], Load 1, 10hr Break Time 18:09:00, 30min Break Time 10:09:00,  Arrive Time(4 days, 17:15:00,6 days, 5:15:00), Elapsed Time(8:15:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 5
+ ->node 50, [10hr BRK], Load 1, 10hr Break Time 21:09:00, 30min Break Time 5:09:00,  Arrive Time(4 days, 20:45:00,6 days, 8:45:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 6
+ ->node 53, [30min BRK], Load 1, 10hr Break Time 18:09:00, 30min Break Time 10:09:00,  Arrive Time(5 days, 14:45:00,7 days, 2:45:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 7
+ ->node 52, [10hr BRK], Load 1, 10hr Break Time 21:09:00, 30min Break Time 5:09:00,  Arrive Time(5 days, 18:15:00,7 days, 6:15:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 8
+ ->node 55, [30min BRK], Load 1, 10hr Break Time 18:09:00, 30min Break Time 10:09:00,  Arrive Time(6 days, 12:15:00,8 days, 0:15:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 9
+ ->node 54, [10hr BRK], Load 1, 10hr Break Time 21:09:00, 30min Break Time 5:09:00,  Arrive Time(6 days, 15:45:00,8 days, 3:45:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 10
+ ->node 57, [30min BRK], Load 1, 10hr Break Time 18:09:00, 30min Break Time 10:09:00,  Arrive Time(7 days, 9:45:00,8 days, 21:45:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 11
+ ->node 56, [10hr BRK], Load 1, 10hr Break Time 21:09:00, 30min Break Time 5:09:00,  Arrive Time(7 days, 13:15:00,9 days, 1:15:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 12
+ ->node 58, [10hr BRK], Load 1, 10hr Break Time 11:43:00, 30min Break Time 3:43:00,  Arrive Time(8 days, 0:49:00,9 days, 12:49:00), Elapsed Time(11:34:00),  Link: (Time 1:34:00, Dist 94 mi), visits: 13
+ ->node 8, mapnode 6, Load 1, 10hr Break Time 2:17:00, 30min Break Time 2:17:00,  Arrive Time(8 days, 12:23:00,10 days, 0:23:00), Elapsed Time(11:34:00),  Link: (Time 1:34:00, Dist 94 mi), visits: 14
+ ->node 61, [30min BRK], Load 0, 10hr Break Time 10:17:00, 30min Break Time 10:17:00,  Arrive Time(8 days, 20:38:00,10 days, 8:38:00), Elapsed Time(8:15:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 15
+ ->node 60, [10hr BRK], Load 0, 10hr Break Time 13:17:00, 30min Break Time 5:17:00,  Arrive Time(9 days, 0:08:00,10 days, 12:08:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 16
+ ->node 63, [30min BRK], Load 0, 10hr Break Time 10:17:00, 30min Break Time 10:17:00,  Arrive Time(9 days, 18:08:00,11 days, 6:08:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 17
+ ->node 62, [10hr BRK], Load 0, 10hr Break Time 13:17:00, 30min Break Time 5:17:00,  Arrive Time(9 days, 21:38:00,11 days, 9:38:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 18
+ ->End:0, Load(0), 10hr Break Time 5:40:00, 30min Break Time 5:40:00,  Time(10 days, 11:01:00,11 days, 23:01:00)  Elapsed time(13:23:00) Link:(Time 3:23:00, Dist 203 mi), visits 19
+Distance of the route: 5620 miles
+Loads served by route: 1
+Time of the route: 10 days, 11:01:00
+
+
+Route for vehicle 3:
+node 0, mapnode 0, Load 0, 10hr Break Time 0:00:00, 30min Break Time 0:00:00,  Arrive Time(7:00:00,19:00:00), Elapsed Time(0:00:00),  Link: (Time 0:00:00, Dist 0 mi), visits: 0
+ ->node 67, [30min BRK], Load 0, 10hr Break Time 8:00:00, 30min Break Time 8:00:00,  Arrive Time(15:00:00,1 day, 3:00:00), Elapsed Time(8:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 1
+ ->node 66, [10hr BRK], Load 0, 10hr Break Time 11:00:00, 30min Break Time 3:00:00,  Arrive Time(18:30:00,1 day, 6:30:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 2
+ ->node 4, mapnode 5, Load 0, 10hr Break Time 4:30:00, 30min Break Time 4:30:00,  Arrive Time(1 day, 9:00:00,1 day, 21:00:00), Elapsed Time(14:30:00),  Link: (Time 4:30:00, Dist 270 mi), visits: 3
+ ->node 71, [30min BRK], Load 1, 10hr Break Time 12:30:00, 30min Break Time 12:30:00,  Arrive Time(1 day, 17:15:00,2 days, 5:15:00), Elapsed Time(8:15:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 4
+ ->node 70, [10hr BRK], Load 1, 10hr Break Time 15:30:00, 30min Break Time 7:30:00,  Arrive Time(1 day, 20:45:00,2 days, 8:45:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 5
+ ->node 73, [30min BRK], Load 1, 10hr Break Time 6:53:00, 30min Break Time 6:53:00,  Arrive Time(2 days, 9:08:00,2 days, 21:08:00), Elapsed Time(12:23:00),  Link: (Time 2:23:00, Dist 143 mi), visits: 6
+ ->node 72, [10hr BRK], Load 1, 10hr Break Time 9:17:00, 30min Break Time 1:17:00,  Arrive Time(2 days, 12:02:00,3 days, 0:02:00), Elapsed Time(2:54:00),  Link: (Time 2:24:00, Dist 144 mi), visits: 7
+ ->node 9, mapnode 2, Load 1, 10hr Break Time 3:04:00, 30min Break Time 3:04:00,  Arrive Time(3 days, 2:49:00,3 days, 14:49:00), Elapsed Time(14:47:00),  Link: (Time 4:47:00, Dist 287 mi), visits: 8
+ ->node 76, [30min BRK], Load 0, 10hr Break Time 4:28:00, 30min Break Time 4:28:00,  Arrive Time(3 days, 4:28:00,3 days, 16:28:00), Elapsed Time(1:39:00),  Link: (Time 1:24:00, Dist 84 mi), visits: 9
+ ->End:0, Load(0), 10hr Break Time 8:43:00, 30min Break Time 0:43:00,  Time(3 days, 9:13:00,3 days, 21:13:00)  Elapsed time(4:45:00) Link:(Time 4:15:00, Dist 255 mi), visits 10
+Distance of the route: 2503 miles
+Loads served by route: 1
+Time of the route: 3 days, 9:13:00
+
+
+Route for vehicle 4:
+node 0, mapnode 0, Load 0, 10hr Break Time 0:00:00, 30min Break Time 0:00:00,  Arrive Time(1 day, 4:48:00,1 day, 16:48:00), Elapsed Time(0:00:00),  Link: (Time 0:00:00, Dist 0 mi), visits: 0
+ ->node 78, [30min BRK], Load 0, 10hr Break Time 8:00:00, 30min Break Time 8:00:00,  Arrive Time(1 day, 12:48:00,2 days, 0:48:00), Elapsed Time(8:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 1
+ ->node 77, [10hr BRK], Load 0, 10hr Break Time 11:00:00, 30min Break Time 3:00:00,  Arrive Time(1 day, 16:18:00,2 days, 4:18:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 2
+ ->node 80, [30min BRK], Load 0, 10hr Break Time 8:00:00, 30min Break Time 8:00:00,  Arrive Time(2 days, 10:18:00,2 days, 22:18:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 3
+ ->node 79, [10hr BRK], Load 0, 10hr Break Time 11:00:00, 30min Break Time 3:00:00,  Arrive Time(2 days, 13:48:00,3 days, 1:48:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 4
+ ->node 82, [30min BRK], Load 0, 10hr Break Time 2:10:00, 30min Break Time 2:10:00,  Arrive Time(3 days, 1:58:00,3 days, 13:58:00), Elapsed Time(12:10:00),  Link: (Time 2:10:00, Dist 130 mi), visits: 5
+ ->node 5, mapnode 8, Load 0, 10hr Break Time 8:42:00, 30min Break Time 0:42:00,  Arrive Time(3 days, 9:00:00,3 days, 21:00:00), Elapsed Time(7:02:00),  Link: (Time 6:32:00, Dist 392 mi), visits: 6
+ ->node 85, [30min BRK], Load 1, 10hr Break Time 16:42:00, 30min Break Time 8:42:00,  Arrive Time(3 days, 17:15:00,4 days, 5:15:00), Elapsed Time(8:15:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 7
+ ->node 84, [10hr BRK], Load 1, 10hr Break Time 19:42:00, 30min Break Time 3:42:00,  Arrive Time(3 days, 20:45:00,4 days, 8:45:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 8
+ ->node 87, [30min BRK], Load 1, 10hr Break Time 16:42:00, 30min Break Time 8:42:00,  Arrive Time(4 days, 14:45:00,5 days, 2:45:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 9
+ ->node 86, [10hr BRK], Load 1, 10hr Break Time 19:42:00, 30min Break Time 3:42:00,  Arrive Time(4 days, 18:15:00,5 days, 6:15:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 10
+ ->node 89, [30min BRK], Load 1, 10hr Break Time 16:42:00, 30min Break Time 8:42:00,  Arrive Time(5 days, 12:15:00,6 days, 0:15:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 11
+ ->node 88, [10hr BRK], Load 1, 10hr Break Time 19:42:00, 30min Break Time 3:42:00,  Arrive Time(5 days, 15:45:00,6 days, 3:45:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 12
+ ->node 91, [30min BRK], Load 1, 10hr Break Time 16:42:00, 30min Break Time 8:42:00,  Arrive Time(6 days, 9:45:00,6 days, 21:45:00), Elapsed Time(18:00:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 13
+ ->node 90, [10hr BRK], Load 1, 10hr Break Time 19:42:00, 30min Break Time 3:42:00,  Arrive Time(6 days, 13:15:00,7 days, 1:15:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 14
+ ->node 92, [10hr BRK], Load 1, 10hr Break Time 12:36:00, 30min Break Time 4:36:00,  Arrive Time(7 days, 3:09:00,7 days, 15:09:00), Elapsed Time(13:54:00),  Link: (Time 3:54:00, Dist 234 mi), visits: 15
+ ->node 10, mapnode 3, Load 1, 10hr Break Time 5:31:00, 30min Break Time 5:31:00,  Arrive Time(7 days, 17:04:00,8 days, 5:04:00), Elapsed Time(13:55:00),  Link: (Time 3:55:00, Dist 235 mi), visits: 16
+ ->node 95, [30min BRK], Load 0, 10hr Break Time 13:31:00, 30min Break Time 13:31:00,  Arrive Time(8 days, 1:19:00,8 days, 13:19:00), Elapsed Time(8:15:00),  Link: (Time 8:00:00, Dist 480 mi), visits: 17
+ ->node 94, [10hr BRK], Load 0, 10hr Break Time 16:31:00, 30min Break Time 8:31:00,  Arrive Time(8 days, 4:49:00,8 days, 16:49:00), Elapsed Time(3:30:00),  Link: (Time 3:00:00, Dist 180 mi), visits: 18
+ ->node 97, [30min BRK], Load 0, 10hr Break Time 7:58:00, 30min Break Time 7:58:00,  Arrive Time(8 days, 17:16:00,9 days, 5:16:00), Elapsed Time(12:27:00),  Link: (Time 2:27:00, Dist 147 mi), visits: 19
+ ->node 96, [10hr BRK], Load 0, 10hr Break Time 10:26:00, 30min Break Time 2:26:00,  Arrive Time(8 days, 20:14:00,9 days, 8:14:00), Elapsed Time(2:58:00),  Link: (Time 2:28:00, Dist 148 mi), visits: 20
+ ->End:0, Load(0), 10hr Break Time 4:22:00, 30min Break Time 4:22:00,  Time(9 days, 11:10:00,9 days, 23:10:00)  Elapsed time(14:56:00) Link:(Time 4:56:00, Dist 296 mi), visits 21
+Distance of the route: 6202 miles
+Loads served by route: 1
+Time of the route: 9 days, 11:10:00
+
+
+Total Distance of all routes: 23146 miles
+Total Loads picked up by all routes: 5
+Total Time of all routes: 38 days, 3:45:00
+Total Travel Time of all routes: 16 days, 1:46:00
+
+Route summaries
+
+Route: 0,
+Driving time: 3555 min,
+30 min breaks: 5,
+10 hr breaks: 5,
+Total route time: 11225 min
+Total distance driven: 3555 mi
+Loads: load 1: 7 — 9
+
+
+Route: 1,
+Driving time: 5266 min,
+30 min breaks: 8,
+10 hr breaks: 7,
+Total route time: 10156 min
+Total distance driven: 5266 mi
+Loads: load 2: 5 — 4
+
+
+Route: 2,
+Driving time: 5620 min,
+30 min breaks: 8,
+10 hr breaks: 8,
+Total route time: 15061 min
+Total distance driven: 5620 mi
+Loads: load 3: 1 — 6
+
+
+Route: 3,
+Driving time: 2503 min,
+30 min breaks: 4,
+10 hr breaks: 3,
+Total route time: 4873 min
+Total distance driven: 2503 mi
+Loads: load 4: 5 — 2
+
+
+Route: 4,
+Driving time: 6202 min,
+30 min breaks: 9,
+10 hr breaks: 9,
+Total route time: 13630 min
+Total distance driven: 6202 mi
+Loads: load 5: 8 — 3
+
