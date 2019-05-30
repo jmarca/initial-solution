@@ -2,6 +2,7 @@
 from six.moves import xrange
 from datetime import datetime, timedelta
 import pandas as pd
+import math
 import os
 import re
 
@@ -69,6 +70,7 @@ def print_solution(demand,
 
     demand_served = {i:False for i in demand.demand.index}
     total_distance = 0
+    total_travtime = 0
     total_load_served = 0
     total_time = 0
     capacity_dimension = routing.GetDimensionOrDie('cap')
@@ -84,8 +86,10 @@ def print_solution(demand,
         service_details = {}
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
+        previous_index = None
         plan_output  ='Route for vehicle {}:\n'.format(vehicle_id)
         distance = 0
+        travtime = 0
         this_distance = 0
         this_time = 0
         link_time = 0
@@ -178,6 +182,7 @@ def print_solution(demand,
             link_time = int(time_matrix.loc[manager.IndexToNode(previous_index),
                                             manager.IndexToNode(index)])
             distance += this_distance
+            travtime += link_time
         load_var = capacity_dimension.CumulVar(index)
         visits_var  = count_dimension.CumulVar(index)
         time_var = time_dimension.CumulVar(index)
@@ -204,7 +209,7 @@ def print_solution(demand,
         else:
             plan_output += ' {0} Load({1})  Time({2},{3})  Link time({4}) Link distance({5} mi), visits {6}\n'.format(
                 manager.IndexToNode(index),
-                assignment.Value(load_var),
+               assignment.Value(load_var),
                 timedelta(minutes=assignment.Min(time_var)),
                 timedelta(minutes=assignment.Max(time_var)),
                 timedelta(minutes=this_time),
@@ -226,16 +231,20 @@ def print_solution(demand,
                                          'long_breaks':lb_count,
                                          'loads_served':service_details,
                                          'driving_distance':distance,
-                                         'driving_time':distance/(args.speed/60)}
+                                         'driving_time':travtime}
+            assert math.isclose( distance/(args.speed/60), travtime, rel_tol=0.05)
+            total_distance += distance
+            total_travtime += travtime
+            total_load_served += pickups
+            total_time += assignment.Value(time_var)
 
 
         output_string += '\n'+plan_output+'\n'
-        total_distance += distance
-        total_load_served += pickups
-        total_time += assignment.Value(time_var)
+
     output_string +='\nTotal Distance of all routes: {0} miles'.format(total_distance)
     output_string +='\nTotal Loads picked up by all routes: {}'.format(total_load_served)
     output_string +='\nTotal Time of all routes: {0}'.format(timedelta(minutes=total_time))
+    output_string +='\nTotal Travel Time of all routes: {0}'.format(timedelta(minutes=total_travtime))
 
 
     # output summary
@@ -319,6 +328,7 @@ def csv_output(demand,
     vcsv = []
 
     total_distance = 0
+    total_travtime = 0
     total_load_served = 0
     total_time = 0
     capacity_dimension = routing.GetDimensionOrDie('cap')
@@ -329,6 +339,7 @@ def csv_output(demand,
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
         distance = 0
+        travtime = 0
         this_distance = 0
         this_time = 0
         link_time = 0
@@ -365,6 +376,7 @@ def csv_output(demand,
             link_time = int(time_matrix.loc[manager.IndexToNode(previous_index),
                                             manager.IndexToNode(index)])
             distance += this_distance
+            travtime += this_time
 
         # done with loop, have returned to depot
         load_var = capacity_dimension.CumulVar(index)
@@ -423,6 +435,7 @@ def csv_demand_output(demand,
     demand_details = {}
 
     total_distance = 0
+    total_travtime = 0
     total_load_served = 0
     total_time = 0
     capacity_dimension = routing.GetDimensionOrDie('cap')
@@ -433,6 +446,7 @@ def csv_demand_output(demand,
         vehicle_id = vehicle.index
         index = routing.Start(vehicle_id)
         distance = 0
+        travtime = 0
         this_distance = 0
         this_time = 0
         link_time = 0
@@ -480,6 +494,7 @@ def csv_demand_output(demand,
             link_time = int(time_matrix.loc[manager.IndexToNode(previous_index),
                                             manager.IndexToNode(index)])
             distance += this_distance
+            travtime += this_time
 
         # done with loop, have returned to depot
         load_var = capacity_dimension.CumulVar(index)
