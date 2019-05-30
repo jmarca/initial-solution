@@ -5,7 +5,6 @@ from functools import partial
 import solution_output as SO
 import evaluators as E
 import demand as D
-import demand_no_breaks as D2
 import vehicles as V
 import model_run as MR
 import initial_routes as IR
@@ -123,24 +122,3 @@ def test_output():
 
     assert filecmp.cmp(output_file,expected_breaks_file)
     os.unlink(output_file)
-
-    # now try another way, with the other demand
-    m = reader.load_matrix_from_csv('test/data/matrix.csv')
-    d     = D2.Demand('test/data/demand.csv',m,horizon)
-    m = d.generate_solver_space_matrix(m)
-
-    (assignment,routing,manager) = MR.model_run_nobreaks(d,m,v.vehicles,horizon)
-    out = io.StringIO()
-    err = io.StringIO()
-    args = MockArgs()
-    with redirected(out=out, err=err):
-        out.flush()
-        err.flush()
-        SO.print_solution(d,m,m,
-                          v,manager,routing,assignment,horizon,
-                          0,args
-        )
-        output = out.getvalue()
-        expected_output = ""
-        assert output == expected_output
-        assert filecmp.cmp(output_file,expected_file)
