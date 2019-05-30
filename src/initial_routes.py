@@ -37,6 +37,7 @@ def initial_routes(demand,vehicles,time_matrix,
     for idx in demand.demand.index[feasible_idx]:
         if veh >= len(vehicles):
             break
+        print('demand record',idx,'vehicle',veh)
         reached_depot = False
         trip_chain = []
         record = demand.demand.loc[idx,:]
@@ -47,8 +48,6 @@ def initial_routes(demand,vehicles,time_matrix,
         cycler = cycle_goal(record.origin,record.destination)
         goal = record.origin
 
-        tt = 0
-        dt = 0
         travel_time = 0
         drive_time  = 0
         short_time  = 0
@@ -73,16 +72,10 @@ def initial_routes(demand,vehicles,time_matrix,
                           'tt_prior_goal',tt_prior_goal,
                           'prior',prior,
                           'goal',goal,
-                          'dt',dt,
                           'drive_time',drive_time,
-                          'tt',tt,
                           'travel_time',travel_time,'\n',record)
 
                 # just go straight to goal
-                tt += time_callback(manager.NodeToIndex(prior),
-                                    manager.NodeToIndex(goal))
-                dt += drive_callback(manager.NodeToIndex(prior),
-                                     manager.NodeToIndex(goal))
                 travel_time += tt_prior_goal + demand.get_service_time(prior)
                 drive_time += tt_prior_goal
                 short_time += tt_prior_goal
@@ -99,13 +92,11 @@ def initial_routes(demand,vehicles,time_matrix,
                     # print(record.from_node,record.origin,record.early,tt,record.late)
                     if debug:
                         print(record,'\n',
-                              'tt',tt,
                               'travel_time',travel_time,
-                              'dt',dt,
                               'drive_time',drive_time,
                               'short time',short_time)
-                    assert tt+record.pickup_time  -1 <= record.depot_origin
-                    assert record.depot_origin <= tt+1 + record.pickup_time
+                    assert travel_time+record.pickup_time  -1 <= record.depot_origin
+                    assert record.depot_origin <= travel_time+1 + record.pickup_time
                 goal = next_goal
                 continue
             else:
@@ -258,20 +249,6 @@ def initial_routes(demand,vehicles,time_matrix,
                         assert 0
                     brk_idx += 2
 
-                # okay, done adding breaks, now what?
-                if debug:
-                    print('break_list',break_list,
-                          'drive_time',drive_time,
-                          'short_time',short_time,
-                          'total_time',tt,
-                          'brk_idx',brk_idx,
-                          'tt remaining to goal',tt_fr_goal,
-                          (drive_time + tt_fr_goal),
-                          (short_time + tt_fr_goal),
-                          '\n',
-                          time_matrix.loc[trip_chain,trip_chain])
-
-
                 # check if you need one more short break before goal
                 if short_time + tt_fr_goal >= 480 :
                     sbk = breaks[brk_idx]
@@ -306,31 +283,31 @@ def initial_routes(demand,vehicles,time_matrix,
         # break---because I'm too lazy to do that above right now, so
         # let's see if this gives the solver a good enough start
         # expanded_chain = []
-        if debug:
-            print(trip_chain) # before
+        # if debug:
+        #     print(trip_chain) # before
 
-            # check callback values too
-            tt = 0
-            tt_chain = []
-            dt = 0
-            dt_chain = []
-            st = 0
-            st_chain = []
-            fr = 0
-            for tcidx in trip_chain:
-                tt += time_callback(manager.NodeToIndex(fr),
-                                    manager.NodeToIndex(tcidx))
-                dt += drive_callback(manager.NodeToIndex(fr),
-                                     manager.NodeToIndex(tcidx))
-                st += short_callback(manager.NodeToIndex(fr),
-                                     manager.NodeToIndex(tcidx))
-                tt_chain.append(tt)
-                dt_chain.append(dt)
-                st_chain.append(st)
-                fr = tcidx
-            print('travel time chain',tt_chain)
-            print('drive time chain',dt_chain)
-            print('short time chain',st_chain)
+        #     # check callback values too
+        #     tt = 0
+        #     tt_chain = []
+        #     dt = 0
+        #     dt_chain = []
+        #     st = 0
+        #     st_chain = []
+        #     fr = 0
+        #     for tcidx in trip_chain:
+        #         tt += time_callback(manager.NodeToIndex(fr),
+        #                             manager.NodeToIndex(tcidx))
+        #         dt += drive_callback(manager.NodeToIndex(fr),
+        #                              manager.NodeToIndex(tcidx))
+        #         st += short_callback(manager.NodeToIndex(fr),
+        #                              manager.NodeToIndex(tcidx))
+        #         tt_chain.append(tt)
+        #         dt_chain.append(dt)
+        #         st_chain.append(st)
+        #         fr = tcidx
+        #     print('travel time chain',tt_chain)
+        #     print('drive time chain',dt_chain)
+        #     print('short time chain',st_chain)
 
         # loop to next demand, next trip chain, next vehicle
         trip_chains[veh] = trip_chain
@@ -350,7 +327,6 @@ def initial_routes(demand,vehicles,time_matrix,
     return trip_chains
 
 def initial_routes_no_breaks(demand,vehicles,time_matrix,
-                   manager,time_callback,
                    debug=False):
     # initial routes should be a list of nodes to visit, in node space
     # (not solver index space, not map space)
@@ -375,7 +351,6 @@ def initial_routes_no_breaks(demand,vehicles,time_matrix,
         cycler = cycle_goal(record.origin,record.destination)
         goal = record.origin
         travel_time = 0
-        tt = 0
         while not reached_depot:
 
             if debug:
@@ -395,8 +370,6 @@ def initial_routes_no_breaks(demand,vehicles,time_matrix,
                       'travel_time',travel_time)
 
             # just go straight to goal
-            tt += time_callback(manager.NodeToIndex(prior),
-                                manager.NodeToIndex(goal))
             travel_time += tt_prior_goal + demand.get_service_time(prior)
 
             next_goal = cycler(goal)
@@ -410,25 +383,13 @@ def initial_routes_no_breaks(demand,vehicles,time_matrix,
                 # print(record.from_node,record.origin,record.early,tt,record.late)
                 if debug:
                     print(record,'\n',
-                          'tt',tt,
-                          'travel_time',travel_time)
-                assert tt+record.pickup_time  -1 <= record.depot_origin
-                assert record.depot_origin <= tt+1 + record.pickup_time
+                          'travel_time',travel_time,
+                          '\ntravel_time+record.pickup_time-1',travel_time+record.pickup_time-1,
+                          '\nrecord.depot_origin',record.depot_origin,
+                          '\ntravel_time+1 + record.pickup_time',travel_time+1 + record.pickup_time)
+                assert travel_time+record.pickup_time  -1 <= record.depot_origin
+                assert record.depot_origin <= travel_time+1 + record.pickup_time
             goal = next_goal
-
-        if debug:
-            print(trip_chain) # before
-
-            # check callback values too
-            tt = 0
-            tt_chain = []
-            fr = 0
-            for tcidx in trip_chain:
-                tt += time_callback(manager.NodeToIndex(fr),
-                                    manager.NodeToIndex(tcidx))
-                tt_chain.append(tt)
-                fr = tcidx
-            print('travel time chain',tt_chain)
 
         # loop to next demand, next trip chain, next vehicle
         trip_chains[veh] = trip_chain

@@ -7,8 +7,9 @@ def test_demand():
     putime = 20
     dotime = 25
     m = reader.load_matrix_from_csv('test/data/matrix.csv')
-    d     = D.Demand('test/data/demand.csv',m,horizon)
-    d_alt = D.Demand('test/data/demand.csv',m,horizon*10,putime,dotime)
+    odpairs = reader.load_demand_from_csv('test/data/demand.csv')
+    d     = D.Demand(odpairs,m,horizon)
+    d_alt = D.Demand(odpairs,m,horizon*10,putime,dotime)
 
     assert (d.demand.early.min() > 0)
     assert (d.demand.early.max() < horizon)

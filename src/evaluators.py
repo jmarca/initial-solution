@@ -7,18 +7,19 @@ import pandas as pd
 from multiprocessing import Pool
 import itertools as iter
 
-def create_demand_callback(node_list,demand):
+def create_demand_callback(nodes,demand):
     """ create a callback function for demand """
     _demand = {}
-    for node in node_list:
-        _demand[node] = demand.get_demand(node)
+    for idx in range(0,len(nodes)):
+        node = nodes[idx]
+        _demand[idx] = demand.get_demand(node)
     print('size of demand matrix is ',len(_demand))
     def demand_callback(manager, index):
         """Returns the demand at the index, if defined, or zero."""
         # Convert from routing variable Index to demand array Node.
         node = manager.IndexToNode(index)
-        # print(node)
-        # print(_demand[node])
+        # print('demand callback with',node)
+        # print('demand callback with',node,_demand[node])
         return _demand[node]
 
 
@@ -173,6 +174,49 @@ def create_time_callback2(travel_minutes_matrix,
     # return the callback, which will need to be set up with partial
     return time_callback
 
+def create_time_callback3(travel_minutes_matrix,
+                          nodes,
+                          demand):
+    """Time callback version 3
+
+    For the small model runs with just one demand pair
+
+    """
+    # preprocess travel and service time to speed up solver
+
+    # preprocess travel and service time to speed up solver
+    number = len(nodes)
+    max_time = travel_minutes_matrix.max().max()
+    penalty_time =  int(10000000 * max_time)
+    service_time = np.zeros((number,number))
+
+    for o_idx in range(0,number):
+        node = nodes[o_idx]
+        o_sv = demand.get_service_time(node)
+        o_bk = demand.get_break_node(node)
+        if o_bk:
+            o_sv = o_bk.break_time
+        for d_idx in range(0,number):
+            if o_idx != d_idx:
+                service_time[o_idx,d_idx] = o_sv
+
+    df_service_time = pd.DataFrame(service_time)
+    reduced_matrix = travel_minutes_matrix.loc[nodes,nodes]
+    reduced_matrix['new_index'] = range(0,number)
+    reduced_matrix.set_index('new_index',inplace=True)
+
+    _total_time = (df_service_time + reduced_matrix).fillna(penalty_time).values
+    def time_callback(manager, from_index, to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to distance matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        # print('time callback3',from_node,to_node,_total_time[from_node,to_node])
+        return _total_time[from_node,to_node]
+
+    # return the callback, which will need to be set up with partial
+    return time_callback
+
 def create_drive_callback(travel_minutes_matrix,
                           demand,
                           period,
@@ -229,6 +273,51 @@ def create_drive_callback(travel_minutes_matrix,
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
         # print('drive time',from_node,to_node,_total_time[from_node][to_node])
+        return _total_time[from_node][to_node]
+
+    # return the callback, which will need to be set up with partial
+    return time_callback
+
+def create_drive_callback3(travel_minutes_matrix,
+                           nodes,
+                           demand,
+                           period,
+                           break_time):
+    """create a callback function for drivetime, for mini run with one demand
+
+    """
+    # preprocess travel and service time to speed up solver
+    number = len(nodes)
+    max_time = travel_minutes_matrix.max().max()
+    penalty_time =  int(10000000 * max_time)
+    service_time = np.zeros((number,number))
+    # service time is determined by from node
+    for o_idx in range(0,number):
+        o_sv = 0
+        node = nodes[o_idx]
+        o_bk = demand.get_break_node(node)
+        if o_bk:
+            # drive callback only wants to know breaks of 600
+            if o_bk.break_time >= break_time:
+                o_sv = o_bk.drive_time_restore()
+        # again, from node is important
+        for d_idx in range(0,number):
+            if o_idx != d_idx:
+                service_time[o_idx,d_idx] = o_sv
+
+    df_service_time = pd.DataFrame(service_time)
+    reduced_matrix = travel_minutes_matrix.loc[nodes,nodes]
+    reduced_matrix['new_index'] = range(0,number)
+    reduced_matrix.set_index('new_index',inplace=True)
+
+    _total_time = (df_service_time + reduced_matrix).fillna(penalty_time).values
+
+    def time_callback(manager, from_index, to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to distance matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        # print('drive time 3',from_node,to_node,_total_time[from_node][to_node])
         return _total_time[from_node][to_node]
 
     # return the callback, which will need to be set up with partial
@@ -327,6 +416,70 @@ def create_short_break_callback(travel_minutes_matrix,
     # print(df_service_time.loc[check_chain,check_chain])
     # print(travel_minutes_matrix.loc[check_chain,check_chain])
     # print((df_service_time + travel_minutes_matrix).loc[check_chain,check_chain])
+
+
+    def time_callback(manager, from_index, to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to distance matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        # print('short time',from_node,to_node,_total_time[from_node][to_node])
+        return _total_time[from_node][to_node]
+
+    # return the callback, which will need to be set up with partial
+    return time_callback
+
+def create_short_break_callback3(travel_minutes_matrix,
+                                 nodes,
+                                 demand,
+                                 period,
+                                 break_time):
+    """create a callback function for short_breaktime for mini run with one demand
+
+    """
+    if period < 0:
+        period = period * -1
+    # preprocess travel and service time to speed up solver
+    number = len(nodes)
+    max_time = travel_minutes_matrix.max().max()
+    penalty_time =  int(10000000 * max_time)
+
+    service_time = np.zeros((number,number))
+
+    for o_idx in range(0,number):
+        o_sv = 0
+        value = 0
+        node=nodes[o_idx]
+        o_bk = demand.get_break_node(o_idx)
+        if o_bk:
+            # short break callback gets benefits from both short and long breaks
+            if o_bk.break_time >= break_time:
+                o_sv = o_bk.drive_time_restore()
+                value = o_sv
+                if o_sv < -period:
+                    # after trying a few things, it is never true that
+                    # a long break happens without a preceding short
+                    # break.  Therefore, if this is a long break, an
+                    # earlier short break already pushed the clock
+                    # back on the counter by 480, so here I only want
+                    # to push it back another 3 hours (to get it
+                    # aligned with the 11 hr long break timing
+                    value = -3*60 # same as o_sv - (-period)
+
+        # bail out if just going to assign 0
+        if o_sv != 0:
+            # again, from node is important, but here have to consider if
+            # moving from break to break
+            for d_idx in range(0,number):
+                if o_idx != d_idx:
+                    service_time[o_idx,d_idx] = value
+
+    df_service_time = pd.DataFrame(service_time)
+    reduced_matrix = travel_minutes_matrix.loc[nodes,nodes]
+    reduced_matrix['new_index'] = range(0,number)
+    reduced_matrix.set_index('new_index',inplace=True)
+
+    _total_time = (df_service_time + reduced_matrix).fillna(penalty_time).values
 
 
     def time_callback(manager, from_index, to_index):

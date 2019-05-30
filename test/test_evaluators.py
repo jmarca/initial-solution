@@ -18,7 +18,8 @@ def test_time_callback():
     dropoff_time = 10
     horizon = 10000
     m = reader.load_matrix_from_csv('test/data/matrix.csv')
-    d     = D.Demand('test/data/demand.csv',m,horizon,pickup_time=pickup_time,dropoff_time=dropoff_time)
+    odpairs = reader.load_demand_from_csv('test/data/demand.csv')
+    d     = D.Demand(odpairs,m,horizon,pickup_time=pickup_time,dropoff_time=dropoff_time)
     max_distance = m.max().max()
     m_m = reader.travel_time(1,m)
     max_time = m_m.max().max()

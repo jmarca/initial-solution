@@ -218,7 +218,8 @@ def test_insert_nodes_for_breaks():
     # first read in the test demand
     horizon = 10000
     m = reader.load_matrix_from_csv('test/data/matrix.csv')
-    d     = D.Demand('test/data/demand.csv',m,horizon,debug=True)
+    odpairs = reader.load_demand_from_csv('test/data/demand.csv')
+    d     = D.Demand(odpairs,m,horizon)
     # read in travel time
     # assume a mile a minute (60mph), so m in miles === m in minutes
     # convert to solver space

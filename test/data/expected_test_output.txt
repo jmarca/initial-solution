@@ -42,6 +42,7 @@ Route for vehicle 4: unused
 Total Distance of all routes: 19096 miles
 Total Loads picked up by all routes: 5
 Total Time of all routes: 17 days, 4:42:00
+Total Travel Time of all routes: 13 days, 6:16:00
 
 Route summaries
 
