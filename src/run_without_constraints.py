@@ -107,11 +107,10 @@ def main():
                                                   debug = args.debug)
         initial_routes = [v for v in trip_chains.values()]
         (assignment,routing,manager) = MR.model_run_nobreaks(d,expanded_mm,vehicles.vehicles,
-                                                             args.horizon,None,initial_routes,
+                                                             None,initial_routes,
                                                              timelimit=args.timelimit)
     else:
         (assignment,routing,manager) = MR.model_run_nobreaks(d,expanded_mm,vehicles.vehicles,
-                                                             args.horizon,
                                                              timelimit=args.timelimit)
 
     if assignment:
