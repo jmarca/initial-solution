@@ -70,6 +70,12 @@ def test_demand():
     assert np.isnan(mm.loc[0,2])
 
     mm = d_alt.generate_solver_space_matrix(m)
+    assert mm.max().max() > 0
+    assert len(mm.index) == 11 # 5 nodes plus depot
+    assert mm.loc[0,0] == 0
+    assert mm.loc[0,1] == 1150
+    assert np.isnan(mm.loc[6,1])
+    assert np.isnan(mm.loc[0,6])
     mm_ex = d_alt.insert_nodes_for_breaks(mm)
     for idx in mm.index:
         assert mm.loc[idx,idx] == mm_ex.loc[idx,idx]
