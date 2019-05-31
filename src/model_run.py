@@ -209,16 +209,19 @@ def setup_params(timelimit):
     parameters.log_search = pywrapcp.BOOL_TRUE
     return parameters
 
+def unset_times(t,demand_subset):
+    t = t.copy()
+    l = len(t.index)
+    index_mask = t.index.isin(demand_subset).reshape(l,1)
+    column_mask = t.columns.isin(demand_subset)
+    m = np.multiply(index_mask,column_mask)
+    return t.where(m)
+
 def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,timelimit=1):
 
     # use demand_subset to pick out a subset of nodes
     if demand_subset != None:
-        t = t.copy()
-        l = len(t.index)
-        index_mask = t.index.isin(demand_subset).reshape(l,1)
-        column_mask = t.columns.isin(demand_subset)
-        m = np.multiply(index_mask,column_mask)
-        t = t.where(m)
+        t = unset_times(t,demand_subset)
     else:
         demand_subset = t.index
 
@@ -365,29 +368,26 @@ def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,timelimit=
 
     more_droppables = [routing.AddDisjunction([manager.NodeToIndex(c)],
                                               break_penalty) for c in breaknodes]
-    assignment = None
+    assignment = run_solver(routing,parameters,initial_routes)
+    return (assignment,routing,manager)
+
+def run_solver(routing,parameters,initial_routes):
     if initial_routes:
         routing.CloseModelWithParameters(parameters)
         initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
                                                             True)
         assert initial_solution
-        assignment = routing.SolveFromAssignmentWithParameters(
-            initial_solution, parameters)
+        return routing.SolveFromAssignmentWithParameters(initial_solution, parameters)
     else:
-        assignment = routing.SolveWithParameters(parameters)
-    assert assignment
-    return (assignment,routing,manager)
+        return routing.SolveWithParameters(parameters)
+
+
 
 def model_run_nobreaks(d,t,v,demand_subset=None,initial_routes=None,timelimit=1):
 
     # use demand_subset to pick out a subset of nodes
     if demand_subset != None:
-        t = t.copy()
-        l = len(t.index)
-        index_mask = t.index.isin(demand_subset).reshape(l,1)
-        column_mask = t.columns.isin(demand_subset)
-        m = np.multiply(index_mask,column_mask)
-        t = t.where(m)
+        t = unset_times(t,demand_subset)
     else:
         demand_subset = t.index
 
@@ -492,15 +492,5 @@ def model_run_nobreaks(d,t,v,demand_subset=None,initial_routes=None,timelimit=1)
 
     droppable_nodes = [routing.AddDisjunction([manager.NodeToIndex(c)],
                                               penalty) for c in d.get_node_list()]
-    assignment = None
-    if initial_routes:
-        routing.CloseModelWithParameters(parameters)
-        initial_solution = routing.ReadAssignmentFromRoutes(initial_routes,
-                                                            True)
-        assert initial_solution
-        assignment = routing.SolveFromAssignmentWithParameters(
-            initial_solution, parameters)
-    else:
-        assignment = routing.SolveWithParameters(parameters)
-    assert assignment
+    assignment = run_solver(routing,parameters,initial_routes)
     return (assignment,routing,manager)
