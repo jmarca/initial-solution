@@ -27,59 +27,6 @@ def create_demand_callback(nodes,demand):
     return demand_callback
 
 
-# def create_time_callback(travel_minutes_matrix,
-#                          demand):
-#     """create a callback function for time.  presumes that
-#        travel_minutes_matrix is in solver space, not map space (has
-#        been passed through demand.generate_solver_space_matrix
-
-#     """
-#     # preprocess travel and service time to speed up solver
-#     print("deprecated")
-#     assert 0
-#     number = len(travel_minutes_matrix)
-#     max_time = travel_minutes_matrix.max().max()
-#     penalty_time =  int(10000000 * max_time)
-#     # penalty_time =  int(9223372036854775808)
-#     # penalty_time = int(100 * max_time)
-#     print ('using a maximum time for forbidden links of ',penalty_time)
-#     _total_time = penalty_time * np.ones(number,number)
-#     def g(from_node,to_node):
-#         if from_node == to_node:
-#             _total_time[from_node][to_node] = 0
-#         else:
-#             service_time = demand.get_service_time(from_node)
-#             if not np.isnan(travel_minutes_matrix.loc[from_node,to_node]) :
-#                 _total_time[from_node,to_node] = int(
-#                     travel_minutes_matrix.loc[from_node,to_node]
-#                     + service_time
-#                 )
-#             # redundant
-#             # else:
-#             #     _total_time[from_node,to_node] = penalty_time
-
-#     ncpus = 3#len(os.sched_getaffinity(0))
-#     p = Pool(ncpus)
-
-#     # nodes are in travel time matrix
-#     node_list = [n for n in travel_minutes_matrix.index]
-
-#     travel_times = p.map(g,iter.permutations(node_list,2))
-#     # print(travel_times)
-#     assert 0
-#     # print('len node list is ',len(node_list))
-
-#     def time_callback(manager, from_index, to_index):
-#         """Returns the travel time between the two nodes."""
-#         # Convert from routing variable Index to distance matrix NodeIndex.
-#         from_node = manager.IndexToNode(from_index)
-#         to_node = manager.IndexToNode(to_index)
-#         # print(from_node,to_node)
-#         # print(_total_time[from_node][to_node])
-#         return _total_time[from_node][to_node]
-
-#     # return the callback, which will need to be set up with partial
-#     return time_callback
 
 def create_dist_callback(dist_matrix,
                          demand):
