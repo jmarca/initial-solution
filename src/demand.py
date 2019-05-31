@@ -185,28 +185,15 @@ class Demand():
         if demand_node == 0:
             return 0
         return self._get_demand_entry(demand_node,'mapnode',-1)
-        # if demand_node in self.equivalence.index:
-        #     return (self.equivalence.loc[demand_node].mapnode)
-        # # handles case of all augmenting nodes for breaks, etc
-        # return -1
 
     def get_demand_number(self,demand_node):
         return self._get_demand_entry(demand_node,'demand_index',-1)
-        # if demand_node in self.equivalence.index:
-        #     return (self.equivalence.loc[demand_node].demand_index)
-        # return -1
 
     def get_service_time(self,demand_node):
         return self._get_demand_entry(demand_node,'service_time',0)
-        # if demand_node in self.equivalence.index:
-        #     return (self.equivalence.loc[demand_node].service_time)
-        # return 0
 
     def get_demand(self,demand_node):
         return self._get_demand_entry(demand_node,'demand',0)
-        # if demand_node in self.equivalence.index:
-        #     return int(self.equivalence.loc[demand_node,'demand'])
-        # return 0
 
     def generate_solver_space_matrix(self,matrix,horizon=None):
         """the input distance matrix is in "map space", meaning that nodes can
