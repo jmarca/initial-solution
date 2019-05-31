@@ -176,6 +176,15 @@ def use_nodes(record,d):
 #         index = assignment.Value(mini_routing.NextVar(index))
 #     return initial_route
 
+# globals.  does python do this?
+time_dimension_name = 'time'
+cap_dimension_name = 'cap'
+count_dimension_name = 'count'
+drive_dimension_name = 'drive'
+short_break_dimension_name = 'break'
+
+
+
 def get_route(v,assignment,routing,manager):
     index = routing.Start(v)
     initial_route = []
@@ -217,31 +226,69 @@ def unset_times(t,demand_subset):
     m = np.multiply(index_mask,column_mask)
     return t.where(m)
 
-def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,timelimit=1):
 
-    # use demand_subset to pick out a subset of nodes
-    if demand_subset != None:
-        t = unset_times(t,demand_subset)
-    else:
-        demand_subset = t.index
 
-    time_dimension_name = 'time'
-    drive_dimension_name = 'drive'
-    short_break_dimension_name = 'break'
-    cap_dimension_name = 'cap'
-    count_dimension_name = 'count'
+def breaks_at_nodes_constraints(d,
+                                v,
+                                time_matrix,
+                                manager,
+                                routing,
+                                base_value):
 
+    solver = routing.solver()
+    time_dimension = routing.GetDimensionOrDie(time_dimension_name)
+    drive_dimension = routing.GetDimensionOrDie(drive_dimension_name)
+    short_break_dimension = routing.GetDimensionOrDie(short_break_dimension_name)
+    count_dimension = routing.GetDimensionOrDie(count_dimension_name)
+
+    feasible_index = d.demand.feasible
+    for idx in d.demand.index[feasible_index]:
+        record = d.demand.loc[idx,:]
+        # double check that is possible (in case just solving a limited set
+        if np.isnan(time_matrix.loc[record.origin,record.destination]):
+            continue
+        d.break_constraint(record.origin,record.destination,
+                           manager,routing,
+                           drive_dimension,
+                           short_break_dimension,
+                           base_value
+        )
+
+    # constraints on return to depot, otherwise we just collect
+    # break nodes on the way back and go deeply negative
+    for veh in v:
+        index = routing.End(veh.index)
+        end_drive = drive_dimension.CumulVar(index)
+        end_short = short_break_dimension.CumulVar(index)
+        solver.AddConstraint(
+            end_drive >= base_value)
+        solver.AddConstraint(
+            end_drive < base_value+(11*60))
+
+        solver.AddConstraint(
+            end_short >= base_value)
+
+        solver.AddConstraint(
+            end_short < base_value+(8*60))
+
+def setup_model(d,t,v):
+    # common to both with and without breaks
     num_nodes = len(t.index)
     manager = pywrapcp.RoutingIndexManager(
         num_nodes,
         len(v),
         v[0].depot_index)
     routing = pywrapcp.RoutingModel(manager)
+    time_callback = E.create_time_callback2(t, d)
+    demand_callback = E.create_demand_callback(t.index,d)
 
-    time_callback = partial(E.create_time_callback2(t, d), manager)
-    transit_callback_index = routing.RegisterTransitCallback(time_callback)
+    transit_callback_index = routing.RegisterTransitCallback(
+        partial(time_callback, manager)
+    )
+
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
+    # count
     routing.AddConstantDimension(
         1, # increment by one every time
         num_nodes,  # max count is visit all the nodes
@@ -249,6 +296,7 @@ def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,timelimit=
         count_dimension_name)
     count_dimension = routing.GetDimensionOrDie(count_dimension_name)
 
+    # time
     routing.AddDimension(
         transit_callback_index, # same "cost" evaluator as above
         0, # try no slack
@@ -257,6 +305,106 @@ def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,timelimit=
         time_dimension_name)
     time_dimension = routing.GetDimensionOrDie(time_dimension_name)
     # time_dimension.SetGlobalSpanCostCoefficient(100)
+
+    # capacity/demand
+    demand_evaluator_index = routing.RegisterUnaryTransitCallback(
+        partial(demand_callback, manager))
+    vehicle_capacities = [veh.capacity for veh in v]
+    routing.AddDimensionWithVehicleCapacity(
+        demand_evaluator_index,
+        0,  # null capacity slack
+        vehicle_capacities,
+        True,  # start cumul to zero
+        cap_dimension_name)
+    cap_dimension = routing.GetDimensionOrDie(cap_dimension_name)
+
+    return (num_nodes,manager,routing)
+
+def break_nodes_time_windows(d,demand_subset,manager,routing):
+    # Pickup & Delivery, plus time window
+    time_dimension = routing.GetDimensionOrDie(time_dimension_name)
+    for node in demand_subset:
+        # skip depot nodes---handled in vehicle time windows
+        if node == 0:
+            continue
+        # also skip nodes with non zero demand (handled above)
+        if d.get_demand(node) != 0:
+            continue
+
+        # this is a dummy node, not a pickup (demand = 1) not a dropoff (-1)
+        index = manager.NodeToIndex(node)
+        # set maximal time window
+        time_dimension.CumulVar(index).SetRange(0,d.horizon)
+        routing.AddToAssignment(time_dimension.SlackVar(index))
+
+
+def pick_deliver_constraints(d,t,manager,routing):
+    # Pickup & Delivery, plus time window
+    time_dimension = routing.GetDimensionOrDie(time_dimension_name)
+    for idx in d.demand.index:
+        record = d.demand.loc[idx]
+        # print('origin to dest',record.origin,record.destination)
+
+        if not record.feasible:
+            continue
+        if np.isnan(t.loc[record.origin,record.destination]):
+            # print('origin to dest is nan',record.origin,record.destination,
+            #      t.loc[record.origin,record.destination])
+            continue
+        pickup_index = manager.NodeToIndex(record.origin)
+        delivery_index = manager.NodeToIndex(record.destination)
+        routing.AddPickupAndDelivery(pickup_index, delivery_index)
+        routing.solver().Add(
+            routing.VehicleVar(pickup_index) ==
+            routing.VehicleVar(delivery_index))
+        routing.solver().Add(
+            time_dimension.CumulVar(pickup_index) <=
+            time_dimension.CumulVar(delivery_index))
+        # [START time_window_constraint]
+        early = int(record.early)
+        late = int(record.late)
+        time_dimension.CumulVar(pickup_index).SetRange(early, late)
+        routing.AddToAssignment(time_dimension.SlackVar(pickup_index))
+        # and  add simulation-wide time windows (slack) for delivery nodes,
+        dropoff_index = manager.NodeToIndex(record.destination)
+        # tt = t.loc[record.origin,record.destination]
+        # just set dropoff time window same as 0, horizon
+        early = 0
+        late = d.horizon
+        time_dimension.CumulVar(dropoff_index).SetRange(early, late)
+        routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
+
+def vehicle_time_constraints(v,manager,routing):
+    time_dimension = routing.GetDimensionOrDie(time_dimension_name)
+    for vehicle in v:
+        index = routing.Start(vehicle.index)
+        time_dimension.CumulVar(index).SetRange(vehicle.time_window[0],
+                                                vehicle.time_window[1])
+        routing.AddToAssignment(time_dimension.SlackVar(index))
+
+def vehicle_time_drive_constraints(v,base_value,manager,routing):
+    time_dimension = routing.GetDimensionOrDie(time_dimension_name)
+    short_break_dimension = routing.GetDimensionOrDie(short_break_dimension_name)
+    drive_dimension = routing.GetDimensionOrDie(drive_dimension_name)
+    for vehicle in v:
+        index = routing.Start(vehicle.index)
+        routing.solver().Add(drive_dimension.CumulVar(index)==base_value)
+        routing.solver().Add(short_break_dimension.CumulVar(index)==base_value)
+        time_dimension.CumulVar(index).SetRange(vehicle.time_window[0],
+                                                vehicle.time_window[1])
+        routing.AddToAssignment(time_dimension.SlackVar(index))
+
+
+
+def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,timelimit=1):
+
+    # use demand_subset to pick out a subset of nodes
+    if demand_subset != None:
+        t = unset_times(t,demand_subset)
+    else:
+        demand_subset = t.index
+
+    (num_nodes,manager,routing) = setup_model(d,t,v)
 
     drive_callback = partial(E.create_drive_callback(t, d, 11*60, 10*60), manager)
     drive_callback_index = routing.RegisterTransitCallback(drive_callback)
@@ -278,81 +426,20 @@ def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,timelimit=
         short_break_dimension_name)
     short_break_dimension = routing.GetDimensionOrDie(short_break_dimension_name)
 
+    pick_deliver_constraints(d,t,manager,routing)
+    break_nodes_time_windows(d,demand_subset,manager,routing)
 
-    demand_evaluator_index = routing.RegisterUnaryTransitCallback(
-        partial(E.create_demand_callback(t.index,d), manager))
-    vehicle_capacities = [veh.capacity for veh in v]
-    routing.AddDimensionWithVehicleCapacity(
-        demand_evaluator_index,
-        0,  # null capacity slack
-        vehicle_capacities,
-        True,  # start cumul to zero
-        cap_dimension_name)
-
-    for idx in d.demand.index:
-        record = d.demand.loc[idx]
-        if not record.feasible:
-            continue
-        if np.isnan(t.loc[record.origin,record.destination]):
-            # also catches case of demand pair not in demand subset
-            continue
-        pickup_index = manager.NodeToIndex(record.origin)
-        delivery_index = manager.NodeToIndex(record.destination)
-        routing.AddPickupAndDelivery(pickup_index, delivery_index)
-        routing.solver().Add(
-            routing.VehicleVar(pickup_index) == routing.VehicleVar(delivery_index))
-        routing.solver().Add(
-            time_dimension.CumulVar(pickup_index) <= time_dimension.CumulVar(delivery_index))
-        # [START time_window_constraint]
-        early = int(record.early)
-        late = int(record.late)
-        time_dimension.CumulVar(pickup_index).SetRange(early, late)
-        routing.AddToAssignment(time_dimension.SlackVar(pickup_index))
-        # and  add simulation-wide time windows (slack) for delivery nodes,
-        dropoff_index = manager.NodeToIndex(record.destination)
-        # tt = t.loc[record.origin,record.destination]
-        # just set dropoff time window same as 0, horizon
-        early = 0
-        late = d.horizon
-        time_dimension.CumulVar(dropoff_index).SetRange(early, late)
-        routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
-
-    for node in demand_subset:
-        # skip depot nodes---handled in vehicle time windows
-        if node == 0:
-            continue
-        # also skip nodes with non zero demand (handled above)
-        if d.get_demand(node) != 0:
-            continue
-
-        # this is a dummy node, not a pickup (demand = 1) not a dropoff (-1)
-        index = manager.NodeToIndex(node)
-        # set maximal time window
-        time_dimension.CumulVar(index).SetRange(0,d.horizon)
-        routing.AddToAssignment(time_dimension.SlackVar(index))
 
     # vehicle constraints, time windows etc
     # constrain long break and short_break dimensions to be base_value at
     # start, so avoid negative numbers
-    for vehicle in v:
-        index = routing.Start(vehicle.index)
-        routing.solver().Add(drive_dimension.CumulVar(index)==base_value)
-        routing.solver().Add(short_break_dimension.CumulVar(index)==base_value)
-        time_dimension.CumulVar(index).SetRange(vehicle.time_window[0],
-                                                vehicle.time_window[1])
-        routing.AddToAssignment(time_dimension.SlackVar(index))
+    vehicle_time_drive_constraints(v,base_value,manager,routing)
 
 
-
-    d.breaks_at_nodes_constraints(len(v),
-                                  t,
-                                  manager,
-                                  routing,
-                                  time_dimension,
-                                  count_dimension,
-                                  drive_dimension,
-                                  short_break_dimension,
-                                  base_value)
+    breaks_at_nodes_constraints(d, v, t,
+                                manager,
+                                routing,
+                                base_value)
 
     parameters = setup_params(timelimit)
     # add disjunctions to deliveries to make it not fail
@@ -391,98 +478,11 @@ def model_run_nobreaks(d,t,v,demand_subset=None,initial_routes=None,timelimit=1)
     else:
         demand_subset = t.index
 
-    time_dimension_name = 'time'
-    cap_dimension_name = 'cap'
-    count_dimension_name = 'count'
 
-    num_nodes = len(t.index)
-    manager = pywrapcp.RoutingIndexManager(
-        num_nodes,
-        len(v),
-        v[0].depot_index)
-    routing = pywrapcp.RoutingModel(manager)
+    (num_nodes,manager,routing) = setup_model(d,t,v)
 
-    time_callback = E.create_time_callback2(t, d)
-    demand_callback = E.create_demand_callback(t.index,d)
-
-    transit_callback_index = routing.RegisterTransitCallback(
-        partial(time_callback, manager)
-    )
-
-    routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
-
-    # count
-    routing.AddConstantDimension(
-        1, # increment by one every time
-        num_nodes,  # max count is visit all the nodes
-        True,  # set count to zero
-        count_dimension_name)
-    count_dimension = routing.GetDimensionOrDie(count_dimension_name)
-
-    # time
-    routing.AddDimension(
-        transit_callback_index, # same "cost" evaluator as above
-        0, # try no slack
-        d.horizon,  # max time is end of time horizon
-        False,  # don't set time to zero...vehicles can wait at depot if necessary
-        time_dimension_name)
-    time_dimension = routing.GetDimensionOrDie(time_dimension_name)
-    # time_dimension.SetGlobalSpanCostCoefficient(100)
-
-    # capacity/demand
-    demand_evaluator_index = routing.RegisterUnaryTransitCallback(
-        partial(demand_callback, manager))
-    vehicle_capacities = [veh.capacity for veh in v]
-    routing.AddDimensionWithVehicleCapacity(
-        demand_evaluator_index,
-        0,  # null capacity slack
-        vehicle_capacities,
-        True,  # start cumul to zero
-        cap_dimension_name)
-
-    # P&D, time window
-    for idx in d.demand.index:
-        record = d.demand.loc[idx]
-        # print('origin to dest',record.origin,record.destination)
-
-        if not record.feasible:
-            continue
-        if np.isnan(t.loc[record.origin,record.destination]):
-            # print('origin to dest is nan',record.origin,record.destination,
-            #      t.loc[record.origin,record.destination])
-            continue
-        pickup_index = manager.NodeToIndex(record.origin)
-        delivery_index = manager.NodeToIndex(record.destination)
-        routing.AddPickupAndDelivery(pickup_index, delivery_index)
-        routing.solver().Add(
-            routing.VehicleVar(pickup_index) ==
-            routing.VehicleVar(delivery_index))
-        routing.solver().Add(
-            time_dimension.CumulVar(pickup_index) <=
-            time_dimension.CumulVar(delivery_index))
-        # [START time_window_constraint]
-        early = int(record.early)
-        late = int(record.late)
-        time_dimension.CumulVar(pickup_index).SetRange(early, late)
-        routing.AddToAssignment(time_dimension.SlackVar(pickup_index))
-        # and  add simulation-wide time windows (slack) for delivery nodes,
-        dropoff_index = manager.NodeToIndex(record.destination)
-        tt = t.loc[record.origin,record.destination]
-        # just set dropoff time window same as 0, horizon
-        early = 0
-        late = d.horizon
-        time_dimension.CumulVar(dropoff_index).SetRange(early, late)
-        routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
-
-    for vehicle in v:
-        vehicle_id = vehicle.index
-        index = routing.Start(vehicle_id)
-        # print('vehicle time window:',vehicle_id,index,vehicle.time_window)
-        # not really needed unless different from 0, horizon
-        time_dimension.CumulVar(index).SetRange(vehicle.time_window[0],
-                                                vehicle.time_window[1])
-        routing.AddToAssignment(time_dimension.SlackVar(index))
-
+    pick_deliver_constraints(d,t,manager,routing)
+    vehicle_time_constraints(v,manager,routing)
 
     parameters = setup_params(timelimit)
 
