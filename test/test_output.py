@@ -47,8 +47,8 @@ def test_output():
     m = d.generate_solver_space_matrix(m)
 
     v = V.Vehicles(5,horizon)
-    # (assignment,routing,manager) = MR.model_run_nobreaks3(d,m,v,horizon)
-    (assignment,routing,manager) = MR.model_run_nobreaks(d,m,v.vehicles,horizon)
+    # (assignment,routing,manager) = MR.model_run_nobreaks3(d,m,v)
+    (assignment,routing,manager) = MR.model_run_nobreaks(d,m,v.vehicles)
 
     assert assignment
 
@@ -114,7 +114,7 @@ def test_output():
                                     None,
                                     None)
     initial_routes = [v for v in trip_chains.values()]
-    (assignment,routing,manager) = MR.model_run(d,x_m,v.vehicles,horizon,10000,None,initial_routes)
+    (assignment,routing,manager) = MR.model_run(d,x_m,v.vehicles,10000,None,initial_routes)
     SO.print_solution(d,x_m,x_m,
                       v,manager,routing,assignment,horizon,
                       10000,args

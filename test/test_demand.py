@@ -57,18 +57,6 @@ def test_demand():
     assert d.get_demand_number(0) == -1
     assert d.get_demand_number(3) == -1
 
-    tw1 = d.get_time_window(1)
-    assert tw1[0] == 1980
-    assert tw1[1] == 2700
-
-    tw2 = d.get_time_window(2)
-    assert tw2[0] == 0
-    assert tw2[1] == horizon
-
-    tw3 = d_alt.get_time_window(0)
-    assert tw3[0] == 0
-    assert tw3[1] == horizon*10
-
     assert d.get_demand(0) == 0
     assert d.get_demand(1) == 1
     assert d.get_demand(2) == -1

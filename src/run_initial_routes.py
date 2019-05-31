@@ -117,7 +117,7 @@ def main():
                                      None,
                                     debug = args.debug)
     initial_routesb = [v for v in trip_chainsb.values()]
-    (assB,routing,manager) = MR.model_run(d,expanded_mm,vehicles.vehicles,args.horizon,args.drive_dimension_start_value,None,initial_routesb,args.timelimit)
+    (assB,routing,manager) = MR.model_run(d,expanded_mm,vehicles.vehicles,args.drive_dimension_start_value,None,initial_routesb,args.timelimit)
     # 1201918
 
     # # set up initial routes by creating a lot of little problems
@@ -127,10 +127,10 @@ def main():
     #     if not record.feasible:
     #         continue
     #     nodes = MR.use_nodes(record,d)
-    #     (subassignment,minirouting,minimanager) = MR.model_run(d,expanded_mm,[vehicles.vehicles[0]],args.horizon,args.drive_dimension_start_value,nodes)
+    #     (subassignment,minirouting,minimanager) = MR.model_run(d,expanded_mm,[vehicles.vehicles[0]],args.drive_dimension_start_value,nodes)
     #     trip_chains[record.origin] = MR.get_route(0,subassignment,minirouting,minimanager)
     # initial_routes = [v for v in trip_chains.values()]
-    # (assA,routingA,managerA) = MR.model_run(d,expanded_mm,vehicles.vehicles,args.horizon,args.drive_dimension_start_value,None,initial_routes)
+    # (assA,routingA,managerA) = MR.model_run(d,expanded_mm,vehicles.vehicles,args.drive_dimension_start_value,None,initial_routes)
     # 1201918 ---  same, but slower, so don't do it
 
     if assB:

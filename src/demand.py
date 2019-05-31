@@ -37,7 +37,7 @@ class Demand():
         # sum the two
         return num_long_breaks*long_break_time + num_short_breaks*short_break_time
 
-    def check_feasible(self, time_matrix, horizon, long_break, short_break, record):
+    def check_feasible(self, time_matrix, long_break, short_break, record):
         """Use travel time matrix to check that every trip is at least
             feasible as a one-off, that is, as a trip from depot to pickup
             to destination and back to depot, respecting both the horizon
@@ -86,8 +86,8 @@ class Demand():
                             od_tt +
                             od_break_time)
 
-        if time_return_depot > horizon:
-            constraint = "Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,time_return_depot,horizon)
+        if time_return_depot > self.horizon:
+            constraint = "Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,time_return_depot,self.horizon)
             print(constraint)
             feasible = False
         if depot_origin_tt > record.late:
@@ -118,25 +118,22 @@ class Demand():
 
 
         self.debug = debug
+        self.horizon = horizon
         demand = odpairs.copy()
         # for now, just use identical pickup and dropoff times
         demand['pickup_time']=pickup_time
         demand['dropoff_time']=dropoff_time
-        self.horizon = horizon
         # check feasible demands based on time_matrix, horizon
-        morecols = None
+        long_break = None
+        short_break = None
         if use_breaks:
             long_break  = BN.BreakNode(-1, -1, 660, 0, 600, 660)
             short_break = BN.BreakNode(-1, -1, 480, 0,  30, 480)
-            morecols = demand.apply(partial(self.check_feasible,
-                                            time_matrix, horizon,
-                                            long_break,
-                                            short_break), axis=1)
-        else:
-            morecols = demand.apply(partial(self.check_feasible,
-                                            time_matrix, horizon,
-                                            None, None), axis=1)
-                                    # check_feasible_nobreaks,axis=1)
+
+        morecols = demand.apply(partial(self.check_feasible,
+                                        time_matrix,
+                                        long_break, short_break), axis=1)
+
         # print(morecols)
         demand = demand.join(morecols)
         # print(demand)
@@ -179,39 +176,37 @@ class Demand():
     def get_node_list(self):
         return self.equivalence.index.view(int)
 
+    def _get_demand_entry(self,demand_node,entry,default):
+        if demand_node in self.equivalence.index:
+            return int(self.equivalence.loc[demand_node,entry])
+        return default
+
     def get_map_node(self,demand_node):
         if demand_node == 0:
             return 0
-        if demand_node in self.equivalence.index:
-            return (self.equivalence.loc[demand_node].mapnode)
-        # handles case of depot, and all augmenting nodes for
-        # breaks, etc
-        return -1
+        return self._get_demand_entry(demand_node,'mapnode',-1)
+        # if demand_node in self.equivalence.index:
+        #     return (self.equivalence.loc[demand_node].mapnode)
+        # # handles case of all augmenting nodes for breaks, etc
+        # return -1
 
     def get_demand_number(self,demand_node):
-        if demand_node in self.equivalence.index:
-            return (self.equivalence.loc[demand_node].demand_index)
-        return -1
+        return self._get_demand_entry(demand_node,'demand_index',-1)
+        # if demand_node in self.equivalence.index:
+        #     return (self.equivalence.loc[demand_node].demand_index)
+        # return -1
 
     def get_service_time(self,demand_node):
-        if demand_node in self.equivalence.index:
-            return (self.equivalence.loc[demand_node].service_time)
-        return 0
-
-    def get_time_window(self,demand_node):
-        if demand_node in self.origins.index:
-            # find it in the original demand list
-            record_idx = self.demand.origin == demand_node
-            time_windows = self.demand.loc[record_idx,['early','late']].iloc[0,:].view('int')
-            return (time_windows[0],time_windows[1])
-        return (0,self.horizon)
-
-
+        return self._get_demand_entry(demand_node,'service_time',0)
+        # if demand_node in self.equivalence.index:
+        #     return (self.equivalence.loc[demand_node].service_time)
+        # return 0
 
     def get_demand(self,demand_node):
-        if demand_node in self.equivalence.index:
-            return int(self.equivalence.loc[demand_node,'demand'])
-        return 0
+        return self._get_demand_entry(demand_node,'demand',0)
+        # if demand_node in self.equivalence.index:
+        #     return int(self.equivalence.loc[demand_node,'demand'])
+        # return 0
 
     def generate_solver_space_matrix(self,matrix,horizon=None):
         """the input distance matrix is in "map space", meaning that nodes can

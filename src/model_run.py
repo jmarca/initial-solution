@@ -186,7 +186,7 @@ def get_route(v,assignment,routing,manager):
         index = assignment.Value(routing.NextVar(index))
     return initial_route
 
-def model_run(d,t,v,horizon,base_value,demand_subset=None,initial_routes=None,timelimit=1):
+def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,timelimit=1):
 
     # use demand_subset to pick out a subset of nodes
     if demand_subset != None:
@@ -225,7 +225,7 @@ def model_run(d,t,v,horizon,base_value,demand_subset=None,initial_routes=None,ti
     routing.AddDimension(
         transit_callback_index, # same "cost" evaluator as above
         0, # try no slack
-        horizon,  # max time is end of time horizon
+        d.horizon,  # max time is end of time horizon
         False,  # don't set time to zero...vehicles can wait at depot if necessary
         time_dimension_name)
     time_dimension = routing.GetDimensionOrDie(time_dimension_name)
@@ -239,7 +239,7 @@ def model_run(d,t,v,horizon,base_value,demand_subset=None,initial_routes=None,ti
     routing.AddDimension(
         drive_callback_index, # same "cost" evaluator as above
         0,  # No slack for drive dimension? infinite slack?
-        horizon,  # max drive is end of drive horizon
+        d.horizon,  # max drive is end of drive horizon
         False, # set to zero for each vehicle
         drive_dimension_name)
     drive_dimension = routing.GetDimensionOrDie(drive_dimension_name)
@@ -260,7 +260,7 @@ def model_run(d,t,v,horizon,base_value,demand_subset=None,initial_routes=None,ti
     routing.AddDimension(
         short_break_callback_index, # modified "cost" evaluator as above
         0,  # No slack
-        horizon,  # max horizon is horizon
+        d.horizon,  # max horizon is horizon
         False, # set to zero for each vehicle
         short_break_dimension_name)
     short_break_dimension = routing.GetDimensionOrDie(short_break_dimension_name)
@@ -308,7 +308,7 @@ def model_run(d,t,v,horizon,base_value,demand_subset=None,initial_routes=None,ti
         tt = t.loc[record.origin,record.destination]
         # just set dropoff time window same as 0, horizon
         early = 0
-        late = horizon
+        late = d.horizon
         time_dimension.CumulVar(dropoff_index).SetRange(early, late)
         routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
 
@@ -323,7 +323,7 @@ def model_run(d,t,v,horizon,base_value,demand_subset=None,initial_routes=None,ti
         # this is a dummy node, not a pickup (demand = 1) not a dropoff (-1)
         index = manager.NodeToIndex(node)
         # set maximal time window
-        time_dimension.CumulVar(index).SetRange(0,horizon)
+        time_dimension.CumulVar(index).SetRange(0,d.horizon)
         routing.AddToAssignment(time_dimension.SlackVar(index))
 
 
@@ -397,7 +397,7 @@ def model_run(d,t,v,horizon,base_value,demand_subset=None,initial_routes=None,ti
     assert assignment
     return (assignment,routing,manager)
 
-def model_run_nobreaks(d,t,v,horizon,demand_subset=None,initial_routes=None,timelimit=1):
+def model_run_nobreaks(d,t,v,demand_subset=None,initial_routes=None,timelimit=1):
 
     # use demand_subset to pick out a subset of nodes
     if demand_subset != None:
@@ -442,7 +442,7 @@ def model_run_nobreaks(d,t,v,horizon,demand_subset=None,initial_routes=None,time
     routing.AddDimension(
         transit_callback_index, # same "cost" evaluator as above
         0, # try no slack
-        horizon,  # max time is end of time horizon
+        d.horizon,  # max time is end of time horizon
         False,  # don't set time to zero...vehicles can wait at depot if necessary
         time_dimension_name)
     time_dimension = routing.GetDimensionOrDie(time_dimension_name)
@@ -489,7 +489,7 @@ def model_run_nobreaks(d,t,v,horizon,demand_subset=None,initial_routes=None,time
         tt = t.loc[record.origin,record.destination]
         # just set dropoff time window same as 0, horizon
         early = 0
-        late = horizon
+        late = d.horizon
         time_dimension.CumulVar(dropoff_index).SetRange(early, late)
         routing.AddToAssignment(time_dimension.SlackVar(dropoff_index))
 
