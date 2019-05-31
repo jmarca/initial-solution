@@ -1,10 +1,9 @@
 import pandas as pd
 import numpy as np
-import itertools
-import read_csv as reader
 import breaks
-import sys
+import break_node as BN
 import math
+from functools import partial
 
 
 class Demand():
@@ -17,103 +16,29 @@ class Demand():
     list cannot be used directly.  This class does the conversions.
 
     """
-    def __init__(self,
-                 odpairs,
-                 time_matrix,
-                 horizon,
-                 pickup_time=15,
-                 dropoff_time=15,
-                 debug = False,
-                 use_breaks=True):
+    def estimate_break_time(self,tt,long_break,short_break):
+        # long breaks, calc number of breaks
+        long_break_time = long_break.break_time
+        long_break_period = long_break.accumulator_reset
+        short_break_time = short_break.break_time
+        short_break_period = short_break.accumulator_reset
 
-        # hackity hack.  need to clean this up
-        def check_feasible(record):
-            """Use travel time matrix to check that every trip is at least
-                feasible as a one-off, that is, as a trip from depot to pickup
-                to destination and back to depot, respecting both the horizon
-                time of the simulation, and the time window of the pickup.
-
-                Infeasible nodes will be marked as such here, so that they
-                will not be used in the simulation.
-
-            """
-            feasible = True
-            constraint = "None"
-            # depot to origin
-            do_tt = time_matrix.loc[0,record.from_node]
-
-            # origin to destination
-            od_tt = time_matrix.loc[record.from_node,record.to_node]
-
-            # destination to depot
-            dd_tt = time_matrix.loc[record.to_node,0]
-
-            # 11 hr drive rule, calc number of breaks
-            total_breaks = math.floor( (do_tt+od_tt+dd_tt) / (60*11) )
-            cumul_break_time = total_breaks * 600
-
-            do_breaks = math.floor(do_tt/(11*60))
-            # for each long break, will also need at least one short break
-            # but *might* need another if drive time works out that way
-            # drive time is do_tt
-            # every 11 hr, 8 hr clock resets to zero
-            do_short_breaks = do_breaks
-            if do_tt - (do_breaks*11*60) > 8*60:
-                #print('need another break')
-                do_short_breaks += 1
-
-            depot_origin_tt = do_tt + do_breaks*600 + do_short_breaks*30 + record.pickup_time
-
-            pickup_to_depot_breaks = total_breaks - do_breaks
-            # ditto the above logic
-            pickup_to_depot_short_breaks = pickup_to_depot_breaks
-            if (od_tt + dd_tt) - (pickup_to_depot_breaks*11*60) > 8*60:
-                # print('need another break for return to depot')
-                pickup_to_depot_short_breaks += 1
+        num_long_breaks = math.floor(tt / long_break_period)
 
 
-            od_breaks = math.floor((do_tt + od_tt)/(11*60)) - do_breaks
+        # for each long break, will also need at least one short break
+        # but *might* need another if drive time works out that way
+        # drive time is do_tt
+        # every 11 hr, 8 hr clock resets to zero
+        num_short_breaks = num_long_breaks
+        if tt - (num_long_breaks*long_break_period) > short_break_period:
+            num_short_breaks += 1
 
-            earliest_pickup = record.early
-            if record.early < depot_origin_tt:
-                earliest_pickup = depot_origin_tt
+        # sum the two
+        return num_long_breaks*long_break_time + num_short_breaks*short_break_time
 
-            time_return_depot = (earliest_pickup + # arrive at orign
-                                 record.pickup_time + # load up
-                                 od_tt + dd_tt +      # link travel time
-                                 record.dropoff_time +# unload
-                                 pickup_to_depot_breaks*600 + # required 10hr breaks
-                                 pickup_to_depot_short_breaks*30) # required 30min breaks
-
-
-            time_destination = (earliest_pickup + # arrive at orign
-                                record.pickup_time + # load up
-                                dd_tt +      # link travel time
-                                record.dropoff_time +# unload
-                                od_breaks*600 ) # required 10hr breaks from O to D
-
-            if time_return_depot > horizon:
-                constraint = "Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,time_return_depot,horizon)
-                print(constraint)
-                feasible = False
-            if depot_origin_tt > record.late:
-                constraint = "Pair from {} to {} has infeasible pickup time.  {} is less than earliest arrival possible of {}".format(record.from_node,record.to_node,
-                                                                                                                               record.late,depot_origin_tt)
-                print(constraint)
-                feasible = False
-            return pd.Series([math.ceil(time_return_depot),
-                              math.ceil(depot_origin_tt),
-                              math.ceil(time_destination),
-                              feasible,
-                              constraint],
-                             index=['round_trip',
-                                    'depot_origin',
-                                    'earliest_destination',
-                                    'feasible',
-                                    'constraint'])
-
-        def check_feasible_nobreaks(record):
-            """Use travel time matrix to check that every trip is at least
+    def check_feasible(self, time_matrix, horizon, long_break, short_break, record):
+        """Use travel time matrix to check that every trip is at least
             feasible as a one-off, that is, as a trip from depot to pickup
             to destination and back to depot, respecting both the horizon
             time of the simulation, and the time window of the pickup.
@@ -121,49 +46,56 @@ class Demand():
             Infeasible nodes will be marked as such here, so that they
             will not be used in the simulation.
 
-            """
-            feasible = True
-            constraint = "None"
-            # depot to origin
-            do_tt = time_matrix.loc[0,record.from_node]
+        """
+        feasible = True
+        constraint = "None"
+        # depot to origin
+        do_tt = time_matrix.loc[0, record.from_node]
 
-            # origin to destination
-            od_tt = time_matrix.loc[record.from_node,record.to_node]
+        # origin to destination
+        od_tt = time_matrix.loc[record.from_node, record.to_node]
 
-            # destination to depot
-            dd_tt = time_matrix.loc[record.to_node,0]
+        # destination to depot
+        dd_tt = time_matrix.loc[record.to_node, 0]
 
-            depot_origin_tt = do_tt + record.pickup_time
-
-            earliest_pickup = record.early
-            if record.early < depot_origin_tt:
-                earliest_pickup = depot_origin_tt
-
-            time_return_depot = (earliest_pickup + # arrive at orign
-                                 record.pickup_time + # load up
-                                 od_tt + dd_tt +      # link travel time
-                                 record.dropoff_time # unload
-            )
+        do_break_time = 0
+        od_dd_break_time = 0
+        od_break_time = 0
+        if long_break:
+            do_break_time = self.estimate_break_time(do_tt,long_break,short_break)
+            od_dd_break_time = self.estimate_break_time(od_tt+dd_tt,long_break,short_break)
+            od_break_time = self.estimate_break_time(od_tt,long_break,short_break)
 
 
-            time_destination = (earliest_pickup + # arrive at orign
-                                record.pickup_time + # load up
-                                dd_tt +      # link travel time
-                                record.dropoff_time # unload
-            )
+        depot_origin_tt = do_tt + record.pickup_time+do_break_time
 
+        earliest_pickup = record.early
+        if record.early < depot_origin_tt:
+            earliest_pickup = depot_origin_tt
 
-            if time_return_depot > horizon:
-                constraint = "Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,time_return_depot,horizon)
-                print(constraint)
-                feasible = False
-            if depot_origin_tt > record.late:
-                constraint = "Pair from {} to {} has infeasible pickup time.  {} is less than earliest arrival possible of {}".format(record.from_node,record.to_node,
-                                                                                                                               record.late,depot_origin_tt)
-                print(constraint)
-                feasible = False
+        time_return_depot = (earliest_pickup +     # arrive at orign
+                             record.pickup_time +  # load up
+                             record.dropoff_time +  # unload
+                             od_tt +               # travel time to dest
+                             dd_tt +               # travel time to depot
+                             od_dd_break_time      # breaks?
+        )
 
-            return pd.Series([math.ceil(time_return_depot),
+        time_destination = (earliest_pickup +
+                            record.pickup_time +
+                            od_tt +
+                            od_break_time)
+
+        if time_return_depot > horizon:
+            constraint = "Pair from {} to {} will end at {}, after horizon time of {}".format(record.from_node,record.to_node,time_return_depot,horizon)
+            print(constraint)
+            feasible = False
+        if depot_origin_tt > record.late:
+            constraint = "Pair from {} to {} has infeasible pickup time.  {} is less than earliest arrival possible of {}".format(record.from_node,record.to_node,
+                                                                                                                           record.late,depot_origin_tt)
+            print(constraint)
+            feasible = False
+        return pd.Series([math.ceil(time_return_depot),
                           math.ceil(depot_origin_tt),
                           math.ceil(time_destination),
                           feasible,
@@ -174,7 +106,16 @@ class Demand():
                                 'feasible',
                                 'constraint'])
 
-        # hackity hack.  need to clean this up
+    def __init__(self,
+                 odpairs,
+                 time_matrix,
+                 horizon,
+                 pickup_time=15,
+                 dropoff_time=15,
+                 debug=False,
+                 use_breaks=True):
+
+
 
         self.debug = debug
         demand = odpairs.copy()
@@ -185,9 +126,17 @@ class Demand():
         # check feasible demands based on time_matrix, horizon
         morecols = None
         if use_breaks:
-            morecols = demand.apply(check_feasible,axis=1)
+            long_break  = BN.BreakNode(-1, -1, 660, 0, 600, 660)
+            short_break = BN.BreakNode(-1, -1, 480, 0,  30, 480)
+            morecols = demand.apply(partial(self.check_feasible,
+                                            time_matrix, horizon,
+                                            long_break,
+                                            short_break), axis=1)
         else:
-            morecols = demand.apply(check_feasible_nobreaks,axis=1)
+            morecols = demand.apply(partial(self.check_feasible,
+                                            time_matrix, horizon,
+                                            None, None), axis=1)
+                                    # check_feasible_nobreaks,axis=1)
         # print(morecols)
         demand = demand.join(morecols)
         # print(demand)
@@ -397,7 +346,6 @@ class Demand():
                                         record.origin))
             origin_details.append((record.origin,
                                    record.late))
-        last_didx = destination_details[-1][0]
         for dd in destination_details:
             didx = dd[0]
             # moretimes = []
