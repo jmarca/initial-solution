@@ -250,7 +250,6 @@ class Demand():
 
 
 
-    # FIXME need to expand this likely for the 30 minutes in 8 hours rule
     def insert_nodes_for_breaks(self,travel_times):
         """Use travel time matrix, pickup and dropoff pairs to create the
         necessary dummy nodes for modeling breaks between pairs of nodes.
