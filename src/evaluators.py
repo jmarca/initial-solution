@@ -26,6 +26,18 @@ def create_demand_callback(nodes,demand):
     # return the callback, which will need to be set up with partial
     return demand_callback
 
+def lookup_function_generator(_total_time):
+    def lookup_function(manager,from_index,to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to distance matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        # print('drive time',from_node,to_node,_total_time[from_node][to_node])
+        return _total_time[from_node][to_node]
+
+    # return the callback, which will need to be set up with partial
+    return lookup_function
+
 
 
 def create_dist_callback(dist_matrix,
@@ -38,16 +50,7 @@ def create_dist_callback(dist_matrix,
     penalty_dist =  int(10000000 * max_dist)
     _total_dist = dist_matrix.fillna(penalty_dist).values
 
-    def dist_callback(manager, from_index, to_index):
-        """Returns the travel dist between the two nodes."""
-        # Convert from routing variable Index to distance matrix NodeIndex.
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
-        # calling pandas object might break C++, so switched to
-        return _total_dist[from_node][to_node]
-
-    # return the callback, which will need to be set up with partial
-    return dist_callback
+    return lookup_function_generator(_total_dist)
 
 
 def create_time_callback2(travel_minutes_matrix,
@@ -77,16 +80,7 @@ def create_time_callback2(travel_minutes_matrix,
                 service_time[o_idx,d_idx] = o_sv
 
     _total_time = gen_total_time(service_time,travel_minutes_matrix)
-    def time_callback(manager, from_index, to_index):
-        """Returns the travel time between the two nodes."""
-        # Convert from routing variable Index to distance matrix NodeIndex.
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
-        # print('time',from_node,to_node,_total_time[from_node,to_node])
-        return _total_time[from_node,to_node]
-
-    # return the callback, which will need to be set up with partial
-    return time_callback
+    return lookup_function_generator(_total_time)
 
 
 def gen_total_time(service,times):
@@ -134,17 +128,7 @@ def create_drive_callback(travel_minutes_matrix,
                 service_time[o_idx,d_idx] = o_sv
 
     _total_time = gen_total_time(service_time,travel_minutes_matrix)
-
-    def time_callback(manager, from_index, to_index):
-        """Returns the travel time between the two nodes."""
-        # Convert from routing variable Index to distance matrix NodeIndex.
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
-        # print('drive time',from_node,to_node,_total_time[from_node][to_node])
-        return _total_time[from_node][to_node]
-
-    # return the callback, which will need to be set up with partial
-    return time_callback
+    return lookup_function_generator(_total_time)
 
 
 def create_short_break_callback(travel_minutes_matrix,
@@ -195,15 +179,4 @@ def create_short_break_callback(travel_minutes_matrix,
                     service_time[o_idx,d_idx] = value
 
     _total_time = gen_total_time(service_time,travel_minutes_matrix)
-
-
-    def time_callback(manager, from_index, to_index):
-        """Returns the travel time between the two nodes."""
-        # Convert from routing variable Index to distance matrix NodeIndex.
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
-        # print('short time',from_node,to_node,_total_time[from_node][to_node])
-        return _total_time[from_node][to_node]
-
-    # return the callback, which will need to be set up with partial
-    return time_callback
+    return lookup_function_generator(_total_time)
