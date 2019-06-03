@@ -115,8 +115,6 @@ class Demand():
                  debug=False,
                  use_breaks=True):
 
-
-
         self.debug = debug
         self.horizon = horizon
         demand = odpairs.copy()
