@@ -5,6 +5,10 @@ import break_node as BN
 import math
 from functools import partial
 
+def zeroed_trip_triplets(num):
+    return np.zeros(num,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+
+
 
 class Demand():
     """
@@ -16,6 +20,7 @@ class Demand():
     list cannot be used directly.  This class does the conversions.
 
     """
+
     def estimate_break_time(self,tt,long_break,short_break):
         # long breaks, calc number of breaks
         long_break_time = long_break.break_time
@@ -115,8 +120,6 @@ class Demand():
                  debug=False,
                  use_breaks=True):
 
-
-
         self.debug = debug
         self.horizon = horizon
         demand = odpairs.copy()
@@ -207,14 +210,14 @@ class Demand():
             horizon=self.horizon
         # iterate over each entry in the matrix, and make a new matrix
         # with same data.
-        new_times = np.zeros(1,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+        new_times = zeroed_trip_triplets(1)
         new_matrix = {}
 
         # list of all origins
         self.demand['load_number'] = self.demand.index
         feasible_idx = self.demand.feasible
         def travtime(record):
-            record_times = np.zeros(5,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+            record_times = zeroed_trip_triplets(5)
             record_times[0]=(record.origin, record.origin,0.0)
             record_times[1]=(record.destination, record.destination,0.0)
             record_times[2]=(record.origin, record.destination,
@@ -273,7 +276,7 @@ class Demand():
         self.break_nodes = {}
         self.break_node_chains = {}
         self.break_node_chains[0]={}
-        new_times = np.zeros(0,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+        new_times = zeroed_trip_triplets(0)
         for idx in self.demand.index[feasible_index]:
             record = self.demand.loc[idx]
             pair = breaks.split_break_node(record,travel_times,new_node)
@@ -430,48 +433,3 @@ class Demand():
 
         # print(dest_short,'>=',dest_active,'*',drive_dimension_start_value)
         solver.AddConstraint(dest_short >= dest_active*drive_dimension_start_value)
-
-
-
-    def breaks_at_nodes_constraints(self,
-                                    num_veh,
-                                    time_matrix,
-                                    manager,
-                                    routing,
-                                    time_dimension,
-                                    count_dimension,
-                                    drive_dimension,
-                                    short_break_dimension,
-                                    drive_dimension_start_value):
-
-        solver = routing.solver()
-
-        feasible_index = self.demand.feasible
-        for idx in self.demand.index[feasible_index]:
-            record = self.demand.loc[idx,:]
-            # double check that is possible (in case just solving a limited set
-            if np.isnan(time_matrix.loc[record.origin,record.destination]):
-                continue
-            self.break_constraint(record.origin,record.destination,
-                                  manager,routing,
-                                  drive_dimension,
-                                  short_break_dimension,
-                                  drive_dimension_start_value
-            )
-
-        # constraints on return to depot, otherwise we just collect
-        # break nodes on the way back and go deeply negative
-        for veh in range(0,num_veh):
-            index = routing.End(veh)
-            end_drive = drive_dimension.CumulVar(index)
-            end_short = short_break_dimension.CumulVar(index)
-            solver.AddConstraint(
-                end_drive >= drive_dimension_start_value)
-            solver.AddConstraint(
-                end_drive < drive_dimension_start_value+(11*60))
-
-            solver.AddConstraint(
-                end_short >= drive_dimension_start_value)
-
-            solver.AddConstraint(
-                end_short < drive_dimension_start_value+(8*60))
