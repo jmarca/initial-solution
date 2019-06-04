@@ -2,6 +2,9 @@
 
 [![Build
 Status](https://travis-ci.org/jmarca/initial-solution.svg?branch=master)](https://travis-ci.org/jmarca/initial-solution)
+[![Maintainability](https://api.codeclimate.com/v1/badges/944802efa25831f791d8/maintainability)](https://codeclimate.com/github/jmarca/initial-solution/maintainability)
+[![Test
+Coverage](https://api.codeclimate.com/v1/badges/944802efa25831f791d8/test_coverage)](https://codeclimate.com/github/jmarca/initial-solution/test_coverage)
 
 This solver generates an initial solution to the problem of routing
 freight vehicles between cities while still respecting Hours
