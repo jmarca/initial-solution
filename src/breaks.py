@@ -5,7 +5,7 @@ import math
 import sys
 
 import break_node as BN
-from demand import zeroed_trip_triplets
+import demand as Demand
 
 def make_nodes(O,D,travel_time,starting_node,timelength=60):
     """starting with O, ending with D, make a dummy node every timelength minutes
@@ -101,7 +101,7 @@ def split_links_break_nodes(O,D,travel_time,new_node,break_time,reset_time):
              new_node
     """
     bn = BN.BreakNode(O,D,travel_time,new_node,break_time,reset_time)
-    new_times = zeroed_trip_triplets(3)
+    new_times = Demand.zeroed_trip_triplets(3)
     # np.zeros(3,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
 
     # # copy existing.  this is redundant
@@ -133,7 +133,7 @@ def break_node_splitter(origin,destination,tt,min_start):
     Going to make it work for 8hr drive, 0.5hr break.
 
     """
-    new_times = zeroed_trip_triplets(0)
+    new_times = Demand.zeroed_trip_triplets(0)
     # np.zeros(0,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
     new_nodes = []
     long_break_time = 60*10
@@ -251,7 +251,7 @@ def split_break_node(record,travel_times,min_start=None):
 
     if min_start == None:
         min_start = len(travel_times.index)
-    new_times = zeroed_trip_triplets(0)
+    new_times = Demand.zeroed_trip_triplets(0)
     # np.zeros(0,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
     new_nodes = []
     tt = travel_times.loc[0,record.origin]
