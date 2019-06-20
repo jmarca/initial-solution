@@ -60,6 +60,10 @@ def main():
 
     parser.add_argument('--noroutes',type=bool,dest='noroutes',default=False,
                         help="Disable generating initial routes.  Not recommended")
+
+    parser.add_argument('--guided_local', action='store_true', dest='guided_local',
+                        default=False,
+                        help='whether or not to use the guided local search metaheuristic')
     args = parser.parse_args()
 
     print('read in distance matrix')
