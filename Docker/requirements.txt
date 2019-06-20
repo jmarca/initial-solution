@@ -8,3 +8,4 @@ pytest-cov
 requests
 tox
 ujson
+flake8

@@ -135,6 +135,7 @@ def setup_model(d,t,v):
     # time
     routing.AddDimension(
         transit_callback_index, # same "cost" evaluator as above
+        # d.horizon,  # try infinite slack
         0, # try no slack
         d.horizon,  # max time is end of time horizon
         False,  # don't set time to zero...vehicles can wait at depot if necessary
