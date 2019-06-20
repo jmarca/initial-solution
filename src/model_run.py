@@ -31,7 +31,7 @@ def get_route(v,assignment,routing,manager):
         index = assignment.Value(routing.NextVar(index))
     return initial_route
 
-def setup_params(timelimit):
+def setup_params(args):
     parameters = pywrapcp.DefaultRoutingSearchParameters()
     parameters.first_solution_strategy = (
         routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
@@ -45,13 +45,18 @@ def setup_params(timelimit):
     # Routing: forbids use of TSPOpt neighborhood,
     # parameters.local_search_operators.use_tsp_opt = pywrapcp.BOOL_FALSE
     # set a time limit
-    parameters.time_limit.seconds =  timelimit * 60  # timelimit minutes
+    parameters.time_limit.seconds =  args.timelimit * 60  # timelimit minutes
     # sometimes helps with difficult solutions
     parameters.lns_time_limit.seconds = 10000  # 10000 milliseconds
     # i think this is the default
     # parameters.use_light_propagation = False
     # set to true to see the dump of search iterations
     parameters.log_search = pywrapcp.BOOL_TRUE
+    if args.guided_local:
+        print('including guided local search')
+        parameters.local_search_metaheuristic = (
+            routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
+
     return parameters
 
 def unset_times(t,demand_subset):
@@ -233,7 +238,7 @@ def vehicle_time_drive_constraints(v,base_value,manager,routing):
 
 
 
-def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,timelimit=1):
+def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,args=None):
 
     # use demand_subset to pick out a subset of nodes
     if demand_subset != None:
@@ -278,7 +283,7 @@ def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,timelimit=
                                 routing,
                                 base_value)
 
-    parameters = setup_params(timelimit)
+    parameters = setup_params(args)
     # add disjunctions to deliveries to make it not fail
     penalty = 1000000000  # The cost for dropping a demand node from the plan.
     break_penalty = 0  # The cost for dropping a break node from the plan.
@@ -307,7 +312,7 @@ def run_solver(routing,parameters,initial_routes):
 
 
 
-def model_run_nobreaks(d,t,v,demand_subset=None,initial_routes=None,timelimit=1):
+def model_run_nobreaks(d,t,v,demand_subset=None,initial_routes=None,args=None):
 
     # use demand_subset to pick out a subset of nodes
     if demand_subset != None:
@@ -321,7 +326,7 @@ def model_run_nobreaks(d,t,v,demand_subset=None,initial_routes=None,timelimit=1)
     pick_deliver_constraints(d,t,manager,routing)
     vehicle_time_constraints(v,manager,routing)
 
-    parameters = setup_params(timelimit)
+    parameters = setup_params(args)
 
     # add disjunctions to deliveries to make it not fail
     penalty = 10000000  # The cost for dropping a demand node from the plan.

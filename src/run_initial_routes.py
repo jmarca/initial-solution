@@ -116,7 +116,7 @@ def main():
 
     trip_chainsb = IR.initial_routes_2(d,vehicles.vehicles,expanded_mm)
     initial_routesb = [v for v in trip_chainsb.values()]
-    (assB,routing,manager) = MR.model_run(d,expanded_mm,vehicles.vehicles,args.drive_dimension_start_value,None,initial_routesb,args.timelimit)
+    (assB,routing,manager) = MR.model_run(d,expanded_mm,vehicles.vehicles,args.drive_dimension_start_value,None,initial_routesb,args)
     # 1201918
 
     # # set up initial routes by creating a lot of little problems
