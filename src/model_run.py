@@ -122,7 +122,11 @@ def setup_model(d,t,v):
         num_nodes,
         len(v),
         v[0].depot_index)
-    routing = pywrapcp.RoutingModel(manager)
+
+    model_parameters = pywrapcp.DefaultRoutingModelParameters()
+    model_parameters.max_callback_cache_size = 2 * num_nodes * num_nodes
+    routing = pywrapcp.RoutingModel(manager, model_parameters)
+
     time_callback = E.create_time_callback2(t, d)
     demand_callback = E.create_demand_callback(t.index,d)
 
