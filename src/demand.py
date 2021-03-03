@@ -6,7 +6,7 @@ import math
 from functools import partial
 
 def zeroed_trip_triplets(num):
-    return np.zeros(num,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+    return np.zeros(num,dtype=[('x', int), ('y', int),('t',float)])
 
 
 
@@ -241,7 +241,7 @@ class Demand():
                                                          ['origin','from_node']].values]
 
                 triple = np.array(other_times,
-                                  dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+                                  dtype=[('x', int), ('y', int),('t',float)])
                 new_times = np.append(new_times,triple,axis=0)
         df = pd.DataFrame(new_times)
         df.drop_duplicates(inplace=True)

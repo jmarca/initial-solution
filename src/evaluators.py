@@ -33,10 +33,27 @@ def lookup_function_generator(_total_time):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
         # print('drive time',from_node,to_node,_total_time[from_node][to_node])
-        return _total_time[from_node][to_node]
+        return int(_total_time[from_node][to_node])
 
     # return the callback, which will need to be set up with partial
     return lookup_function
+
+# def weighted_lookup_function_generator(_total_time, dim):
+#     def lookup_function(manager,from_index,to_index):
+#         """Returns the travel time between the two nodes."""
+#         # Convert from routing variable Index to distance matrix NodeIndex.
+#         from_node = manager.IndexToNode(from_index)
+#         to_node = manager.IndexToNode(to_index)
+#         # query dim.  if greater than 5, double this dimension
+#         if dim.cumulVar(from_index) > 5:
+#             print('drive time',from_node,to_node,_total_time[from_node][to_node])
+#             return int(2* (_total_time[from_node][to_node]))
+#         else:
+#             print('drive time',from_node,to_node,_total_time[from_node][to_node])
+#         return int(_total_time[from_node][to_node])
+
+#     # return the callback, which will need to be set up with partial
+#     return lookup_function
 
 
 

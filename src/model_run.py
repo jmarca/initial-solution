@@ -45,17 +45,20 @@ def setup_params(args):
     # Routing: forbids use of TSPOpt neighborhood,
     # parameters.local_search_operators.use_tsp_opt = pywrapcp.BOOL_FALSE
     # set a time limit
-    parameters.time_limit.seconds =  args.timelimit * 60  # timelimit minutes
+    if args is not None:
+        parameters.time_limit.seconds = args.timelimit * 60  # timelimit minutes
+        if args.guided_local:
+            print('including guided local search')
+            parameters.local_search_metaheuristic = (
+                routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
+    else:
+        parameters.time_limit.seconds = 60
     # sometimes helps with difficult solutions
     parameters.lns_time_limit.seconds = 10000  # 10000 milliseconds
     # i think this is the default
     # parameters.use_light_propagation = False
     # set to true to see the dump of search iterations
     parameters.log_search = pywrapcp.BOOL_TRUE
-    if args.guided_local:
-        print('including guided local search')
-        parameters.local_search_metaheuristic = (
-            routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
 
     return parameters
 
@@ -238,7 +241,10 @@ def vehicle_time_drive_constraints(v,base_value,manager,routing):
 
 
 
-def model_run(d,t,v,base_value,demand_subset=None,initial_routes=None,args=None):
+def model_run(d,t,v,base_value,
+              demand_subset=None,
+              initial_routes=None,
+              args=None):
 
     # use demand_subset to pick out a subset of nodes
     if demand_subset != None:

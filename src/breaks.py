@@ -102,7 +102,7 @@ def split_links_break_nodes(O,D,travel_time,new_node,break_time,reset_time):
     """
     bn = BN.BreakNode(O,D,travel_time,new_node,break_time,reset_time)
     new_times = Demand.zeroed_trip_triplets(3)
-    # np.zeros(3,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+    # np.zeros(3,dtype=[('x', int), ('y', int),('t',float)])
 
     # # copy existing.  this is redundant
     # new_times[0] = [O,O,0]
@@ -134,7 +134,7 @@ def break_node_splitter(origin,destination,tt,min_start):
 
     """
     new_times = Demand.zeroed_trip_triplets(0)
-    # np.zeros(0,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+    # np.zeros(0,dtype=[('x', int), ('y', int),('t',float)])
     new_nodes = []
     long_break_time = 60*10
     long_break_interval = 60*11
@@ -211,7 +211,7 @@ def break_node_splitter(origin,destination,tt,min_start):
     # arrival at destination, so make it so can just get to dest
     # from short break
     extra_connection = np.array([(node8.node,destination,node8.tt_d+node11.tt_d)],
-                                dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+                                dtype=[('x', int), ('y', int),('t',float)])
     new_times = np.concatenate((new_times,extra_connection),axis=0)
     # print(tt,long_possible_breaks*long_break_interval,
     #       tt - long_possible_breaks*long_break_interval)
@@ -252,7 +252,7 @@ def split_break_node(record,travel_times,min_start=None):
     if min_start == None:
         min_start = len(travel_times.index)
     new_times = Demand.zeroed_trip_triplets(0)
-    # np.zeros(0,dtype=[('x', np.int), ('y', np.int),('t',np.float)])
+    # np.zeros(0,dtype=[('x', int), ('y', int),('t',float)])
     new_nodes = []
     tt = travel_times.loc[0,record.origin]
     if not np.isnan(tt):

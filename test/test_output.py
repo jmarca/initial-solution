@@ -110,7 +110,8 @@ def test_output():
     x_m = d.insert_nodes_for_breaks(m)
     trip_chains = IR.initial_routes_2(d,v.vehicles,x_m)
     initial_routes = [v for v in trip_chains.values()]
-    (assignment,routing,manager) = MR.model_run(d,x_m,v.vehicles,10000,None,initial_routes)
+    (assignment,routing,manager) = MR.model_run(d, x_m, v.vehicles,
+                                                10000, None, initial_routes)
     SO.print_solution(d,x_m,x_m,
                       v,manager,routing,assignment,horizon,
                       10000,args
